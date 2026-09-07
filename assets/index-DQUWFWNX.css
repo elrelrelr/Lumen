@@ -1521,7 +1521,7 @@ mark.hl.destello { animation: hlDestello 1.2s ease; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 24px 26px;
+  padding: 24px 0;
   overflow-y: auto;
   overflow-x: hidden;
   max-height: calc(100vh - 150px);
@@ -2087,7 +2087,7 @@ mark.hl.destello { animation: hlDestello 1.2s ease; }
 .ad-slot:not(.ad-space) { display: none; min-height: 0; }
 
 /* --- estados: página escaneada --- */
-.st-content { width: 100%; max-width: 26rem; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.st-content { width: 100%; max-width: 28rem; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
 .st-scan { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.14); }
 .st-scan img { width: 100%; display: block; max-height: 44vh; object-fit: cover; object-position: top; }
 .st-scan-tag {
@@ -7946,12 +7946,10 @@ html[data-fuente-app='imperial'] textarea {
   max-height: calc(100dvh - 176px);
   overflow-y: auto;
   overscroll-behavior: contain;
-}
-/* El desplazamiento se nota: sin esto parece que el contenido está cortado. */
-.st-body > *::-webkit-scrollbar { width: 3px; }
-.st-body > *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, .28);
-  border-radius: 3px;
+  /* v165: el margen lateral va DENTRO de la carta: la barra de scroll queda
+     pegada al borde de la pantalla y la fila sticky de botones (Siguiente/Saltar)
+     ya no se le cruza. */
+  padding: 0 26px;
 }
 
 /* ══════ Historias de preguntas rediseñadas (v37) ══════ */
@@ -11733,7 +11731,8 @@ mark.find-flash {
 }
 .st-nota-visual b { color: var(--accent); }
 @media (max-width: 400px) {
-  .st-body { padding: 16px 14px; }
+  .st-body { padding: 16px 0; }
+  .st-body > * { padding: 0 14px; }
   .st-vocab { gap: 12px; }
   .st-fsrs-btns { gap: 8px; }
   .st-fsrs-btns button { font-size: 12px; padding: 10px 2px; }

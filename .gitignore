@@ -1,0 +1,25 @@
+# ── Lumen · .gitignore ─────────────────────────────────────────
+# La app necesita TODOS los demás archivos; esto solo excluye basura
+# de sistemas y editores para que el repo se suba limpio.
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+._*
+
+# Node (por si se genera algo local)
+node_modules/
+*.log
+npm-debug.log*
+
+# Editores / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+~*
+
+# Temporales
+*.tmp
+*.bak

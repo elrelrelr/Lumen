@@ -30979,7 +30979,7 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: b.title || b.nombre || "Libro" })]
 					}, b.id));
 				});
-				if (insertAt === active.length) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+				if (active.length > 0 && insertAt === active.length) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "story-item no-libro",
 					type: "button",
 					title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — sin palabras aún",
@@ -37594,7 +37594,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v164 · escritorio y móvil"
+					children: "Lumen Reader · v167 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -50050,7 +50050,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v164" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v167" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
