@@ -1,0 +1,253 @@
+════════════════════════════════════════════════════════════════════
+  LUMEN READER · versión web (escritorio + móvil) · funciona sin internet
+════════════════════════════════════════════════════════════════════
+
+QUÉ ES ESTA CARPETA
+───────────────────
+Es la app completa de Lumen Reader como página web. Es la MISMA app que
+el APK de Android, adaptada al ordenador con una barra lateral y ventanas
+centradas. No le falta ninguna función.
+
+════════════════════════════════════════════════════════════════════
+CÓMO ABRIRLA (elige una opción)
+════════════════════════════════════════════════════════════════════
+
+  OPCIÓN 1 · DOBLE CLIC, SIN INSTALAR NADA  (la más fácil)
+  ---------------------------------------------------------
+  · Windows : haz doble clic en  Abrir-Lumen.bat
+  · macOS   : haz doble clic en  Abrir-Lumen.command
+  · Linux   : ejecuta  ./Abrir-Lumen.sh
+  Se abrirá sola en tu navegador y funciona SIN INTERNET.
+  Necesita Node.js o Python (gratuitos). Si no los tienes, el propio
+  archivo te dice dónde bajarlos.
+
+  OPCIÓN 2 · INSTALARLA COMO APLICACIÓN  (recomendada)
+  ---------------------------------------------------------
+  1. Abre la web una vez (opción 1 o un hosting).
+  2. En Chrome/Edge/Brave/Opera: pulsa el icono de instalar (aparece en
+     la barra de direcciones) o el menú ⋮ → "Instalar Lumen Reader".
+  3. Queda como una app más: icono propio, ventana propia, y arranca
+     sin internet aunque no tengas Node ni Python.
+
+  OPCIÓN 3 · SUBIRLA A INTERNET
+  ---------------------------------------------------------
+  Sube TODOS los archivos de esta carpeta a cualquier hosting estático
+  (GitHub Pages, Netlify, Cloudflare Pages…). Necesita HTTPS para que
+  funcione la instalación como app.
+
+════════════════════════════════════════════════════════════════════
+¿POR QUÉ NO ABRE HACIENDO DOBLE CLIC EN index.html?
+════════════════════════════════════════════════════════════════════
+
+Si abres `index.html` directamente (file://) el navegador lo bloquea con
+errores de CORS ("Cross origin requests are only supported for protocol
+schemes..."). NO es un fallo de la app ni falta de permisos: es una regla
+de seguridad de todos los navegadores.
+
+Los navegadores no dejan que una página cargue sus módulos JavaScript
+desde `file://`. Esta app (como cualquier PWA) necesita servirse por
+http:// o https://. Por eso existen las opciones de arriba: el lanzador
+opción 1 monta un servidor local en un segundo y la abre bien.
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES · AUTO-DETECCIÓN DE DOCUMENTOS
+════════════════════════════════════════════════════════════════════
+
+En "✨ Auto detectar documentos" (botón «+» → Añadir contenido, o en la
+barra lateral del PC):
+
+ · Android (app instalada): pide permiso y encuentra tus documentos en
+   las carpetas de siempre (Descargas, Documentos, Telegram, WhatsApp…),
+   igual que Word, WPS o Adobe. Con un toque los importa todos.
+ · PC (navegador): elige la CARPETA donde guardas tus documentos y Lumen
+   trae los de ahí (sólo esa carpeta, para no buscar en todo el equipo).
+ · Filtro por tipo: botones para elegir qué formatos buscar
+   (PDF, Word, EPUB, TXT, Markdown, .lumen, etc.). Marca varios a la vez.
+ · "Importar todos los nuevos": trae todo lo encontrado de una vez,
+   sin repetir lo que ya está en tu biblioteca.
+
+════════════════════════════════════════════════════════════════════
+PARA DESARROLLADORES (recompilar)
+════════════════════════════════════════════════════════════════════
+
+  cd reader
+  npm install
+  npm run build      → genera la carpeta dist/
+  npm run preview    → prueba local en http://localhost:4173
+
+— Generado el 2026-09-03 (v117)
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES v117 (sobre la v116)
+════════════════════════════════════════════════════════════════════
+ · Hoja «Traducir» rediseñada: primero la palabra que quieres traducir,
+   después el botón «Traducir» y, justo debajo del botón, la traducción.
+   Ya no hay que buscar el resultado al fondo de la hoja.
+ · Nueva opción «Desplazamiento» (sustituye a «Modo carrusel») con 5
+   modos para moverte por las páginas:
+     ↔️ Lateral  · carrusel de siempre, con flechas ‹ › translúcidas que
+                   no tapan el contenido (se vuelven nítidas al tocarlas)
+     📖 Libro    · pasas de página en página deslizando, como un libro
+     ↕️ Scroll   · sólo bajar y subir; al llegar al final pasas de página
+     🔀 Mixto    · libro + desplazamiento con scroll dentro de la página
+     📌 Fijo     · sin gestos: cambias de página sólo con los controles
+ · Menú de imagen renombrado a «Colores de la página» y nuevo filtro
+   «🫥 Sin fondo»: deja el color sólido del papel en transparente para
+   que se vea TU fondo elegido detrás de todas las letras.
+ · Fondo POR LIBRO: el fondo animado, el velo, el desenfoque, la
+   velocidad y el ajuste se guardan en cada libro. Abre ese libro y
+   sale siempre con su fondo, hasta que lo quites («Ninguno»). Los
+   demás libros y la pantalla de inicio siguen con el fondo del tema;
+   el menú lateral ya no queda tapado por el fondo.
+ · Arreglado (venía de versiones anteriores): abrir y cerrar hojas de
+   herramientas en secuencias rápidas podía dejar la página en blanco
+   (about:blank). El historial de navegación de las hojas queda ahora
+   siempre equilibrado.
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES v116 (sobre la v115)
+════════════════════════════════════════════════════════════════════
+ · Tutorial por capas: el tutorial del primer arranque es ahora la capa
+   MÁS ALTA de la app. Ya no puede aparecer un logro (u otra ventana)
+   encima ni detrás: mientras el tutorial esté abierto no se muestra
+   ninguna otra celebración, y el fondo de la app queda bloqueado
+   (sin scroll).
+ · Tutorial más cómodo: el botón «Anterior» ya no roza las barras de
+   progreso de arriba (separación mayor). Las barras de progreso tienen
+   fondo oscuro sólido y esquinas redondeadas: se leen perfectas sobre
+   cualquier página. La última tarjeta ya no crea doble barra de scroll
+   y «Saltar» queda siempre visible sin tapar nada.
+ · Pestaña «Original» multi-formato: DOCX, PPTX, XLSX, EPUB, MD, HTML y
+   TXT se ven en su formato original dentro del lector (tablas con
+   cuadrícula, diapositivas, capítulos…), como al abrirlos en Office o
+   WPS; el HTML se abre en el navegador integrado; el PDF en su visor
+   propio. Además, lectura tipo editor con Texto / Original / Imágenes.
+ · «Guardar en mi equipo» 📥 (menú ⋮ del libro): descarga el archivo
+   original que importaste (EPUB, PDF, DOCX…). En Chrome/Edge abre el
+   diálogo «Guardar como» para que elijas la carpeta de tu PC; en otros
+   navegadores va a la carpeta de Descargas. NOTA: una página web NO
+   puede abrir el explorador de archivos del sistema operativo (límite
+   de seguridad de todos los navegadores); la versión PWA instalada con
+   Chrome/Edge es lo más fiel: tú eliges la carpeta exacta de tu equipo.
+ · Fondos animados del lector ARREGLADOS (antes no se aplicaban): 5
+   fondos animados (Aurora, Océano, Atardecer, Bosque, Noche) + foto o
+   GIF de tu equipo. El fondo va detrás de la pestaña Texto y también
+   detrás de Imágenes y Original. Ajustes → Tema → Fondo del lector.
+ · Popup de palabra desconocida renovado: primero el significado OFFLINE
+   si el diccionario instalado lo tiene (con el nombre del diccionario
+   en pequeño), sinónimos, «Buscar en Google» en el navegador integrado,
+   «Añadir al repaso» y «Descargar más diccionarios» (abre la nueva
+   sección Diccionarios). Sin botón Cerrar redundante (la ✕ ya cierra).
+ · Nueva sección AJUSTES → DICCIONARIOS: catálogo de diccionarios
+   descargables de 11 idiomas (con peso estimado y nº de palabras),
+   botón Instalar con progreso, estado «✓ Activado», e «Importar
+   diccionario» desde archivo (compatible con Lumen, diccionarios
+   propios y StarDict .dict.dz). Los diccionarios instalados se usan en
+   el popup de palabras, en Repaso y en el chat de Lumo.
+ · Repaso arreglado por completo: una sola barra de scroll; los botones
+   Compartir, Copiar y Buscar significado funcionan; «Leer» abre el
+   libro de origen EN LA PÁGINA del fragmento; quitados los duplicados
+   (Escuchar de abajo y Abrir libro de arriba); nuevo botón «Sinónimos»
+   en el navegador integrado; y «Reclamar recompensa por ver anuncio»
+   YA DA los puntos (antes cerraba sin sumar). Todo responsive.
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES v115 (sobre la v114)
+════════════════════════════════════════════════════════════════════
+ · Sin barras de scroll «muertas»: revisadas TODAS las subpáginas. En
+   ordenador la página ya no hace scroll por fuera; cada subpágina
+   scrollea por dentro y solo cuando su contenido no cabe. En el lector
+   (Original e Imágenes) la barra del documento sólo aparece cuando hay
+   algo que desplazar.
+ · Opciones del libro (⋮): nueva opción «Mostrar en la carpeta» 📂.
+   Cierra el menú, lleva la biblioteca a la carpeta donde vive ese
+   libro (Pendientes / Leyendo / Leídos / Favoritos / Grupo), hace
+   scroll hasta él y lo resalta con un pulso. Funciona igual en móvil
+   y en ordenador.
+ · Logros de Lumo al instante: la pestaña Logros ya no recalcula nada
+   al abrirla; usa los logros guardados y aparece en milisegundos. Los
+   logros nuevos se siguen desbloqueando solos en segundo plano.
+ · Definiciones de palabras: ahora busca PRIMERO en internet (con
+   caché propia) y sólo si no hay conexión —o internet falla— recurre
+   a los diccionarios descargados. Sin internet sigue funcionando
+   igual que antes.
+
+NOVEDADES v114 (sobre la v113)
+════════════════════════════════════════════════════════════════════
+ · La pestaña Original estrena clúster flotante propio: zoom en pasos
+   del 5% (50%–250%) y botón 🎛 que abre el mismo panel de filtros,
+   brillo y contraste de Imágenes. Las filas del panel van ahora bien
+   centradas y alineadas.
+ · Los controles flotantes (zoom, contraste, OCR) ya NO se desvanecen
+   con la inactividad: siguen visibles y funcionando en Original y en
+   Imágenes.
+ · Grupos por tema: 16 colores y 20 iconos (corazón, guitarra, piano,
+   nota musical, idiomas 🗣️🌐💬, deportes, cohete…).
+ · Crear documento: pide el permiso de micrófono antes de dictar y el
+   de portapapeles al pegar; los avisos son claros («Da permiso de
+   micrófono…») y desaparecen solos. El modo Cámara sólo aparece si el
+   equipo tiene cámara.
+ · Sin doble barra de scroll también en Lumo y en todas sus subpáginas.
+ · Mensajes guardados: 36 emojis, botón nuevo de Subrayado (U), y los
+   botones B/I/U/S/código insertan «**escribe aquí**» que al enviar se
+   ve con el formato real (negrita, cursiva, subrayado, tachado, código).
+ · Opciones del libro: «Reiniciar progreso» (vuelve a 0% y sale de
+   Terminados sin tocar logros ni XP) y «Meta para terminar» (1 semana,
+   2 semanas, 1 mes o 2 meses). La meta sale en la racha como tarjeta
+   compacta con barra de progreso y botón «Leer ahora»; si quedan ≤2
+   días te avisa («Te quedan 2 días para terminar…») y si se vence sin
+   terminar pierdes 15 XP.
+ · Compartir libro arreglado en PC: si el navegador no puede compartir
+   archivos, descarga el libro y te lo deja listo para enviar.
+ · Libros secretos con contraseña en el navegador: mínimo 1 carácter,
+   con aviso si te equivocas y opción de quitarla si la olvidas.
+ · Estados de libros: al marcar o desmarcar un libro ya no se apagan
+   los demás interruptores.
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES v113 (sobre la v112)
+════════════════════════════════════════════════════════════════════
+ · Original = documento completo con scroll continuo tipo Word/Adobe:
+   páginas pegadas sin separadores y espacio para que las barras no
+   tapen el principio ni el final.
+ · Nueva pestaña «Imágenes» con el visor anterior y sus 3 formas de
+   pasar página (scroll, carrusel y arrastre).
+ · Panel de retoque sólo en Imágenes: filtros nuevos (Vívido, Cálido,
+   Frío, Nítido), brillo, contraste, girar izq/der y pestaña de recorte.
+ · Sin doble barra de scroll: el fondo deja de rodar dentro de un libro
+   o con ventanas abiertas.
+ · Volver sale a la biblioteca con el historial limpio (ya no reabre
+   Ajustes).
+ · «Ver texto»/«Ver imagen» ocultos en PC (quedan en móvil).
+ · Todas las carpetas visibles siempre, con scroll horizontal (invisible
+   en móvil, barra fina en PC).
+ · Zoom y filtros anclados en un solo sitio fijo.
+
+════════════════════════════════════════════════════════════════════
+NOVEDADES v112 (sobre la v108)
+════════════════════════════════════════════════════════════════════
+ · Todos los botones con puntero y efecto hover/press.
+ · Tutorial con scroll real, botón «Anterior» visible y pie que no tapa.
+ · Menos memoria: caché de PDF limitada y canvas con tope (adiós OOM).
+ · pdf.js se carga perezoso: arranque más rápido.
+ · Icono nuevo retocado; caché del service worker invalidada.
+ · Puerto automático y auto-recarga al actualizar: ya no se ve la versión vieja.
+ · v111: subpáginas a pantalla completa, Anterior arriba-izquierda en el
+   tutorial, tarjeta de importación clicable, scroll en Original, barras sin
+   temporizador, zoom de 5 en 5 y versión visible en la barra lateral.
+
+NOVEDADES v112
+──────────────
+ · Letra por defecto al 100 %.
+ · Original con scroll continuo (como Word/Adobe): barra visible en PC, invisible
+   en móvil; al llegar abajo pasas a la siguiente página.
+ · 3 formas de pasar página en Original: scroll, carrusel horizontal (Ajustes →
+   Lectura → Carrusel) y arrastre presionando (der→izq siguiente, izq→der anterior).
+ · El menú del libro (⋮) ya tiene botón de cerrar.
+ · Los libros sin leer se borran solos tras 1 año (configurable: 1 semana, 1 mes,
+   1 año o nunca) en Ajustes → Lectura.
+ · OCR doble: con internet (más preciso, por defecto) o sin internet.
+ · El sonido de ambiente ya no se para al cerrar los ajustes.
+ · Terminados sólo muestra libros leídos hasta la última página.
+ · Ordenar biblioteca por formato + botones para mostrar/ocultar formatos.
+ · Si una vista falla, reintento automático + botón «Recargar la app».
