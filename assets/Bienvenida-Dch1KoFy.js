@@ -37,6 +37,11 @@ var BIENVENIDA = [
 		icono: "🔥",
 		titulo: "Lee cada día",
 		texto: "La app cuenta tu racha y te va desbloqueando temas y logros. Sin prisa: la meta diaria es sólo un empujón, nunca un límite."
+	},
+	{
+		icono: "🎨",
+		titulo: "Personaliza tu Lumen",
+		texto: "Elige cómo se ve y cómo suena: tema, idioma y tamaño de letra. Puedes cambiarlos luego en Ajustes."
 	}
 ];
 var NOVEDADES = [
@@ -172,11 +177,6 @@ function Bienvenida({ tipo, onCerrar, settings, setSettings }) {
 			personalizar && i === tarjetas.length - 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "bien-personaliza",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "🎨 Personaliza tu Lumen" }),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-						className: "bien-sub",
-						children: "Elige cómo se ve y cómo suena. Puedes cambiarlo luego en Ajustes."
-					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "bien-bloque",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Tema (colores)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

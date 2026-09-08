@@ -189,14 +189,16 @@ function urlDe(sitio, texto, espejo = 0) {
 	return s.url.replace("{q}", encodeURIComponent(q));
 }
 /** Abre la búsqueda en el navegador interno (o en una pestaña, fuera de la app). */
-function abrirEnNavegador(sitio, texto, espejo = 0) {
+function abrirEnNavegador(sitio, texto, espejo = 0, forzarExterno = false) {
 	const url = urlDe(sitio, texto, espejo);
 	if (!url) return {
 		ok: false,
 		error: "Escribe qué quieres buscar"
 	};
 	const s = typeof sitio === "string" ? SITIOS.find((x) => x.id === sitio) : sitio;
-	const b = puente();
+	// v168: forzarExterno salta el navegador integrado aunque exista (check del
+	// usuario «Buscar en el navegador integrado» en OFF).
+	const b = forzarExterno ? null : puente();
 	if (b) try {
 		b.abrir(url, s?.nombre || "Buscar");
 		return {

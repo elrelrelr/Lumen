@@ -10,6 +10,23 @@ function BuscadorPage({ onSalir, toast, onMagnet }) {
 	const [favs, setFavs] = (0, import_react.useState)([]);
 	const [detalle, setDetalle] = (0, import_react.useState)(null);
 	const [enApp] = (0, import_react.useState)(() => navegadorDisponible());
+	// v168: «Buscar en el navegador integrado» — ON por defecto. En la app instalada
+	// abre la web dentro de Lumen (y la descarga se importa sola); en OFF (o en la
+	// PWA, donde no hay navegador integrado) se abre en el navegador del sistema y
+	// la importación es manual. Se recuerda la elección.
+	const [enIntegrado, setEnIntegrado] = (0, import_react.useState)(() => {
+		try {
+			return localStorage.getItem("lumen_buscador_integrado") !== "0";
+		} catch {
+			return true;
+		}
+	});
+	const fijarIntegrado = (v) => {
+		setEnIntegrado(v);
+		try {
+			localStorage.setItem("lumen_buscador_integrado", v ? "1" : "0");
+		} catch {}
+	};
 	const [abierto, setAbierto] = (0, import_react.useState)(() => estaDesbloqueado());
 	const [pidiendoCodigo, setPidiendoCodigo] = (0, import_react.useState)(false);
 	const [codigo, setCodigo] = (0, import_react.useState)("");
@@ -58,13 +75,17 @@ function BuscadorPage({ onSalir, toast, onMagnet }) {
 		haptic.tap();
 		setHist(await recordar(q));
 		const s2 = typeof sitio === "string" ? SITIOS.find((x) => x.id === sitio) : sitio;
-		const nav = typeof window !== "undefined" ? window.AndroidNav : null;
+		// v168: el check «Buscar en el navegador integrado» (ON por defecto) decide
+		// si la web se abre dentro de Lumen o en el navegador del sistema. En la PWA
+		// no hay navegador integrado → siempre externo.
+		const forzarExterno = !enIntegrado || !enApp;
+		const nav = forzarExterno ? null : typeof window !== "undefined" ? window.AndroidNav : null;
 		if (nav?.abrirConEspejos && Array.isArray(s2?.espejos) && s2.espejos.length) try {
 			const lista = s2.espejos.map((e) => e.replace("{q}", encodeURIComponent(q)));
 			nav.abrirConEspejos(urlDe(s2, q), s2.nombre || "Buscar", JSON.stringify(lista));
 			return;
 		} catch {}
-		const r = abrirEnNavegador(sitio, q);
+		const r = abrirEnNavegador(sitio, q, 0, forzarExterno);
 		if (!r.ok) return toast?.(r.error || "No se pudo abrir");
 		if (r.externo) toast?.("Se abrió en el navegador del sistema");
 	};
@@ -131,12 +152,32 @@ function BuscadorPage({ onSalir, toast, onMagnet }) {
 								className: "bp-limpiar",
 								onClick: () => setTexto(""),
 								"aria-label": "Borrar",
-								children: "✕"
-							})
-						]
-					}),
-					hist.length > 0 && !texto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "bp-hist",
+							children: "✕"
+						})
+					]
+				}),
+				/* v168: check «Buscar en el navegador integrado» (ON por defecto). */
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+					className: "bp-integrado" + (enApp ? "" : " des"),
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							type: "checkbox",
+							checked: enIntegrado && enApp,
+							disabled: !enApp,
+							onChange: (e) => fijarIntegrado(e.target.checked)
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+							children: [
+								"🌐 Buscar en el navegador integrado",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+									children: enApp ? "La web se abre dentro de Lumen y lo que descargues ahí se importa solo. En OFF se abre en tu navegador (importación manual)." : "No disponible en la PWA: la web se abre en tu navegador y la importación es manual."
+								})
+							]
+						})
+					]
+				}),
+				hist.length > 0 && !texto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "bp-hist",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "bp-hist-top",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Búsquedas recientes" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {

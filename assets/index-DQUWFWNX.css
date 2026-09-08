@@ -619,7 +619,10 @@ textarea {
   width: 100%;
   height: 100%;
   scroll-snap-align: center;
-  scroll-snap-stop: always;
+  /* v169: antes "always" obligaba a parar en cada página y el carrusel "se
+     quedaba quieto / no dejaba moverse" al deslizar rápido. Con "normal" el
+     gesto fluido puede saltar páginas (más rápido y fácil). */
+  scroll-snap-stop: normal;
   overflow-y: auto;
   overflow-x: hidden;
   padding: calc(var(--safe-t) + 54px) 0 calc(var(--safe-b) + 72px);
@@ -6275,6 +6278,35 @@ body {
   padding: 6px 8px;
 }
 .bp-hist { margin-bottom: 14px; }
+/* v168: check «Buscar en el navegador integrado» (ON por defecto) */
+.bp-integrado {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 0 2px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line, #d7d4cc);
+  border-radius: 12px;
+  background: var(--bg-soft, #fffdf7);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.bp-integrado input {
+  margin-top: 2px;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--accent, #7c5cff);
+  flex-shrink: 0;
+}
+.bp-integrado span { display: flex; flex-direction: column; gap: 3px; }
+.bp-integrado small {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg-dim, #a7abb5);
+  line-height: 1.4;
+}
+.bp-integrado.des { opacity: .7; cursor: default; }
 .bp-hist-top {
   display: flex;
   justify-content: space-between;
@@ -8307,6 +8339,11 @@ html[data-fuente-app='antigua'] textarea {
   pointer-events: none;
 }
 .rd-scroll-fab > * { pointer-events: auto; }
+/* v169: el fab de auto-scroll se oculta al ocultar los controles (clic en el
+   contenido), igual que las barras; antes se quedaba fijo y no desaparecía. */
+.reader.sin-controles .rd-scroll-fab { opacity: 0; transition: opacity .25s ease; }
+.reader.sin-controles .rd-scroll-fab > * { pointer-events: none; }
+.rd-scroll-btn.rd-scroll-toggle.on { background: var(--accent); border-color: var(--accent); color: #fff; opacity: 1; }
 .rd-scroll-btn {
   width: 44px;
   height: 44px;
@@ -8990,25 +9027,28 @@ html[data-fuente-app='antigua'] textarea {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: 6px; /* v170: más compacto (antes 8px) */
   pointer-events: none;
 }
 .rd-scroll-fab > * { pointer-events: auto; }
 
+/* v170: más compacto (antes 48px) para que el conjunto no tape la página */
 .rd-scroll-btn {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 1.5px solid var(--line);
   background: var(--bg-elev);    /* sin transparencia cuando no está en uso */
   color: var(--fg);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1;
   box-shadow: 0 3px 12px rgba(0,0,0,.35);
   opacity: .92;                  /* visible pero no intrusivo */
   transition: opacity .2s, transform .15s, background .2s;
 }
+.rd-scroll-sync { border-color: var(--flame, #ff9f43); color: var(--flame, #ff9f43); opacity: 1; }
+.rd-scroll-sync:active { background: color-mix(in srgb, var(--flame, #ff9f43) 18%, transparent); }
 .rd-scroll-btn:active { transform: scale(.88); opacity: 1; }
 .rd-scroll-fab.auto .rd-scroll-btn {
   opacity: 1;
@@ -9087,10 +9127,11 @@ html[data-fuente-app='antigua'] textarea {
 
 /* Botón separado de navegación arriba/abajo: más pequeño y a la izquierda
    del botón principal, para no confundirlo con el control de velocidad. */
+/* v170: más compacto (antes 34px) el botón ↑/↓ (volver arriba / bajar al fondo) */
 .rd-scroll-nav {
-  width: 34px;
-  height: 34px;
-  font-size: 13px;
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
   border-radius: 50%;
   border: 1.5px solid var(--line);
   background: var(--bg-elev);
@@ -11119,6 +11160,11 @@ body:has(.stories){overflow:hidden!important}
 .carr-nav:hover, .carr-nav:active { opacity: 0.85; }
 .carr-nav.prev { left: 4px; }
 .carr-nav.next { right: 4px; }
+/* v171: los botones laterales están ESTÁTICOS al tocar (sin cambio de opacidad
+   ni animación, que era el "efecto" que se movía) y son más sensibles
+   (touch-action: manipulation quita el retardo del tap). */
+.carr-nav { touch-action: manipulation; transition: none; }
+.carr-nav:active { opacity: 0.38; }
 .desp-opts { display: flex; flex-direction: column; gap: 8px; }
 .desp-opt {
   display: flex;
@@ -11207,6 +11253,18 @@ body:has(.stories){overflow:hidden!important}
   color: #fff;
 }
 .st-rm-titulo { font-size: 21px; font-weight: 800; }
+/* v168: la carta-filtro de repaso («¿Qué quieres reforzar hoy?») ahora lleva su
+   propio panel con padding, para que en móvil no se pegue a los bordes y respire
+   igual que las demás cartas. */
+.st-rm-panel {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
 .st-rm-sub {
   font-size: 11px;
   font-weight: 700;
@@ -11267,7 +11325,9 @@ body:has(.stories){overflow:hidden!important}
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(var(--safe-b, 0px) + 120px);
+  /* v169: sube de 120px a 150px para no chocar con el fab centrado «Ver
+     imagen/Ver texto» (a 104px); antes se solapaban (120–141px). */
+  bottom: calc(var(--safe-b, 0px) + 150px);
   z-index: 25;
   display: flex;
   align-items: center;
@@ -11275,11 +11335,44 @@ body:has(.stories){overflow:hidden!important}
   gap: 9px;
   padding: 4px 10px;
   pointer-events: none;
+  flex-wrap: nowrap;
+  max-width: 100%;
   transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.2s;
 }
 .rd-barra > * { pointer-events: auto; }
 .rd-barra.hidden-bottom > * { pointer-events: none; }
-.reader .page-badge { display: none; }
+/* v170: en Original, la página actual (N/M) vuelve a mostrarse: píldora
+   discreta, clicable para «ir a la página». Antes (v160) estaba en display:none.
+   Se ubica centrada en la parte baja, sin chocar con la barra (que está a 150px). */
+.reader .page-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  position: absolute;
+  bottom: calc(var(--safe-b) + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 30;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(18, 19, 26, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--fg, #fff);
+  opacity: 0.92;
+  pointer-events: auto;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.reader .page-badge:active {
+  transform: translateX(-50%) scale(0.96);
+  background: rgba(30, 32, 44, 0.9);
+}
 .rb-colores {
   display: flex;
   align-items: center;
@@ -11389,6 +11482,18 @@ body:has(.stories){overflow:hidden!important}
 .rb-fx.on {
   border-color: var(--acc, #9d8cff);
   box-shadow: 0 0 0 2px var(--acc, #9d8cff), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+/* v169: en pantallas estrechas la barra se compacta para que los 3 grupos
+   (color de página + zoom + filtros) quepan en UNA sola línea y el 🎛 no
+   baje/envuelva ni choque con el botón «Ver imagen/Ver texto». */
+@media (max-width: 430px) {
+  .rd-barra { gap: 6px; padding: 3px 8px; }
+  .rb-colores { gap: 5px; padding: 4px 6px; }
+  .rb-dot { width: 16px; height: 16px; }
+  .rb-zoom { gap: 1px; padding: 2px 3px; }
+  .rb-btn { width: 24px; height: 24px; font-size: 14px; }
+  .rb-pct { min-width: 38px; height: 24px; font-size: 11px; padding: 0 4px; }
+  .rb-fx { width: 26px; height: 26px; font-size: 12px; }
 }
 /* v123: el zoom unificado también aplica a las imágenes (canvas de la página
    única de PDF; el resto ya usaba --doczoom vía .doc-flow). En el carrusel de
@@ -11550,6 +11655,12 @@ mark.find-flash {
 }
 .lg-temas {
   margin: 0 4px 12px;
+}
+/* v168: en móvil, las 13 chips de género apilaban varias filas y formaban una
+   barra horizontal muy alta. Más pequeñas y justas = mucho más compacto. */
+@media (max-width: 640px) {
+  .lg-temas { gap: 5px; margin: 0 4px 8px; }
+  .lg-temas .chip { font-size: 11.5px; padding: 5px 9px; border-radius: 9px; }
 }
 .lg-grid {
   display: grid;
@@ -11801,22 +11912,24 @@ mark.find-flash {
 .mus-pill:hover { color: var(--fg); border-color: var(--acc, #7c5cff); }
 /* ===== v146: «Color de la letra» también en Original y en «Sin fondo» ===== */
 .reader[data-letra]:not([data-letra="auto"]) .orig-pre { color: var(--letra-user) !important; }
+.reader[data-letra]:not([data-letra="auto"]) .orig-html { color: var(--letra-user) !important; }
+.reader[data-letra]:not([data-letra="auto"]) .orig-html * { color: inherit !important; }
 .reader[data-letra]:not([data-letra="auto"]) .orig-pre * { color: inherit !important; }
 /* Sin fondo (Imágenes): la tinta toma el color elegido */
 .reader[data-letra="#ffffff"].sin-papel .carousel.orig img,
-.reader[data-letra="#ffffff"].sin-papel .zoom-pane img { mix-blend-mode: screen; filter: grayscale(1) invert(1) contrast(1.05); }
+.reader[data-letra="#ffffff"].sin-papel .zoom-pane img, .reader[data-letra="#ffffff"].sin-papel .doc-flow .doc-img, .reader[data-letra="#ffffff"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#ffffff"].sin-papel .orig-flow img, .reader[data-letra="#ffffff"].sin-papel .orig-flow canvas, .reader[data-letra="#ffffff"].sin-papel .zoom-pane canvas { mix-blend-mode: screen; filter: grayscale(1) invert(1) contrast(1.05); }
 .reader[data-letra="#14161b"].sin-papel .carousel.orig img,
-.reader[data-letra="#14161b"].sin-papel .zoom-pane img { filter: grayscale(1) contrast(1.08); }
+.reader[data-letra="#14161b"].sin-papel .zoom-pane img, .reader[data-letra="#14161b"].sin-papel .doc-flow .doc-img, .reader[data-letra="#14161b"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#14161b"].sin-papel .orig-flow img, .reader[data-letra="#14161b"].sin-papel .orig-flow canvas, .reader[data-letra="#14161b"].sin-papel .zoom-pane canvas { filter: grayscale(1) contrast(1.08); }
 .reader[data-letra="#f1e3c3"].sin-papel .carousel.orig img,
-.reader[data-letra="#f1e3c3"].sin-papel .zoom-pane img { filter: grayscale(1) sepia(1) hue-rotate(12deg) saturate(2.1) brightness(1.02); }
+.reader[data-letra="#f1e3c3"].sin-papel .zoom-pane img, .reader[data-letra="#f1e3c3"].sin-papel .doc-flow .doc-img, .reader[data-letra="#f1e3c3"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#f1e3c3"].sin-papel .orig-flow img, .reader[data-letra="#f1e3c3"].sin-papel .orig-flow canvas, .reader[data-letra="#f1e3c3"].sin-papel .zoom-pane canvas { filter: grayscale(1) sepia(1) hue-rotate(12deg) saturate(2.1) brightness(1.02); }
 .reader[data-letra="#e8b96b"].sin-papel .carousel.orig img,
-.reader[data-letra="#e8b96b"].sin-papel .zoom-pane img { filter: grayscale(1) sepia(1) hue-rotate(0deg) saturate(3.1); }
+.reader[data-letra="#e8b96b"].sin-papel .zoom-pane img, .reader[data-letra="#e8b96b"].sin-papel .doc-flow .doc-img, .reader[data-letra="#e8b96b"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#e8b96b"].sin-papel .orig-flow img, .reader[data-letra="#e8b96b"].sin-papel .orig-flow canvas, .reader[data-letra="#e8b96b"].sin-papel .zoom-pane canvas { filter: grayscale(1) sepia(1) hue-rotate(0deg) saturate(3.1); }
 .reader[data-letra="#9fe6a0"].sin-papel .carousel.orig img,
-.reader[data-letra="#9fe6a0"].sin-papel .zoom-pane img { filter: grayscale(1) sepia(1) hue-rotate(95deg) saturate(2.6) brightness(1.02); }
+.reader[data-letra="#9fe6a0"].sin-papel .zoom-pane img, .reader[data-letra="#9fe6a0"].sin-papel .doc-flow .doc-img, .reader[data-letra="#9fe6a0"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#9fe6a0"].sin-papel .orig-flow img, .reader[data-letra="#9fe6a0"].sin-papel .orig-flow canvas, .reader[data-letra="#9fe6a0"].sin-papel .zoom-pane canvas { filter: grayscale(1) sepia(1) hue-rotate(95deg) saturate(2.6) brightness(1.02); }
 .reader[data-letra="#9ec9ff"].sin-papel .carousel.orig img,
-.reader[data-letra="#9ec9ff"].sin-papel .zoom-pane img { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2.3) brightness(1.02); }
+.reader[data-letra="#9ec9ff"].sin-papel .zoom-pane img, .reader[data-letra="#9ec9ff"].sin-papel .doc-flow .doc-img, .reader[data-letra="#9ec9ff"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#9ec9ff"].sin-papel .orig-flow img, .reader[data-letra="#9ec9ff"].sin-papel .orig-flow canvas, .reader[data-letra="#9ec9ff"].sin-papel .zoom-pane canvas { filter: grayscale(1) sepia(1) hue-rotate(180deg) saturate(2.3) brightness(1.02); }
 .reader[data-letra="#ffb3d9"].sin-papel .carousel.orig img,
-.reader[data-letra="#ffb3d9"].sin-papel .zoom-pane img { filter: grayscale(1) sepia(1) hue-rotate(315deg) saturate(2.6) brightness(1.02); }
+.reader[data-letra="#ffb3d9"].sin-papel .zoom-pane img, .reader[data-letra="#ffb3d9"].sin-papel .doc-flow .doc-img, .reader[data-letra="#ffb3d9"].sin-papel .doc-flow .doc-page>img, .reader[data-letra="#ffb3d9"].sin-papel .orig-flow img, .reader[data-letra="#ffb3d9"].sin-papel .orig-flow canvas, .reader[data-letra="#ffb3d9"].sin-papel .zoom-pane canvas { filter: grayscale(1) sepia(1) hue-rotate(315deg) saturate(2.6) brightness(1.02); }
 /* ===== v146: caja de colores en «Colores de la página» ===== */
 .fx-let { margin: 12px 0 4px; padding: 10px 10px 8px; border-radius: 12px; background: var(--bg-soft, rgba(127, 127, 127, .1)); }
 .fx-let-cab { font-size: 12.5px; font-weight: 700; color: var(--fg-dim, #9aa0aa); margin-bottom: 8px; }

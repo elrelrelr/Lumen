@@ -452,7 +452,7 @@ var DEFAULT_SETTINGS = {
 	ttsRate: 1.25,
 	ttsPitch: 1,
 	ttsVoice: "",
-	theme: "dark",
+	theme: "nocturno",
 	countSeconds: 4,
 	musicVolume: 1,
 	autoAdvance: true,

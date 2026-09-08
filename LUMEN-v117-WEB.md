@@ -1,5 +1,25 @@
 # Lumen Reader · registro de cambios (web)
 
+## v168 · Tema azul oscuro por defecto, tutorial separado y descarga primero por navegador
+
+**Tema (punto 2):** el tema por defecto de la app ahora es **«Azul nocturno»** (azul oscuro), en vez de «Oscuro». Afecta a usuarios nuevos; el tema se sigue pudiendo cambiar en Ajustes.
+
+**Tutorial (punto 1):** «Personaliza tu Lumen» ahora es una carta **separada** de «Lee cada día» (es la carta 7 del tutorial). Antes el panel de personalización quedaba pegado a la última carta.
+
+**Buscar en la web (punto 3):** nuevo check **«🌐 Buscar en el navegador integrado»**, activado por defecto. En la aplicación instalada, la web se abre dentro de Lumen y lo que descargues ahí se importa solo; en OFF (o en la PWA, donde no hay navegador integrado) se abre en el navegador del dispositivo y la importación es manual.
+
+**Libros gratis (punto 4):**
+- En móvil las 13 chips de género quedaron **más pequeñas y compactas** (antes apilaban varias filas y formaban una barra horizontal muy alta).
+- La descarga ahora abre **primero el navegador** (el integrado de Lumen si existe, si no el del dispositivo), se descarga ahí y Lumen lo importa solo (o a mano con «Elegir archivo»). El *fetch* directo —el que fallaba con «failed to fetch» en la mayoría— pasa a ser una opción del menú ⋯ («⚡ Descarga directa»).
+
+**Repaso (punto 8):** la carta «¿Qué quieres reforzar hoy?» ahora tiene su propio panel con **padding**, para que en móvil no se pegue a los bordes y respire como las demás cartas.
+
+**Torrent (punto 6) — comprobado:** el torrent **sólo funciona en la aplicación Android instalada** (usa el motor nativo `AndroidTorrent`; un navegador/PWA no puede usar BitTorrent). En la PWA la página lo indica: «Sólo en la aplicación instalada».
+
+**Documentos (punto 7):** el **auto-detectar documentos SÍ funciona en la PWA** (selector de archivos del sistema + análisis en el teléfono, sin puente nativo). Para instalar la PWA en el móvil: Chrome → menú ⋮ → «Añadir a la pantalla de inicio» (o «Instalar aplicación»).
+
+**Paquete:** `Lumen-v168.zip` · service worker `sw-v168.js` (desregistra solo los SW de versiones anteriores y actualiza la caché).
+
 ## v137 · Portada verificada de punta a punta + error claro sin original
 
 **Verificación funcional (nuevo):** con un entorno que simula el navegador (jsdom + IndexedDB) se reprodujo el flujo real completo y **ambos botones de la hoja "Portada del libro" quedaron verificados de punta a punta**:

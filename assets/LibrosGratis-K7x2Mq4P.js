@@ -560,6 +560,9 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 	};
 	// v148: página del libro para abrir en un navegador
 	const urlLibroDe = (libro) => libro.url || (libro.fuente !== "openlibrary" && libro.fuente !== "archive" ? "https://www.gutenberg.org/ebooks/" + libro.id : null);
+	// v168: ¿existe el navegador integrado (puente de la app Android)? En la
+	// PWA/PC no hay, así que el flujo usa el navegador del dispositivo.
+	const navDisponible = () => typeof window !== "undefined" && !!(window.AndroidNav && typeof window.AndroidNav.abrir === "function");
 	// v148: vigila la biblioteca: apenas aparezca el libro importado (por
 	// descarga en el navegador), lo detecta y lo abre solo.
 	const vigilarLibro = (libro) => {
@@ -604,8 +607,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 	};
 	// v148: abrir la página del libro en el navegador elegido y vigilar la importación
 	const abrirConNavegador = (libro, modo) => {
-		const u = urlLibroDe(libro);
-		if (!u) return toast?.("Este libro no tiene página para abrir");
+		// v168: si el libro tiene archivo directo (EPUB/TXT), se abre ESE enlace
+		// en el navegador (que lo descarga sin problemas de CORS); si no, la
+		// página del libro. Antes se usaba fetch directo, que fallaba en la mayoría.
+		const u = libro.epub || libro.txt || urlLibroDe(libro);
+		if (!u) return toast?.("Este libro no tiene archivo ni página para abrir");
 		const tituloNav = "Libros gratis · " + (libro.title || "");
 		let abierto = false;
 		if (modo === "lumen") {
@@ -738,8 +744,17 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						className: "btn primary lg-boton",
 						onClick: () => {
 							setMenuLibro(null);
-							if (libro.epub || libro.txt || libro.ia) leerGratis(libro).catch(() => {});
-							else setMenuLibro(String(libro.id));
+							// v168: PRIMERO se abre el navegador (integrado de Lumen si
+							// existe, si no el del dispositivo) y se descarga ahí; Lumen
+							// lo importa solo al detectarlo (o a mano con «Elegir archivo»).
+							// El fetch directo queda como opción en el menú ⋯.
+							if (libro.epub || libro.txt || urlLibroDe(libro)) {
+								abrirConNavegador(libro, navDisponible() ? "lumen" : "dispositivo");
+							} else if (libro.ia) {
+								leerGratis(libro).catch(() => {});
+							} else {
+								setMenuLibro(String(libro.id));
+							}
 						},
 						children: "⬇ Leer gratis"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -759,14 +774,21 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						setMenuLibro(null);
 						abrirConNavegador(libro, "lumen");
 					},
-					children: "🌐 Navegador de Lumen"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "btn",
-					onClick: () => {
-						setMenuLibro(null);
-						abrirConNavegador(libro, "dispositivo");
-					},
-					children: "📲 Navegador del dispositivo"
+							children: "🌐 Navegador de Lumen"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								abrirConNavegador(libro, "dispositivo");
+							},
+							children: "📲 Navegador del dispositivo"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								leerGratis(libro).catch(() => {});
+							},
+							children: "⚡ Descarga directa"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					className: "btn ghost",
 					onClick: () => setMenuLibro(null),
