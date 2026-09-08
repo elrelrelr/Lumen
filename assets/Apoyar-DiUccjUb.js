@@ -35,7 +35,7 @@ var TARJETAS = [
 		texto: "Si Lumen te sirve, una donación ayuda a que siga creciendo. Y si no puedes, no pasa absolutamente nada: sigue disfrutándola igual."
 	}
 ];
-function Apoyar({ modo = "pantalla", onCerrar, toast, onAbrirPremium }) {
+function Apoyar({ modo = "pantalla", onCerrar, toast, onAbrirPremium, onVerHistoria }) {
 	const [i, setI] = (0, import_react.useState)(0);
 	const [verRedes, setVerRedes] = (0, import_react.useState)(modo !== "historia");
 	const [copiada, setCopiada] = (0, import_react.useState)("");
@@ -172,6 +172,14 @@ function Apoyar({ modo = "pantalla", onCerrar, toast, onAbrirPremium }) {
 						className: "apoyo-corazon",
 						children: "💙"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Gracias por pensarlo. Elige la red que te resulte más cómoda, copia la dirección o escanea el código." })]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "apoyo-ver-hist",
+					onClick: () => {
+						haptic.tap?.();
+						onVerHistoria?.()
+					},
+					children: "✨ Conoce la historia de Lumen"
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "prem-fila prem-fila-donar" + (premActivo ? " on" : ""),

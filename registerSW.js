@@ -13,7 +13,7 @@ if ('serviceWorker' in navigator) {
     // v137: el SW cambia de archivo en cada entrega mayor. Si queda uno
     // viejo registrado (sw.js, sw-vXXX.js anteriores), se desregistra para
     // que la caché antigua no siga sirviendo una versión vieja.
-    const esActual = (u) => !!u && u.indexOf("sw-v171.js") !== -1;
+    const esActual = (u) => !!u && u.indexOf("sw-v173.js") !== -1;
     navigator.serviceWorker.getRegistrations().then((regs) => {
       for (const r of regs) {
         if (!esActual(r.active && r.active.scriptURL) &&
@@ -23,7 +23,7 @@ if ('serviceWorker' in navigator) {
         }
       }
     }).catch(() => {});
-    navigator.serviceWorker.register('./sw-v171.js', { scope: './' })
+    navigator.serviceWorker.register('./sw-v173.js', { scope: './' })
       .then((reg) => { reg.update && reg.update(); })
       .catch(() => {});
   });

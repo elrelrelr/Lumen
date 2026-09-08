@@ -12413,3 +12413,85 @@ mark.find-flash {
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 * { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--acc, #7c8cff) 38%, transparent) transparent; }
+
+
+/* ============ v173 · Apoyar: la «historia» ya no se abre sola al iniciar ============
+   (1) Botón en la pantalla «Apoyar a Lumen» para abrirla.
+   (2) La «historia» se ve como tarjeta centrada sobre la app (no a pantalla
+       completa): overlay atenuado, barras de progreso en el flujo (sobre la
+       tarjeta) para que no tapen el corazón 💙. */
+.apoyo-ver-hist{
+  display:block;
+  width:100%;
+  margin:0 0 14px;
+  padding:13px 14px;
+  font-size:14px;
+  font-weight:650;
+  font-family:inherit;
+  color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 12%, transparent);
+  border:1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+  border-radius:14px;
+  cursor:pointer;
+  text-align:center;
+  transition:transform .12s ease, background .15s ease;
+}
+.apoyo-ver-hist:active{ transform:scale(.985); background:color-mix(in srgb, var(--accent) 20%, transparent); }
+
+.apoyo-hist{
+  justify-content:center;
+  align-items:center;
+  gap:0;
+  padding:calc(var(--safe-t,0px) + 20px) 22px calc(var(--safe-b,0px) + 20px);
+  background:rgba(8,7,15,.9);
+  -webkit-backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px);
+}
+/* barras en el flujo, centradas sobre la tarjeta (antes: absolutas, encima del 💙) */
+.apoyo-hist .bien-barras{
+  position:static;
+  transform:none;
+  left:auto;
+  right:auto;
+  top:auto;
+  width:min(220px,58vw);
+  margin:0 auto 22px;
+  pointer-events:none;
+}
+/* «Ahora no» (cerrar) arriba a la derecha, por encima de las zonas de swipe */
+.apoyo-hist .bien-saltar{ top:calc(var(--safe-t,0px) + 14px); right:16px; z-index:8; }
+/* la tarjeta: caja acotada y elevada, no a pantalla completa */
+.apoyo-hist .bien-tarjeta{
+  max-width:22rem;
+  width:100%;
+  pointer-events:none;
+  background:linear-gradient(165deg,#221d3d,#151220 72%);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  padding:30px 24px 26px;
+  box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+.apoyo-hist .bien-icono{ font-size:54px; margin-bottom:16px; }
+/* pie (botones) bajo la tarjeta, táctil (por encima de las zonas de swipe) */
+.apoyo-hist .bien-pie{
+  position:relative;
+  left:auto;
+  right:auto;
+  bottom:auto;
+  z-index:5;
+  width:100%;
+  max-width:22rem;
+  margin:0 auto;
+  background:none;
+  padding:18px 0 0;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+}
+.apoyo-hist .bien-cuenta{ margin-top:10px; }
+@media (max-width:380px){
+  .apoyo-hist .bien-tarjeta{ padding:26px 18px 22px; }
+  .apoyo-hist .bien-icono{ font-size:48px; }
+}
