@@ -37256,7 +37256,7 @@ const toquesDev = (0, import_react.useRef)(0);
 									children: "Cómo te mueves por el libro"
 								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
 									className: "plain",
-									value: settings.desplazamiento || (settings.carousel ? "libro" : "mixto"),
+									value: settings.desplazamiento || "scroll",
 									onChange: (e) => setSettings({ desplazamiento: e.target.value }),
 									children: DESP_OPCIONES.map(([id, nombre]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 										value: id,
@@ -37622,7 +37622,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v173 · escritorio y móvil"
+					children: "Lumen Reader · v177 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -41513,15 +41513,37 @@ var DESP_OPCIONES = [
 	["lateral", "↔️ Lateral", "Carrusel con botones translúcidos que no tapan la página"],
 	["libro", "📖 Libro", "Pasas de página en página deslizando, como un libro"],
 	["scroll", "↕️ Scroll", "Solo bajar y subir; al llegar al final pasas de página"],
-	["mixto", "🔀 Mixto", "Libro + desplazamiento con scroll dentro de la página"],
 	["fijo", "📌 Fijo", "Sin gestos: cambias de página con los controles"]
 ];
-// v132: desplazamientos disponibles por pestaña (Texto: scroll y carusel;
-// Imágenes: libro, carusel y scroll; Original: solo scroll).
+// v132: desplazamientos disponibles por pestaña.
+// v177 (#5): "lateral" SOLO en Texto (antes también en Imágenes). Por defecto
+// está desactivado (scroll); al activarlo en Texto los botones ‹ › se muestran
+// ahí (y solo ahí). Original: solo scroll.
 var DESP_POR_MODO = {
 	text: ["scroll", "lateral"],
-	imagenes: ["libro", "lateral", "scroll", "fijo"],
+	imagenes: ["libro", "scroll", "fijo"],
 	original: ["scroll"]
+};
+// v177 (#5): divide el texto de una pagina en "partes" (agrupa parrafos
+// hasta ~MAXC caracteres). En Lateral (Texto) se navega parte a parte.
+var partesDeTexto = (t, maxC) => {
+	const MAXC = maxC || 900;
+	const paras = String(t || "").split(/\n+/).map((p) => p.trim()).filter((p) => p.length > 1);
+	if (!paras.length) return [String(t || "").trim()];
+	// un párrafo muy largo se divide SOLO en espacios (nunca en medio de una palabra)
+	const units = [];
+	for (const p of paras) {
+		if (p.length <= MAXC) { units.push(p); continue; }
+		const words = p.split(" ");
+		let cur = "";
+		for (const w of words) { if (cur && cur.length + 1 + w.length > MAXC) { units.push(cur); cur = w; } else cur = cur ? cur + " " + w : w; }
+		if (cur) units.push(cur);
+	}
+	// se agrupan sin cortar palabras: los cortes caen entre párrafos (después de un espacio)
+	const out = []; let cur = "";
+	for (const u of units) { if (cur && cur.length + 2 + u.length > MAXC) { out.push(cur); cur = u; } else cur = cur ? cur + "\n\n" + u : u; }
+	if (cur) out.push(cur);
+	return out.length ? out : [String(t || "").trim()];
 };
 var FONTS = {
 	serif: "Georgia, \"Times New Roman\", serif",
@@ -41599,109 +41621,57 @@ var VEL_LABELS = [
 	"Veloz",
 	"Máx"
 ];
-function ScrollFab({ abajo, auto, vel, largo, onTocar, onLargo, onVel, onSync }) {
-	const [panelAbierto, setPanelAbierto] = (0, import_react.useState)(false);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "rd-scroll-fab" + (auto ? " auto" : "") + (largo ? "" : " off"),
+function ScrollFab({ abajo, onTocar, mode, settings, setSettings, docZoom, setDocZoom }) {
+	// v174: el cluster flotante ahora es ZOOM (pila vertical +/%/−) + SUBIR/BAJAR.
+	// El auto-scroll (toggle + velocidad) se movió al panel «Lectura».
+	const z = mode === "text" ? {
+		lab: String(settings.fontSize || 20),
+		menos: () => setSettings({ fontSize: Math.max(14, (settings.fontSize || 20) - 2) }),
+		mas: () => setSettings({ fontSize: Math.min(48, (settings.fontSize || 20) + 2) }),
+		reset: () => setSettings({ fontSize: 20 }),
+		min: (settings.fontSize || 20) <= 14,
+		max: (settings.fontSize || 20) >= 48
+	} : {
+		lab: docZoom + "%",
+		menos: () => setDocZoom((v) => Math.max(50, v - 5)),
+		mas: () => setDocZoom((v) => Math.min(250, v + 5)),
+		reset: () => setDocZoom(100),
+		min: docZoom <= 50,
+		max: docZoom >= 250
+	};
+	return (0, import_jsx_runtime.jsxs)("div", {
+		className: "rd-scroll-fab rd-zoom-fab",
 		children: [
-			panelAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rd-scroll-vel",
-				onPointerDown: (e) => e.stopPropagation(),
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "rd-vel-titulo",
-						children: auto ? "Velocidad" : "Auto-scroll"
-					}),
-					// v170: el botón 📍 «ir a la página que se lee» ya no va en el
-					// panel: se movió a la fila principal del fab (más a mano).
-					[
-						1,
-						2,
-						3,
-						4,
-						5
-					].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-						className: "rd-scroll-v" + (vel === v ? " on" : ""),
-						onPointerDown: (e) => {
-							e.stopPropagation();
-							onVel?.(v);
-							haptic$1.tap?.();
-						},
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "rd-vel-num",
-							children: v
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "rd-vel-lbl",
-							children: VEL_LABELS[v - 1]
-						})]
-					}, v)),
-					!auto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-vel-start",
-						onPointerDown: (e) => {
-							e.stopPropagation();
-							onLargo?.();
-							setPanelAbierto(false);
-						},
-						children: "▶️ Empezar"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-vel-stop",
-						onPointerDown: (e) => {
-							e.stopPropagation();
-							onLargo?.();
-							setPanelAbierto(false);
-						},
-						children: "⏹ Parar"
-					})
-				]
+			(0, import_jsx_runtime.jsx)("button", {
+				className: "rd-zoom-btn",
+				"aria-label": "Acercar",
+				disabled: z.max,
+				onClick: () => { z.mas(); haptic$1.tap?.(); },
+				onContextMenu: (e) => e.preventDefault(),
+				children: "＋"
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "rd-scroll-row",
-				children: [
-					// v169: botón de auto-scroll de 1 CLIC (▶/⏸). Antes para empezar/
-					// parar había que abrir el panel y pulsar dentro, lo que se
-					// percibía como "mantener". Ahora un toque directo lo conmuta.
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-scroll-btn rd-scroll-toggle" + (auto ? " on" : ""),
-						"aria-label": auto ? "Detener el auto-scroll" : "Empezar el auto-scroll",
-						onClick: () => {
-							setPanelAbierto(false);
-							onLargo?.();
-						},
-						onContextMenu: (e) => e.preventDefault(),
-						children: auto ? "⏸" : "▶"
-					}),
-					// v170: botón 📍 «ir a la página que se lee» en la fila principal
-					// (visible solo si hay voz activa). Fusiona la pastilla «Leyendo
-					// pág. N» que se quitó; ahora salta a la página TTS y centra la palabra.
-					onSync && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-scroll-btn rd-scroll-sync",
-						"aria-label": "Ir a la página que se lee",
-						onClick: () => {
-							setPanelAbierto(false);
-							onSync?.();
-						},
-						onContextMenu: (e) => e.preventDefault(),
-						children: "📍"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-scroll-btn",
-						"aria-label": "Velocidad del auto-scroll",
-						onClick: () => setPanelAbierto((v) => !v),
-						onContextMenu: (e) => e.preventDefault(),
-						children: "⚙"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rd-scroll-btn rd-scroll-nav",
-						"aria-label": abajo ? "Ir arriba" : "Ir abajo",
-						onClick: () => {
-							setPanelAbierto(false);
-							onTocar?.();
-						},
-						onContextMenu: (e) => e.preventDefault(),
-						children: abajo ? "↑" : "↓"
-					})
-				]
+			(0, import_jsx_runtime.jsx)("button", {
+				className: "rd-zoom-pct",
+				title: "Restablecer zoom",
+				"aria-label": "Restablecer zoom",
+				onClick: () => { z.reset(); haptic$1.tap?.(); },
+				onContextMenu: (e) => e.preventDefault(),
+				children: z.lab
+			}),
+			(0, import_jsx_runtime.jsx)("button", {
+				className: "rd-zoom-btn",
+				"aria-label": "Alejar",
+				disabled: z.min,
+				onClick: () => { z.menos(); haptic$1.tap?.(); },
+				onContextMenu: (e) => e.preventDefault(),
+				children: "－"
+			}),
+			(0, import_jsx_runtime.jsx)("button", {
+				className: "rd-scroll-nav",
+				"aria-label": abajo ? "Ir arriba" : "Ir abajo",
+				onClick: () => onTocar?.(),
+				onContextMenu: (e) => e.preventDefault(),
+				children: abajo ? "↑" : "↓"
 			})
 		]
 	});
@@ -42305,6 +42275,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const docRaf = (0, import_react.useRef)(0);
 	const docTrabajos = (0, import_react.useRef)(0);
 	const docGen = (0, import_react.useRef)(0);
+	const docNav = (0, import_react.useRef)(0); // v174 (P6): timestamp del último scroll programático
 	const docFlowRef = (0, import_react.useRef)(null);
 	const [hojaImg, setHojaImg] = (0, import_react.useState)(false);
 	usarPantallaAtras(() => setHojaImg(false), void 0, hojaImg);
@@ -42322,6 +42293,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const enTraduccion = !!pagTrad && tradModo !== "orig";
 	const textoVista = enTraduccion ? pagTrad?.texto || "" : text;
 	const [carouselPages, setCarouselPages] = (0, import_react.useState)([]);
+	// v177 (#5): parte (chunk) dentro de la pagina en modo Lateral (solo Texto)
+	const [lateralParte, setLateralParte] = (0, import_react.useState)(0);
+	const [partsPerPage, setPartsPerPage] = (0, import_react.useState)([]);
+	const flatNav = (0, import_react.useRef)(false);
+	// v177 (#2): cada parte cabe en la pantalla (cabe ~2 párrafos); se recalcula al cambiar el alto de la ventana.
+	const [lateralMaxChars, setLateralMaxChars] = (0, import_react.useState)(() => Math.max(450, Math.min(1200, Math.round((window.innerHeight || 740) * 1.15))));
+	(0, import_react.useEffect)(() => { const onR = () => setLateralMaxChars(Math.max(450, Math.min(1200, Math.round((window.innerHeight || 740) * 1.15)))); window.addEventListener("resize", onR); return () => window.removeEventListener("resize", onR); }, []);
 	const carouselRef = (0, import_react.useRef)(null);
 	const surfaceRef = (0, import_react.useRef)(null);
 	const mounted = (0, import_react.useRef)(true);
@@ -42354,12 +42332,41 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const ratiosRef = (0, import_react.useRef)({});
 	const restaurarPosRef = (0, import_react.useRef)(null);
 	const desp = (() => {
-		const raw = (settings.despPorPestana || {})[mode] || settings.desplazamiento || (settings.carousel ? "libro" : "mixto");
+		// v175 (#4): se usa SOLO el desplazamiento global. El valor por pestaña
+		// (despPorPestana) de versiones viejas podía quedarse "lateral" y mostrar
+		// los botones laterales en Texto aunque no estuviera ese desplazamiento activo.
+		const raw = settings.desplazamiento || "scroll";
 		return (DESP_POR_MODO[mode] || []).includes(raw) ? raw : "scroll";
 	})();
 	const carousel = desp === "lateral" || desp === "libro";
 	const despSwipe = desp === "mixto" || desp === "lateral" || desp === "libro";
+	// v177 (#5): partes de la pagina actual (para el contador y el reset)
+	const lateralPartes = (0, import_react.useMemo)(() => (desp === "lateral" && mode === "text" ? partesDeTexto(text, lateralMaxChars) : [text]), [desp, mode, text, lateralMaxChars]);
+	(0, import_react.useEffect)(() => { if (flatNav.current) { flatNav.current = false; return; } setLateralParte(0); }, [page]);
+	// v177 (#6): los modos de desplazamiento NO se mezclan (uno solo): al
+	// cambiar el modo de desplazamiento (desp) o la vista (mode) se detiene el auto-scroll.
+	(0, import_react.useEffect)(() => { setAutoScrollOn(false); }, [desp, mode]);
 	const pageCount = book?.pageCount || 0;
+	// v177 (#5): en Lateral se recalcula el total en PARTES (100→150): cuenta las partes
+	// de cada página para el contador y la barra de progreso.
+	(0, import_react.useEffect)(() => {
+		if (!book || mode !== "text" || desp !== "lateral" || !pageCount) { setPartsPerPage([]); return; }
+		let cancelled = false;
+		(async () => { try { const rows = await getPagesRange(book.id, 0, pageCount - 1); if (cancelled) return; setPartsPerPage(rows.map((r) => partesDeTexto(r.text, lateralMaxChars).length)); } catch {} })();
+		return () => { cancelled = true; };
+	}, [book, mode, desp, pageCount, lateralMaxChars]);
+	const totalParts = (0, import_react.useMemo)(() => partsPerPage.reduce((a, b) => a + b, 0), [partsPerPage]);
+	const currentFlat = (0, import_react.useMemo)(() => { let acc = 0; for (let i = 0; i < page && i < partsPerPage.length; i++) acc += partsPerPage[i] || 0; return acc + lateralParte; }, [partsPerPage, page, lateralParte]);
+	const setFlat = (0, import_react.useCallback)((v) => { let acc = 0; for (let i = 0; i < partsPerPage.length; i++) { const c = partsPerPage[i] || 0; if (v < acc + c) { flatNav.current = true; setPage(i); setLateralParte(Math.max(0, v - acc)); return; } acc += c; } if (partsPerPage.length) { flatNav.current = true; setPage(partsPerPage.length - 1); setLateralParte(Math.max(0, (partsPerPage[partsPerPage.length - 1] || 1) - 1)); } }, [partsPerPage]);
+	// v175 (#3): memo de las páginas del doc-flow (PDF). Así el contador (setPage)
+	// NO vuelve a re-renderizar las pageCount divs .doc-page — eso era lo que
+	// dejaba lento el cambio de página al scrollear rápido. Sólo se recalculan
+	// al cargar una página (docImgs), al cambiar zoom/docAr o al cambiar de libro.
+	const docFlowChildren = (0, import_react.useMemo)(() => Array.from({ length: pageCount || 1 }, (_, i) => (0, import_jsx_runtime.jsx)("div", {
+		className: "doc-page",
+		style: docAr ? { aspectRatio: String(docAr) } : void 0,
+		children: docImgs[i] ? (0, import_jsx_runtime.jsxs)("div", { className: "doc-page-visual", children: [(0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom })] }) : (0, import_jsx_runtime.jsx)("div", { className: "doc-ph", children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) })
+	}, i)), [pageCount, docAr, docImgs, pdfDoc, docZoom]);
 	// v159: el elemento que hace scroll según la pestaña (texto / imágenes / original / carrusel)
 	const scrollerDeModo = (m) => {
 		const root = document.querySelector(".reader");
@@ -42586,6 +42593,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		let cancel = false;
 		(async () => {
 			const first = await markBookFinished(book.id);
+			if (mode !== "text") return; // v174 (P7): recompensa por terminar sólo si se leyó en Texto
 			try {
 				const r = await __vitePreload(() => Promise.resolve().then(() => lumo_exports).then((m) => m.onLibroFin()), void 0, import.meta.url);
 				if (first && !cancel) toast?.(`🐻 Lumo ganó +${r?.d?.coins || 50} 🪙 por terminar el libro`);
@@ -42602,7 +42610,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		book,
 		page,
 		pageCount,
-		toast
+		toast,
+		mode
 	]);
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
@@ -42691,20 +42700,21 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} catch (e) {}
 	}, [book?.musicOnOpen, book?.musicScene, book?.musicVolume, settings.musicScene, settings.musicVolume]);
 	(0, import_react.useEffect)(() => {
-		// v158: con música activa (general o del libro) los cambios se aplican en
-		// vivo (el libro manda mientras se lee); sin ninguna activa, se para.
+		// v176 (#2): en el lector SOLO manda la música del LIBRO (musicOnOpen). La
+		// música global (settings.musicOn) es de la pantalla de inicio y NO debe
+		// arrancar aquí: al desactivar la del libro, se PARA (no cambia a la global).
 		const libroMusica = !!book?.musicOnOpen;
-		if (!settings.musicOn && !libroMusica) {
+		if (!libroMusica) {
 			window.__lumenMusicaLectura = null;
 			stop();
 			return;
 		}
 		if (!musicUserTriggered.current) return;
-		const sL = libroMusica ? (book.musicScene || settings.musicScene || "lluvia") : (settings.musicScene || "lluvia");
-		const vL = libroMusica ? (book.musicVolume ?? settings.musicVolume ?? 1) : (settings.musicVolume ?? 1);
+		const sL = book.musicScene || settings.musicScene || "lluvia";
+		const vL = book.musicVolume ?? settings.musicVolume ?? 1;
 		play(sL, vL);
 		setFlag("music").catch(() => {});
-	}, [settings.musicOn, settings.musicScene, book?.musicOnOpen, book?.musicScene, book?.musicVolume]);
+	}, [book?.musicOnOpen, book?.musicScene, book?.musicVolume, settings.musicScene, settings.musicVolume]);
 	(0, import_react.useEffect)(() => {
 		if (settings.musicOn) setVolume(settings.musicVolume ?? 1);
 	}, [settings.musicVolume, settings.musicOn]);
@@ -42719,7 +42729,9 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} catch {}
 	}, [book]);
 	(0, import_react.useEffect)(() => {
-		if (!book) return;
+		// v174 (P7): la lectura (XP, logros, racha, minutos) se cuenta solo en
+		// la pestaña Texto; no en Imágenes ni Original.
+		if (!book || mode !== "text") return;
 		const delay = (settings.countSeconds ?? 4) * 1e3;
 		const startedAt = Date.now();
 		let counted = false;
@@ -42736,7 +42748,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		book,
 		page,
 		settings.countSeconds,
-		onPageRead
+		onPageRead,
+		mode
 	]);
 	(0, import_react.useEffect)(() => {
 		if (!book || !carousel) return;
@@ -43163,12 +43176,11 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			voiceHold.fired = false;
 			return;
 		}
-		if (ttsState.playing || ttsState.paused || isPlaying()) {
-			__vitePreload(() => import("./audioGesto-CI5uL79N.js").then(async (mod) => {
-				await mod.gestoAudio("alternar");
-				const pausadoAhora = !!window.__lumenAudioGesto?.hayPausado?.();
-				toast?.(pausadoAhora ? "⏸ En pausa (voz y música) · reanudará donde iba" : "▶️ Reanudando la lectura donde iba");
-			}), __vite__mapDeps([9,2,1,7]), import.meta.url).catch(() => {});
+		if (ttsState.playing || ttsState.paused) {
+			// v176 (#4): la pausa del botón Voz afecta SOLO a la voz (la música de
+			// fondo sigue sonando; se para al salir del libro o en los menús).
+			try { if (ttsState.paused) speaker.resume(); else speaker.pause(); } catch {}
+			toast?.(ttsState.paused ? "▶️ Reanudando la lectura donde iba" : "⏸ Voz en pausa · la música de fondo sigue sonando");
 			return;
 		}
 		if (!ttsAvailable()) {
@@ -43188,7 +43200,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			play(sL, vL).catch(() => {});
 		}
 		if (!ttsState.playing) {
-			toast?.("⏳ Cargando la voz…");
+			toast?.("🔊 Leyendo desde la página " + (page + 1) + " de " + (pageCount || 1));
 			const base = textoVista;
 			if (enTraduccion && pagTrad?.idioma) {
 				const destino = IDIOMAS_TRADUCCION.find((i) => i.id === pagTrad.idioma);
@@ -43609,6 +43621,15 @@ const go = (0, import_react.useCallback)((delta) => {
 			return n;
 		});
 	}, [pageCount]);
+	// v177 (#5): en Lateral (Texto) avanza/retrocede por PARTES; al llegar al
+	// borde de la pagina pasa a la siguiente/anterior. En otros modos, por pagina.
+	const goChunk = (0, import_react.useCallback)((delta) => {
+		if (desp !== "lateral" || mode !== "text" || !totalParts) { go(delta); return; }
+		const target = currentFlat + delta;
+		if (target < 0 || target >= totalParts) { if (target >= totalParts) haptic$1.page(); return; }
+		setFlat(target);
+		haptic$1.tap();
+	}, [desp, mode, totalParts, currentFlat, setFlat, go]);
 	(0, import_react.useEffect)(() => {
 		tagWeekend().catch(() => {});
 	}, []);
@@ -43804,16 +43825,29 @@ const go = (0, import_react.useCallback)((delta) => {
 				try {
 					if (doc && docImgsRef.current[i] === undefined) {
 						const cv = await Promise.race([
-							renderPageToCanvas(doc, i + 1, 1200),
+							renderPageToCanvas(doc, i + 1, 700),
 							new Promise((r) => setTimeout(r, 45000))
 						]);
 						if (gen !== docGen.current || docImgsRef.current[i] !== undefined) return;
-						const url = cv.toDataURL("image/jpeg", .72);
+						// v177 (#3): JPEG asíncrono (convertToBlob) para NO bloquear la main-thread;
+						// si no hay convertToBlob, toDataURL con un yield antes (fallback).
+						let url;
+						if (cv.convertToBlob) {
+							const blob = await cv.convertToBlob({ type: "image/jpeg", quality: 0.72 });
+							if (gen !== docGen.current || docImgsRef.current[i] !== undefined) return;
+							url = URL.createObjectURL(blob);
+						} else {
+							await new Promise((r) => setTimeout(r, 0));
+							if (gen !== docGen.current || docImgsRef.current[i] !== undefined) return;
+							url = cv.toDataURL("image/jpeg", .72);
+						}
 						docImgsRef.current[i] = url;
 						setDocImgs((m) => {
 							const nx = { ...m, [i]: url };
 							for (const k of Object.keys(nx)) {
 								if (Math.abs(Number(k) - i) > 18) {
+									const old = nx[k];
+									if (typeof old === "string" && old.startsWith("blob:")) URL.revokeObjectURL(old);
 									delete nx[k];
 									delete docImgsRef.current[k];
 								}
@@ -43830,10 +43864,17 @@ const go = (0, import_react.useCallback)((delta) => {
 		}
 	};
 const docPedir = (desde, hasta) => {
+		// v177 (#3): recorta la cola a una ventana (evita que un scroll rápido o un salto
+		// encole cientos de páginas y congele la UI), prioriza la página que se mira y la limita.
+		const lo = Math.max(0, desde - 1), hi = Math.min((pageCount || 1) - 1, hasta + 1);
+		const centro = (lo + hi) >> 1;
+		docCola.current = docCola.current.filter((i) => i >= lo - 8 && i <= hi + 8);
 		for (let i = desde; i <= hasta; i++) {
 			if (docImgsRef.current[i] !== undefined || docCola.current.includes(i)) continue;
 			docCola.current.push(i);
 		}
+		docCola.current.sort((a, b) => Math.abs(a - centro) - Math.abs(b - centro));
+		if (docCola.current.length > 15) docCola.current.length = 15;
 		docDrenar();
 	};
 	const onDocScroll = () => {
@@ -43842,6 +43883,10 @@ const docPedir = (desde, hasta) => {
 			const el = docFlowRef.current;
 			if (!el) return;
 			const n = pageCount || 1;
+			// v174 (P6): durante ~650 ms tras un salto programático no se
+			// reescribe «page» con la posición intermedia (evita que el contador
+			// "reboten" a la página de antes al llegar con el smooth-scroll).
+			const navegando = Date.now() - docNav.current < 650;
 			// v171: detectar la página con los elementos .doc-page REALES y la
 			// línea de lectura (40% de la altura). Antes usaba una altura uniforme
 			// (clientWidth/docAr) que fallaba: ej. libro de 15 marcaba 11 al fondo.
@@ -43855,7 +43900,7 @@ const docPedir = (desde, hasta) => {
 					else break;
 				}
 				idx = Math.max(0, Math.min(n - 1, idx));
-				if (idx !== docLast.current) {
+				if (!navegando && idx !== docLast.current) {
 					docLast.current = idx;
 					setPage(idx);
 				}
@@ -43865,7 +43910,7 @@ const docPedir = (desde, hasta) => {
 				if (ph) {
 					const top = Math.max(0, el.scrollTop - padT);
 					const idx = Math.max(0, Math.min(n - 1, Math.floor((top + el.clientHeight * .4) / ph)));
-					if (idx !== docLast.current) {
+					if (!navegando && idx !== docLast.current) {
 						docLast.current = idx;
 						setPage(idx);
 					}
@@ -43886,6 +43931,7 @@ const docPedir = (desde, hasta) => {
 		if (docBook.current !== book.id) {
 			docBook.current = book.id;
 			docPdf.current = null;
+			for (const _k of Object.keys(docImgsRef.current)) { const _u = docImgsRef.current[_k]; if (typeof _u === "string" && _u.startsWith("blob:")) URL.revokeObjectURL(_u); } // v177 (#3): libera object URLs del libro anterior
 			docImgsRef.current = {};
 			docCola.current = [];
 			docLast.current = -1;
@@ -43928,6 +43974,9 @@ const docPedir = (desde, hasta) => {
 		};
 	}, [mode, book]);
 	(0, import_react.useEffect)(() => {
+		if (mode !== "original") { docGen.current += 1; docCola.current = []; } // v177 (#3): al salir de Original se detiene el render
+	}, [mode]);
+	(0, import_react.useEffect)(() => {
 		if (mode !== "original" || book?.kind !== "pdf" || !docAr) return;
 		const el = docFlowRef.current;
 		if (!el) return;
@@ -43938,7 +43987,8 @@ const docPedir = (desde, hasta) => {
 		docPedir(Math.max(0, page - 1), Math.min(n - 1, page + Math.ceil(el.clientHeight / ph) + 3));
 		if (page === docLast.current) return;
 		docLast.current = page;
-		el.scrollTo({ top: padT + page * ph, behavior: "smooth" });
+		docNav.current = Date.now(); // v174 (P6)
+		{ const _tt = padT + page * ph; el.scrollTo({ top: _tt, behavior: Math.abs(_tt - el.scrollTop) / ph > 3 ? "auto" : "smooth" }); } // v177 (#3): lejos = auto (sin cascada de páginas intermedias)
 	}, [mode, book, page, docAr, pageCount]);
 	// v124: destello de 5 s sobre la palabra/frase buscada al saltar a un
 	// resultado. En Texto resalta la primera ocurrencia en la página visible;
@@ -44114,6 +44164,7 @@ const docPedir = (desde, hasta) => {
 	// v146: el ratón/rueda no debe disparar el auto-voltear (el scroll nativo
 	// se detiene en el borde); el dedo conserva el avance automático.
 	const wheelActivo = (0, import_react.useRef)(0);
+	const keyActivo = (0, import_react.useRef)(0); // v177 (#7): marca scroll por teclado (flechas) para que el auto-volteo por dedo no se dispare
 	// v146: auto-avance de la voz NO debe resetear el scroll del usuario
 	const ttsAutoPg = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => {
@@ -44201,6 +44252,7 @@ const docPedir = (desde, hasta) => {
 			if (!esPagina && !esItem) return;
 			if (sheet) return;
 			if (Date.now() - wheelActivo.current < 650) return;
+			if (Date.now() - keyActivo.current < 650) return; // v177 (#7): el teclado tiene su propio buffer (no auto-voltea al llegar al borde)
 			if (Date.now() - ultimoGoPg.current < 1100) return;
 			if (el.scrollHeight - el.clientHeight < 24) return;
 			if (el.scrollTop > 120) el._vioBajo = true;
@@ -44268,9 +44320,35 @@ const docPedir = (desde, hasta) => {
 			}
 		};
 		surf.addEventListener("wheel", hw, { capture: true, passive: true });
+		// v177 (#7): flechas del teclado — al llegar al final/principio hay que pulsar un
+		// poco más (3 pulsaciones) para cambiar de página; así se puede leer el borde.
+		let keyAcc = 0;
+		const hk = (e) => {
+			const k = e.key;
+			const down = k === "ArrowDown" || k === "PageDown" || k === " " || k === "End";
+			const up = k === "ArrowUp" || k === "PageUp" || k === "Home";
+			if (!down && !up) return;
+			keyActivo.current = Date.now();
+			if (sheet) { keyAcc = 0; return; }
+			const el = surf.querySelector(".rd-page");
+			if (!el || el.scrollHeight - el.clientHeight < 24) { keyAcc = 0; return; }
+			const alBajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+			const alTopo = el.scrollTop <= 8;
+			if (down && alBajo && page < pageCount - 1) {
+				if (Date.now() - ultimoGoPg.current < 350) return;
+				keyAcc += 1;
+				if (keyAcc >= 3) { keyAcc = 0; ultimoGoPg.current = Date.now(); el._vioBajo = false; go(1); }
+			} else if (up && alTopo && page > 0) {
+				if (Date.now() - ultimoGoPg.current < 350) return;
+				keyAcc -= 1;
+				if (keyAcc <= -3) { keyAcc = 0; ultimoGoPg.current = Date.now(); el._vioBajo = false; go(-1); }
+			} else keyAcc = 0;
+		};
+		surf.addEventListener("keydown", hk, { capture: true });
 		return () => {
 			surf.removeEventListener("scroll", h, { capture: true });
 			surf.removeEventListener("wheel", hw, { capture: true });
+			surf.removeEventListener("keydown", hk, { capture: true });
 			clearTimeout(tTop);
 			clearTimeout(tBot);
 			clearTimeout(tEdge);
@@ -44837,7 +44915,8 @@ const docPedir = (desde, hasta) => {
 		textoVista
 	]);
 	(0, import_react.useEffect)(() => {
-		if (!autoScrollOn) return;
+		if (!autoScrollOn || mode === "imagenes") return;
+		// v174: el auto-scroll solo funciona en Texto y Original (no en Imágenes).
 		// v169: independiente del modo de desplazamiento. En carrusel (lateral/libro)
 		// se hace scroll en la página ACTUAL (.carousel-item); en scroll/mixto/fijo,
 		// en .rd-page. Antes solo funcionaba en la vista no-carrusel (scroll).
@@ -44881,7 +44960,7 @@ const docPedir = (desde, hasta) => {
 		return () => {
 			cancelAnimationFrame(autoRaf.current);
 		};
-	}, [autoScrollOn, autoVel, page, go, pageCount, carousel]);
+	}, [autoScrollOn, autoVel, page, go, pageCount, carousel, mode]);
 	// v169: ya NO se deshabilita al cambiar de página. Antes había
 	// useEffect(()=>setAutoScrollOn(false),[page]); con `page` en los deps de arriba,
 	// el efecto se re-ejecuta y sigue haciendo scroll en la nueva página.
@@ -45253,32 +45332,38 @@ const docPedir = (desde, hasta) => {
 		clearSelection,
 		toast
 	]);
+	const unirLineas = (t) => t.replace(/(?<!\n)\n(?!\n)/g, " ");
 	const renderTextBody = (t) => {
+		// v175 (#7): los epubs de versiones viejas traían cada línea del PDF guardada
+		// con un salto de línea → el texto se cortaba a ~80% y quedaba a la izquierda.
+		// Se unen los saltos sueltos (1:1, NO cambia la longitud → las marcas de
+		// karaoke/resaltado, que usan índices, siguen alineadas) y se conservan los párrafos.
+		const txt = unirLineas(t);
 		// v147: dos marcas a la vez: karaoke (frase actual) y última parte leída
 		const kara = settings.ttsKaraoke !== false && ttsRange && t === (speaker.sourceFull || speaker.sourceText) ? ttsRange : null;
 		const ult = ultimoLeido && ultimoLeido.full === t ? ultimoLeido : null;
 		const marcas = [];
-		if (kara && kara.start >= 0 && kara.end <= t.length && kara.end > kara.start) marcas.push({ a: kara.start, b: kara.end, kara: true });
-		if (ult && ult.end <= t.length && ult.end > ult.start) marcas.push({ a: ult.start, b: ult.end, kara: false });
-		if (!marcas.length) return withHighlights(t);
+		if (kara && kara.start >= 0 && kara.end <= txt.length && kara.end > kara.start) marcas.push({ a: kara.start, b: kara.end, kara: true });
+		if (ult && ult.end <= txt.length && ult.end > ult.start) marcas.push({ a: ult.start, b: ult.end, kara: false });
+		if (!marcas.length) return withHighlights(txt);
 		marcas.sort((x, y) => x.a - y.a);
 		const out = [];
 		let cur = 0;
 		for (const m of marcas) {
 			if (m.a < cur) continue;
-			out.push(withHighlights(t.slice(cur, m.a)));
+			out.push(withHighlights(txt.slice(cur, m.a)));
 			out.push(m.kara ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "tts-line k-" + (settings.karaokeStyle || "fondo"),
 				ref: karaokeRef,
 				style: { "--kc": settings.karaokeColor || "#7c5cff" },
-				children: t.slice(m.a, m.b)
+				children: txt.slice(m.a, m.b)
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "tts-ultimo",
-				children: t.slice(m.a, m.b)
+				children: txt.slice(m.a, m.b)
 			}));
 			cur = m.b;
 		}
-		if (cur < t.length) out.push(withHighlights(t.slice(cur)));
+		if (cur < txt.length) out.push(withHighlights(txt.slice(cur)));
 		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: out });
 	};
 	if (loading) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -45316,6 +45401,14 @@ const docPedir = (desde, hasta) => {
 			// v170: se quitó la pastilla «Leyendo pág. N · volver» (.tts-volver):
 			// tapaba botones del auto-scroll. Su función (volver a la página que
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
+			autoScrollOn && (mode === "text" || mode === "original") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				className: "auto-stop",
+				"aria-label": "Parar el auto-scroll",
+				onClick: (e) => { e.stopPropagation(); setAutoScrollOn(false); haptic$1.success?.(); },
+				onPointerDown: (e) => e.stopPropagation(),
+				onTouchStart: (e) => e.stopPropagation(),
+				children: "⏹"
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "rd-surface",
 				ref: surfaceRef,
@@ -45367,13 +45460,13 @@ const docPedir = (desde, hasta) => {
 							window.addEventListener("mousemove", mm);
 							window.addEventListener("mouseup", mu);
 						},
-						children: [carouselPages.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						children: [mode === "text" && desp === "lateral" && lateralPartes.length > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-parte-badge", children: `parte ${lateralParte + 1} de ${lateralPartes.length}` }) : null, carouselPages.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "carousel-item",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "rd-text",
 								"data-fuente": settings.fontFamily,
 								style: fontStyle,
-								children: p.text?.trim() ? p.index === page ? renderTextBody(p.text) : p.text : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("em", {
+								children: p.text?.trim() ? (p.index === page && desp === "lateral" && mode === "text" ? renderTextBody(partesDeTexto(p.text, lateralMaxChars)[lateralParte] ?? p.text) : p.index === page ? renderTextBody(p.text) : unirLineas(p.text)) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("em", {
 									style: { opacity: .5 },
 									children: "Página sin texto — usa OCR"
 								})
@@ -45381,34 +45474,26 @@ const docPedir = (desde, hasta) => {
 						}, p.index)),
 						/* v169: auto-scroll también disponible en modo carrusel (lateral/libro), no solo en scroll */
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollFab, {
-							abajo: scrollAbajo,
-							auto: autoScrollOn,
-							vel: autoVel,
-							largo: scrollLargo,
-							onTocar: irArribaAbajo,
-							onLargo: () => {
-								setAutoScrollOn((v) => !v);
-								haptic$1.success?.();
-							},
-							onVel: setAutoVel,
-							onSync: ttsState.playing && !ttsState.paused ? sincronizarLectura : undefined
+								abajo: scrollAbajo,
+								onTocar: irArribaAbajo,
+								mode: mode,
+								settings: settings,
+								setSettings: setSettings,
+								docZoom: docZoom,
+								setDocZoom: setDocZoom
 						})
 					]
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rd-page desp-" + desp,
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollFab, {
-								abajo: scrollAbajo,
-								auto: autoScrollOn,
-								vel: autoVel,
-								largo: scrollLargo,
-								onTocar: irArribaAbajo,
-								onLargo: () => {
-									setAutoScrollOn((v) => !v);
-									haptic$1.success?.();
-								},
-								onVel: setAutoVel,
-							onSync: ttsState.playing && !ttsState.paused ? sincronizarLectura : undefined
+									abajo: scrollAbajo,
+									onTocar: irArribaAbajo,
+									mode: mode,
+									settings: settings,
+									setSettings: setSettings,
+									docZoom: docZoom,
+									setDocZoom: setDocZoom
 							}),
 							emptyPage && canOcr && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "ocr-banner",
@@ -45613,17 +45698,7 @@ const docPedir = (desde, hasta) => {
 						ref: docFlowRef,
 						onScroll: onDocScroll,
 						style: docFx(),
-						children: Array.from({ length: pageCount || 1 }, (_, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "doc-page",
-							style: docAr ? { aspectRatio: String(docAr) } : void 0,
-							children: docImgs[i] ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "doc-page-visual",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom })]
-							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "doc-ph",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
-							})
-						}, i))
+						children: docFlowChildren
 					}) : book.kind === "image" && imgUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "doc-flow",
 						style: docFx(),
@@ -45643,7 +45718,7 @@ const docPedir = (desde, hasta) => {
 							// se "coma" y el botón responda siempre.
 							onClick: (e) => {
 								e.stopPropagation();
-								go(-1);
+								goChunk(-1);
 							},
 							onPointerDown: (e) => e.stopPropagation(),
 							onTouchStart: (e) => e.stopPropagation(),
@@ -45656,7 +45731,7 @@ const docPedir = (desde, hasta) => {
 							"aria-label": "Página siguiente",
 							onClick: (e) => {
 								e.stopPropagation();
-								go(1);
+								goChunk(1);
 							},
 							onPointerDown: (e) => e.stopPropagation(),
 							onTouchStart: (e) => e.stopPropagation(),
@@ -45893,7 +45968,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							height: 15
 						}), " Reconocer texto"] })
 					}),
-					mode === "text" && !carousel && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					mode === "text" && !carousel && chrome && desp === "fijo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "nav-arrow left",
 						onClick: () => go(-1),
 						disabled: page === 0,
@@ -45940,64 +46015,12 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							onTouchEnd: (e) => e.stopPropagation(),
 							onContextMenu: (e) => e.preventDefault(),
 							children: [
-								(0, import_jsx_runtime.jsx)("div", {
-									className: "rb-colores",
-									children: [["dark", "#1b1c22", "Oscuro"], ["black", "#000000", "Negro OLED"], ["sepia", "#f3e7d3", "Sepia"], ["light", "#f7f7f9", "Claro"]].map(([id, bg, nom]) => (0, import_jsx_runtime.jsx)("button", {
-										key: id,
-										className: "rb-dot" + (settings.theme === id ? " on" : ""),
-										style: { background: bg },
-										title: "Color de la página: " + nom,
-										"aria-label": "Color de la página: " + nom,
-										onClick: () => {
-											setSettings({ theme: id });
-											haptic$1.tap();
-										}
-									}, ""))
-								}),
-								(0, import_jsx_runtime.jsxs)("div", {
-									className: "rb-zoom",
-									children: [
-										(0, import_jsx_runtime.jsx)("button", {
-											className: "rb-btn",
-											"aria-label": "Alejar",
-											disabled: bz.min,
-											onClick: () => {
-												bz.menos();
-												haptic$1.tap();
-											},
-										children: "➖" }),
-										(0, import_jsx_runtime.jsx)("button", {
-											className: "rb-pct",
-											title: "Restablecer",
-											onClick: () => {
-												bz.reset();
-												haptic$1.tap();
-											},
-										children: bz.lab }),
-										(0, import_jsx_runtime.jsx)("button", {
-											className: "rb-btn",
-											"aria-label": "Acercar",
-											disabled: bz.max,
-											onClick: () => {
-												bz.mas();
-												haptic$1.tap();
-											},
-										children: "➕" })
-									]
-								}),
-					// v170: icono IconInvert (el más lindo, del botón flotante inv-fab
-					// que se quitó) y solo en Imágenes: el filtro de colores es para imágenes.
-					mode === "imagenes" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "rb-fx" + (imgContraste !== 100 || imgBrillo !== 100 || filtroImg !== "normal" || imgRot !== 0 ? " on" : ""),
-						"aria-label": "Colores y filtros de la página",
-						onClick: () => {
-							setHojaImg(true);
-							haptic$1.tap();
-						},
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconInvert, {
-							width: 17,
-							height: 17
-						}) })
+								// v174: «Tema» (rb-colores) y «Zoom» (rb-zoom) salieron de la barra superior:
+								//  - Tema → panel «Lectura» (abajo, mejorado)
+								//  - Zoom → pila vertical (+/%/−) en el cluster flotante (ScrollFab)
+								// En Texto/Original la barra queda vacía y se oculta (.rd-barra:empty)
+					// v175 (#8): «Colores de la página» (rb-fx) se movió al panel «Lectura»
+					// (arriba de «Fondo de este libro»). La barra superior queda vacía y se oculta.
 					]
 						});
 					})()
@@ -46148,9 +46171,9 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							className: "rd-slider",
 							type: "range",
 							min: 0,
-							max: Math.max(0, pageCount - 1),
-							value: page,
-						onChange: (e) => setPage(Number(e.target.value))
+							max: Math.max(0, (desp === "lateral" && mode === "text" && totalParts) ? totalParts - 1 : pageCount - 1),
+							value: (desp === "lateral" && mode === "text" && totalParts) ? currentFlat : page,
+						onChange: (e) => { const v = Number(e.target.value); (desp === "lateral" && mode === "text" && totalParts) ? setFlat(v) : setPage(v); }
 					}), /* v171: el contador N/M también se muestra en Original,
 						al lado de la barra de progreso (como en Texto/Imágenes). */ /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						className: "rd-count",
@@ -46160,24 +46183,16 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							haptic$1.tap();
 						},
 						children: [
-							page + 1,
+							(desp === "lateral" && mode === "text" && totalParts) ? currentFlat + 1 : page + 1,
 							"/",
-							pageCount
+							(desp === "lateral" && mode === "text" && totalParts) ? totalParts : pageCount
 						]
 					})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "rd-tools",
 						children: [
-							musSuena && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								className: "mus-pill",
-								title: "Música de fondo · " + Math.round(musicaVol() * 100) + "% · toca para abrir",
-								onClick: () => {
-									setSheet("tts");
-									haptic$1.tap();
-								},
-								children: ["\ud83c\udfb5", Math.round(musicaVol() * 100) + "%"]
-							}),
+							// v176 (#3): la música de fondo NO crea nada en la barra inferior.
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool" + (ttsState.playing && !ttsState.paused ? " active" : ""),
 								onClick: toggleTts,
@@ -46196,20 +46211,20 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								onPointerLeave: () => clearTimeout(voiceHold.current),
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
-									children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused || isPlaying() ? "⏸" : "▶"
-								}), ttsState.paused ? "Reanudar" : ttsState.playing && !ttsState.paused || isPlaying() ? "Pausar" : "Voz"]
+									children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused ? "⏸" : "▶"
+								}), ttsState.paused ? "Reanudar" : ttsState.playing && !ttsState.paused ? "Pausar" : "Voz"]
 							}),
-							(ttsState.playing || ttsState.paused || isPlaying()) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							(ttsState.playing || ttsState.paused) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool detener",
 								onClick: () => {
 									speaker.stop();
-									stop();
+									// v176 (#4): NO se toca la música de fondo (solo speaker.stop).
 									try { borrarTtsPos(bookId); } catch {}
 									setUltimoLeido(null);
 									haptic$1.success();
-									toast?.("⏹️ Audio y lectura detenidos");
+									toast?.("⏹️ Lectura en voz alta detenida (la música de fondo sigue)");
 								},
-								title: "Detener la lectura y la música",
+								title: "Detener la lectura en voz alta",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
 									children: "⏹"
@@ -46567,14 +46582,8 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							} else setSheet(target);
 						},
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: icon }), label]
-					}, target)), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-						className: "ctx",
-						onClick: () => {
-							haptic$1.tap();
-							setSheet("desp");
-						},
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "↔️" }), "Desplazamiento: " + (DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "")]
-					})]
+					}, target))]
+					// v177 (#3): "Desplazamiento" movido al panel Lectura.
 				})
 			}),
 			/* v162: capítulos — detección automática, creación manual e ir directo */
@@ -48484,10 +48493,92 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				onClose: closeSheet,
 				title: "Lectura",
 				children: [
+					// v177 (#3): "Desplazamiento" vive en Lectura (antes estaba en Herramientas).
+					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "2px 4px 8px" },
+								children: "Desplazamiento"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Cómo te mueves" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Scroll, lateral, libro o fijo" })
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										className: "btn sm",
+										onClick: () => { haptic$1.tap(); setSheet("desp"); },
+										children: DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "Scroll"
+									})
+								]
+							})
+						]
+					}),
+					// v174 (P3): auto-scroll movido del cluster flotante a este panel (arriba).
+					//   Solo Texto y Original: en Imágenes el efecto no hace nada, así que se oculta.
+					mode !== "imagenes" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "2px 4px 8px" },
+								children: "Auto-scroll"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Leer automáticamente" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "La página avanza sola · Texto y Original" })
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm" + (autoScrollOn ? " on" : ""),
+										"aria-label": autoScrollOn ? "Pausar el auto-scroll" : "Iniciar el auto-scroll",
+										onClick: () => { setAutoScrollOn((v) => !v); haptic$1.success?.(); },
+										children: autoScrollOn ? "⏸ Pausar" : "▶ Iniciar"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Velocidad" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "as-vel",
+										children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											key: v,
+											className: "as-vel-b" + (autoVel === v ? " on" : ""),
+											onClick: () => { setAutoVel(v); haptic$1.tap?.(); },
+											children: v
+										}, v))
+									})
+								]
+							})
+						]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
 						style: { margin: "2px 4px 8px" },
 						children: "Apariencia de la lectura"
+					}),
+					/* v175 (#8): «Colores de la página» movido aquí (antes era rb-fx en la
+					   barra superior). Abre la hoja compacta de filtros y recorte. */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Colores de la página"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-sub",
+							children: "Brillo, contraste y recorte de las imágenes"
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn sm",
+							style: { whiteSpace: "nowrap" },
+							onClick: () => { setHojaImg(true); haptic$1.tap(); },
+							children: "Abrir"
+						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
@@ -48663,21 +48754,28 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							}
 						})]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tema"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-						value: settings.theme || "nocturno",
-						onChange: (e) => setSettings({ theme: e.target.value }),
-							children: TEMAS.filter((t) => t.gratis || esPremium).map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-								value: t.id,
-								children: t.nombre
-							}, t.id))
-						})]
-					}),
+						/* v174 (P2): el tema ya no es un <select> simple: rejilla de muestras de color
+						   (mismo estilo «bonito» que el panel Ajustes: .temas-grid / .tema-card). */
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "tema-bloque",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", style: { marginBottom: 8 }, children: "Tema" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "temas-grid",
+									children: TEMAS.filter((t) => t.gratis || esPremium).map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										key: t.id,
+										className: "tema-card" + (settings.theme === t.id ? " on" : ""),
+										title: t.nombre,
+										"aria-label": "Tema " + t.nombre,
+										onClick: () => { setSettings({ theme: t.id }); haptic$1.tap?.(); },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "tema-muestra", style: { background: `linear-gradient(135deg, ${t.muestra[0]} 52%, ${t.muestra[1]} 52%)` } }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.nombre })
+										]
+									}, t.id))
+								})
+							]
+						}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -48933,53 +49031,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								}, val))
 							})]
 						}),
-/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tema"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							className: "plain",
-							value: settings.theme,
-							onChange: (e) => setSettings({ theme: e.target.value }),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "dark",
-									children: "Oscuro"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "black",
-									children: "Negro OLED"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "sepia",
-									children: "Sepia"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "light",
-									children: "Claro"
-								})
-							]
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Desplazamiento"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Cómo te mueves por el libro"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-							value: desp,
-							onChange: (e) => setSettings({ desplazamiento: e.target.value }),
-							children: DESP_OPCIONES.map(([id, nombre]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-								value: id,
-								children: nombre
-							}, id))
-						})]
-					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -51121,6 +51172,14 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
 								"Puedes seguir leyendo sin límite."
 							]
+						}),
+						/* v175 (#2): botón para salir de la celebración de racha (antes
+						   solo había el tap en el fondo / auto-cierre y no se veía cómo salir) */
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn primary",
+							style: { marginTop: 18 },
+							onClick: () => setCelebrate(null),
+							children: "Continuar"
 						})
 					] })
 				}),

@@ -8418,22 +8418,27 @@ html[data-fuente-app='antigua'] textarea {
 
 /* Hoja de filtros y guardado de imagen (v38).
    z-index 88 = «hoja» en la escala del proyecto (velo 86, diálogos 95). */
+/* v175 (#8): «Colores de la página» ya no ocupa toda la pantalla: diálogo
+     centrado compacto (máx. 440px) en vez de hoja inferior a ancho completo. */
 .hoja-img {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   z-index: 88;
+  width: min(92vw, 440px);
   background: var(--bg-elev);
-  border-radius: 20px 20px 0 0;
-  padding: 10px 16px calc(var(--safe-b) + 18px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px 16px 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  max-height: 78vh;
+  gap: 12px;
+  max-height: 74vh;
   overflow-y: auto;
-  box-shadow: 0 -8px 28px rgba(0, 0, 0, .4);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .5);
 }
+.hoja-img-asa { display: none; }
 .hoja-img-asa {
   width: 36px;
   height: 4px;
@@ -9019,10 +9024,12 @@ html[data-fuente-app='antigua'] textarea {
    ═══════════════════════════════════════════════════ */
 
 /* Override del fab anterior */
+/* v175 (#6): se sube el cluster (zoom + subir/bajar) para que NO se tape
+     con la barra horizontal de abajo; quedó alineado con "Ver imagen/Ver texto". */
 .rd-scroll-fab {
   position: fixed;
   right: 14px;
-  bottom: calc(var(--safe-b) + 80px);
+  bottom: calc(var(--safe-b) + 168px);
   z-index: 62;
   display: flex;
   flex-direction: column;
@@ -9355,9 +9362,10 @@ html[data-fuente-app='antigua'] textarea {
 /* vista de Lumo: tamaño COMPACTO, igual que la tarjeta de racha, con fondo
    brillante propio (nada de negro) y el oso contenido para que quepa igual. */
 .sw-lumo-tarjeta {
-  background: radial-gradient(120% 120% at 20% 0%, rgba(124,92,255,.32), transparent 60%),
-              linear-gradient(150deg, var(--streak-a), var(--streak-b) 70%);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+  /* v174 (P5): sin tinte morado — MISMO fondo neutro por tema que la tarjeta
+     de racha, para que el oso no aparezca en un rectángulo morado en los temas claros. */
+  background: linear-gradient(150deg, var(--streak-a), var(--streak-b) 70%);
+  border: 1px solid var(--line);
   border-radius: 22px;
   padding: 12px 14px;
   display: flex;
@@ -11157,7 +11165,7 @@ body:has(.stories){overflow:hidden!important}
   -webkit-backdrop-filter: blur(3px);
   -webkit-tap-highlight-color: transparent;
 }
-.carr-nav:hover, .carr-nav:active { opacity: 0.85; }
+.carr-nav:hover, .carr-nav:active { opacity: 0.38; transform: translateY(-50%); }
 .carr-nav.prev { left: 4px; }
 .carr-nav.next { right: 4px; }
 /* v171: los botones laterales están ESTÁTICOS al tocar (sin cambio de opacidad
@@ -11570,7 +11578,7 @@ mark.find-flash {
 :root[data-theme='sepia'] .rb-btn { background: rgba(0, 0, 0, 0.08); }
 /* la barrita reserva espacio a la derecha para el fab (misma altura) */
 .rd-barra { padding: 4px 118px 4px 10px; flex-wrap: wrap; row-gap: 7px; }
-.rd-scroll-fab { bottom: calc(var(--safe-b) + 120px); }
+.rd-scroll-fab { bottom: calc(var(--safe-b) + 168px); }
 .desp-opt.disabled { opacity: .38; pointer-events: none; }
 .desp-opt:disabled { cursor: default; }
 
@@ -12495,3 +12503,211 @@ mark.find-flash {
   .apoyo-hist .bien-tarjeta{ padding:26px 18px 22px; }
   .apoyo-hist .bien-icono{ font-size:48px; }
 }
+
+
+/* ============ v174: botones laterales 100% estáticos al tocar ============
+   Sin cambio de opacidad en hover ni active: antes (v171) :active quedó a 0.38
+   pero :hover seguía a 0.85 y en táctil algunos navegadores aplican :hover al
+   tocar, por lo que se veía el "efecto" al dar a los botones laterales. */
+.carr-nav:hover, .carr-nav:active, .carr-nav:focus, .carr-nav:focus-visible { opacity: 0.38; transform: translateY(-50%); outline: none; }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   v174 (P3): cluster flotante = ZOOM (pila vertical +/%/−) + SUBIR/BAJAR
+   El auto-scroll se movió al panel «Lectura» (arriba). Todo alineado
+   con «Ver imagen/Ver texto» (bottom+104px, que ya tiene el contenedor).
+   ═══════════════════════════════════════════════════════════════ */
+.rd-zoom-btn {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-elev) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--fg);
+  font-size: 21px; font-weight: 600; line-height: 1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: opacity .2s ease, transform .15s ease, background .15s ease;
+}
+.rd-zoom-btn:active { transform: scale(.9); }
+.rd-zoom-btn:disabled { opacity: .3; cursor: default; }
+/* v175 (#6): el valor del zoom es un CÍRCULO (no un ovalo por "20px"); la
+     etiqueta se acorta a "20" / "100%" en el JS para que quepa. */
+.rd-zoom-pct {
+  width: 42px; height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg-elev) 90%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--fg-mute, var(--fg));
+  font-size: 12px; font-weight: 800;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .3);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform .15s ease, color .15s ease;
+}
+.rd-zoom-pct:active { transform: scale(.94); color: var(--acc, #7c5cff); }
+:root[data-theme='light'] .rd-zoom-btn, :root[data-theme='sepia'] .rd-zoom-btn { color: #222; }
+:root[data-theme='light'] .rd-zoom-pct, :root[data-theme='sepia'] .rd-zoom-pct { color: #444; }
+
+/* La barra superior (rd-barra) ya no tiene tema ni zoom en Texto/Original:
+   queda vacía y se oculta. Solo la muestra Imágenes (botón de filtros rb-fx). */
+.rd-barra:empty { display: none; }
+
+/* v174 (P3): velocidad del auto-scroll en el panel «Lectura» (botones 1-5) */
+.as-vel { display: flex; gap: 5px; }
+.as-vel-b {
+  width: 34px; height: 32px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--fg-mute, var(--fg));
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, color .15s, transform .12s, border-color .15s;
+}
+.as-vel-b:active { transform: scale(.93); }
+.as-vel-b.on { background: var(--accent, var(--acc)); border-color: var(--accent, var(--acc)); color: #fff; }
+
+/* v174 (P2): contenedor del selector de tema (rejilla de muestras) en «Lectura» */
+.tema-bloque { margin: 2px 4px 6px; }
+.tema-bloque .tema-card { min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v176 (#1): CONTRASTE en temas claros (claro + sepia). Antes muchos
+   textos/botones usaban blanco o gris claro pensado para el tema oscuro;
+   sobre fondo claro quedaban invisibles (ej. repaso). Aquí se remapan a
+   los colores del tema: texto oscuro sobre fondo claro.
+   ═══════════════════════════════════════════════════════════════════ */
+/* Repaso (.stories): pasa a seguir el tema (antes isla oscura fija) */
+:root[data-theme='light'] .stories, :root[data-theme='sepia'] .stories {
+  background: var(--bg); color: var(--fg);
+}
+:root[data-theme='light'] .st-kind, :root[data-theme='sepia'] .st-kind,
+:root[data-theme='light'] .st-hint, :root[data-theme='sepia'] .st-hint,
+:root[data-theme='light'] .st-stat-grid span, :root[data-theme='sepia'] .st-stat-grid span {
+  color: var(--fg-mute);
+}
+:root[data-theme='light'] .st-msg, :root[data-theme='sepia'] .st-msg { color: var(--fg); }
+:root[data-theme='light'] .st-time, :root[data-theme='sepia'] .st-time { color: var(--accent); }
+:root[data-theme='light'] .stories .icon-btn, :root[data-theme='sepia'] .stories .icon-btn,
+:root[data-theme='light'] .stories .btn.ghost, :root[data-theme='sepia'] .stories .btn.ghost,
+:root[data-theme='light'] .st-emoji, :root[data-theme='sepia'] .st-emoji,
+:root[data-theme='light'] .st-answer, :root[data-theme='sepia'] .st-answer,
+:root[data-theme='light'] .st-mot-badge, :root[data-theme='sepia'] .st-mot-badge,
+:root[data-theme='light'] .st-accion-ico, :root[data-theme='sepia'] .st-accion-ico,
+:root[data-theme='light'] .st-tts-btn, :root[data-theme='sepia'] .st-tts-btn {
+  background: var(--chip-bg); border-color: var(--line); color: var(--fg);
+}
+:root[data-theme='light'] .st-vocab-input, :root[data-theme='sepia'] .st-vocab-input,
+:root[data-theme='light'] .st-nota-ta, :root[data-theme='sepia'] .st-nota-ta {
+  background: var(--chip-bg); border-color: var(--line); color: var(--fg);
+}
+:root[data-theme='light'] .st-vocab-input::placeholder, :root[data-theme='sepia'] .st-vocab-input::placeholder,
+:root[data-theme='light'] .st-nota-ta::placeholder, :root[data-theme='sepia'] .st-nota-ta::placeholder,
+:root[data-theme='light'] .st-repaso-quiz-in::placeholder, :root[data-theme='sepia'] .st-repaso-quiz-in::placeholder {
+  color: var(--fg-mute);
+}
+:root[data-theme='light'] .st-repaso-tab, :root[data-theme='sepia'] .st-repaso-tab {
+  background: var(--chip-bg); color: var(--fg-mute); border-color: var(--line);
+}
+:root[data-theme='light'] .st-repaso-tab.on, :root[data-theme='sepia'] .st-repaso-tab.on {
+  background: color-mix(in srgb, var(--accent) 20%, var(--bg)); border-color: var(--accent); color: var(--accent);
+}
+:root[data-theme='light'] .st-repaso-contexto, :root[data-theme='sepia'] .st-repaso-contexto {
+  background: var(--chip-bg); color: var(--fg); border-color: var(--line);
+}
+:root[data-theme='light'] .st-result.good, :root[data-theme='sepia'] .st-result.good { color: #0f7a4f; }
+:root[data-theme='light'] .st-result.mid, :root[data-theme='sepia'] .st-result.mid { color: #9a5b00; }
+:root[data-theme='light'] .st-result.bad, :root[data-theme='sepia'] .st-result.bad { color: #c23333; }
+/* Resto de la app: botones/etiquetas con fondo blanco-semi o texto blanco sobre fondo claro */
+:root[data-theme='light'] .foto-x, :root[data-theme='sepia'] .foto-x,
+:root[data-theme='light'] .bien-saltar, :root[data-theme='sepia'] .bien-saltar {
+  background: var(--chip-bg); color: var(--fg);
+}
+:root[data-theme='light'] .bien-tarjeta, :root[data-theme='sepia'] .bien-tarjeta { color: var(--fg); }
+:root[data-theme='light'] .bien-cuenta, :root[data-theme='sepia'] .bien-cuenta { color: var(--fg-mute); }
+:root[data-theme='light'] .exp-ico, :root[data-theme='sepia'] .exp-ico,
+:root[data-theme='light'] .tienda-portada span, :root[data-theme='sepia'] .tienda-portada span,
+:root[data-theme='light'] .bc-fallback, :root[data-theme='sepia'] .bc-fallback,
+:root[data-theme='light'] .mp-cov, :root[data-theme='sepia'] .mp-cov { color: var(--fg); }
+:root[data-theme='light'] .foto-pista, :root[data-theme='sepia'] .foto-pista,
+:root[data-theme='light'] .tp-ini, :root[data-theme='sepia'] .tp-ini,
+:root[data-theme='light'] .tp-fmt, :root[data-theme='sepia'] .tp-fmt { color: var(--fg-mute); }
+
+:root[data-theme='light'] .st-mot-quote, :root[data-theme='sepia'] .st-mot-quote { color: var(--fg-mute); }
+:root[data-theme='light'] .st-mot-meta b, :root[data-theme='sepia'] .st-mot-meta b { color: var(--fg); }
+:root[data-theme='light'] .st-mot-meta span, :root[data-theme='sepia'] .st-mot-meta span { color: var(--fg-mute); }
+:root[data-theme='light'] .bien-tema, :root[data-theme='sepia'] .bien-tema {
+  color: var(--fg); border-color: var(--line); background: var(--chip-bg);
+}
+:root[data-theme='light'] .bien-tema i, :root[data-theme='sepia'] .bien-tema i { border-color: var(--line); }
+:root[data-theme='light'] .bien-tema.on, :root[data-theme='sepia'] .bien-tema.on {
+  border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--bg)); color: var(--accent);
+}
+:root[data-theme='light'] .goal-check, :root[data-theme='sepia'] .goal-check { color: var(--fg); }
+
+/* ═══════════════════════════════════════════════════════════════════
+   v177 (#1): la CARTA de repaso (fondo oscuro fijo) y el menú «¿Dónde
+   abrir…?». En temas claros la carta se vuelve CLARA (texto oscuro
+   hereda y contrasta → antes quedaba título negro sobre negro). El
+   menú «¿Dónde abrir…?» ya no ocupa toda la pantalla: tarjeta centrada.
+   ═══════════════════════════════════════════════════════════════════ */
+:root[data-theme='light'] .st-repaso-card, :root[data-theme='sepia'] .st-repaso-card {
+  background: var(--bg-elev, #ffffff);
+  border-color: var(--line);
+  box-shadow: 0 26px 60px -26px rgba(0,0,0,.28);
+}
+:root[data-theme='light'] .st-repaso-card .st-rm-sub, :root[data-theme='sepia'] .st-repaso-card .st-rm-sub {
+  color: var(--fg-mute);
+}
+:root[data-theme='light'] .st-repaso-card .st-rm-musica, :root[data-theme='sepia'] .st-repaso-card .st-rm-musica {
+  border-top-color: var(--line);
+}
+:root[data-theme='light'] .st-repaso-card .st-rm-select, :root[data-theme='sepia'] .st-repaso-card .st-rm-select {
+  background: var(--chip-bg); color: var(--fg); border-color: var(--line);
+}
+:root[data-theme='light'] .st-repaso-card .st-rm-select option, :root[data-theme='sepia'] .st-repaso-card .st-rm-select option {
+  color: #16131f; background: #fff;
+}
+/* Menú «¿Dónde abrir…?» compacto (tarjeta centrada, no a pantalla completa) */
+.st-abrir-donde {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 10px;
+  padding: 24px !important;
+}
+.st-abrir-donde .st-ad-titulo,
+.st-abrir-donde > .btn {
+  width: 100%;
+  max-width: 360px;
+  box-sizing: border-box;
+}
+
+/* v177 (#4): botón flotante para parar el auto-scroll (a la izquierda, no tapa el contenido) */
+.auto-stop {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 40;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--line, rgba(124,92,255,.4));
+  background: color-mix(in srgb, var(--bg, #0d0c14) 82%, transparent);
+  backdrop-filter: blur(6px);
+  color: var(--fg, #fff);
+  font-size: 17px;
+  display: grid; place-items: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,.35);
+}
+
+/* v177 (#5): en Lateral (Texto) la página se ve por PARTES; el scroll vertical no hace nada (la parte cabe en pantalla). */
+.carousel .rd-text { overflow: hidden; }
+.rd-parte-badge { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 50; font-size: 10px; letter-spacing: .3px; color: var(--tx-dim, #999); background: color-mix(in srgb, var(--bg, #fff) 80%, transparent); padding: 2px 8px; border-radius: 999px; pointer-events: none; }
