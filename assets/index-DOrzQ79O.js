@@ -14551,6 +14551,7 @@ function pararVigilante() {
 	vigilante = null;
 }
 function stop() {
+	musuPara();
 	pararVigilante();
 	pararArchivo();
 	try {
@@ -14573,6 +14574,17 @@ async function play(sceneId = "lluvia", volume = 1) {
 	if (started && current === sceneId) {
 		setVolume(volume);
 		return true;
+	}
+	// v179: música propia del usuario (id "musu:<id>"). Usa su reproductor y PARA
+	// la música nativa (al elegir una nativa, stop() también para esta). play() es
+	// no-op si ya suena la misma canción del usuario.
+	if (typeof sceneId === "string" && sceneId.indexOf("musu:") === 0) {
+		const mid = sceneId.slice(5);
+		if (musuSonando() && musuActualId === mid) { musuSetVolumen(Math.max(0, Math.min(1, volume))); return true; }
+		stop();
+		const r = await musuReproducir(mid, Math.max(0, Math.min(1, volume)));
+		try { (await __vitePreload(() => import("./audioGesto-CI5uL79N.js"), __vite__mapDeps([9,2,1,7]), import.meta.url)).marcarAudio("musica", r); } catch {}
+		return r;
 	}
 	const escena = escenaDeId(sceneId);
 	if (escena?.archivo) {
@@ -14674,8 +14686,8 @@ function avisarMusicaNativa(sonando) {
 		window.AndroidBg?.musicaPropia?.(!!sonando);
 	} catch {}
 }
-var isPlaying = () => started;
-var currentScene = () => current;
+var isPlaying = () => started || musuSonando();
+var currentScene = () => (musuSonando() ? "musu:" + musuActualId : current);
 // v146: volumen actual (0-1.5) para mostrarlo en la interfaz
 var musicaVol = () => { try { if (master) return Math.max(0, Math.min(1.5, master.gain.value)); if (reproductorArchivo) return Math.max(0, Math.min(1, reproductorArchivo.volume)); } catch (e) {} return 1; };
 function pause() {
@@ -14726,6 +14738,117 @@ if (typeof window !== "undefined") window.__lumenAmbient = {
 	resume,
 	agacharPorVoz
 };
+
+// ==== v179: Música propia del usuario (importar <=10, organizar, bucle/siguiente) ====
+// Almacenamiento en su propia IndexedDB (aislada del storage de libros) y un
+// reproductor Audio independiente que se integra con play()/stop()/isPlaying().
+var MUSU_MAX = 10;
+var musuLista = [];
+var musuVers = 0;
+var musuModo = "bucle";
+var musuAudio = null;
+var musuUrl = null;
+var musuActualId = null;
+function musuAbrirDB() {
+	return new Promise((res, rej) => {
+		const r = indexedDB.open("lumen_musica_usuario", 1);
+		r.onupgradeneeded = () => { const db = r.result; if (!db.objectStoreNames.contains("canciones")) db.createObjectStore("canciones", { keyPath: "id" }); };
+		r.onsuccess = () => res(r.result);
+		r.onerror = () => rej(r.error);
+	});
+}
+function musuListar() {
+	return musuAbrirDB().then((db) => new Promise((res, rej) => {
+		const rq = db.transaction("canciones", "readonly").objectStore("canciones").getAll();
+		rq.onsuccess = () => res((rq.result || []).slice().sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0)));
+		rq.onerror = () => rej(rq.error);
+	}));
+}
+function musuPoner(c) {
+	return musuAbrirDB().then((db) => new Promise((res, rej) => {
+		const tx = db.transaction("canciones", "readwrite");
+		tx.objectStore("canciones").put(c);
+		tx.oncomplete = () => res();
+		tx.onerror = () => rej(tx.error);
+	}));
+}
+function musuBorrar(id) {
+	return musuAbrirDB().then((db) => new Promise((res, rej) => {
+		const tx = db.transaction("canciones", "readwrite");
+		tx.objectStore("canciones").delete(id);
+		tx.oncomplete = () => res();
+		tx.onerror = () => rej(tx.error);
+	}));
+}
+function musuNotificar() {
+	musuVers++;
+	if (typeof window !== "undefined") { window.__musuVers = musuVers; try { window.dispatchEvent(new Event("musu-cambio")); } catch {} }
+}
+function musuCargar() {
+	return musuListar().then((l) => { musuLista = l; musuNotificar(); return l; }).catch((e) => { console.warn("[musu] cargar", e); return []; });
+}
+async function musuImportar(archivos) {
+	const lista = musuLista.length ? musuLista : await musuListar().catch(() => []);
+	let ok = 0, fallidos = 0;
+	for (const f of (archivos || [])) {
+		if (musuLista.length >= MUSU_MAX) { fallidos++; continue; }
+		try {
+			const buf = await f.arrayBuffer();
+			const blob = new Blob([buf], { type: f.type || "audio/*" });
+			const ordenMax = musuLista.length ? Math.max.apply(null, musuLista.map((x) => x.orden ?? 0)) : -1;
+			const c = { id: "m" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), nombre: (f.name || "canción").replace(/\.[^.]+$/, ""), mime: f.type || "audio/*", size: f.size, blob, orden: ordenMax + 1, addedAt: Date.now() };
+			await musuPoner(c);
+			musuLista.push(c); ok++;
+		} catch (e) { console.warn("[musu] importar", f && f.name, e); fallidos++; }
+	}
+	musuNotificar();
+	return { ok: ok, fallidos: fallidos, total: musuLista.length };
+}
+function musuReordenar(id, dir) {
+	const l = musuLista.slice();
+	const i = l.findIndex((x) => x.id === id);
+	if (i < 0) return;
+	const j = i + dir;
+	if (j < 0 || j >= l.length) return;
+	const t = l[i]; l[i] = l[j]; l[j] = t;
+	l.forEach((c, k) => { c.orden = k; musuPoner(c).catch(() => {}); });
+	musuLista = l; musuNotificar();
+}
+function musuQuitar(id) {
+	return musuBorrar(id).then(() => { musuLista = musuLista.filter((x) => x.id !== id); if (musuActualId === id) musuPara(); musuNotificar(); }).catch((e) => { console.warn("[musu] borrar", e); });
+}
+function musuPara() {
+	try { if (musuAudio) { musuAudio.pause(); musuAudio.onended = null; musuAudio.src = ""; } } catch {}
+	try { if (musuUrl) { URL.revokeObjectURL(musuUrl); musuUrl = null; } } catch {}
+	musuAudio = null; musuActualId = null;
+}
+function musuReproducir(id, volumen) {
+	return (async () => {
+		const lista = musuLista.length ? musuLista : await musuListar().catch(() => []);
+		const c = (lista || []).find((x) => x.id === id);
+		if (!c || !c.blob) return false;
+		musuPara();
+		const url = URL.createObjectURL(c.blob);
+		musuUrl = url;
+		const a = new Audio(url);
+		musuAudio = a; musuActualId = id;
+		a.loop = (musuModo === "bucle");
+		a.volume = Math.max(0, Math.min(1, volumen ?? 1));
+		if (musuModo !== "bucle") {
+			const idx = lista.findIndex((x) => x.id === id);
+			a.onended = () => { if (musuAudio !== a) return; const nxt = lista[(idx + 1) % lista.length]; if (nxt) musuReproducir(nxt.id, a.volume); };
+		}
+		try { await a.play(); } catch (e) { console.warn("[musu] play", e); return false; }
+		return true;
+	})();
+}
+function musuSonando() { return !!(musuAudio && !musuAudio.paused); }
+function musuSetVolumen(v) { try { if (musuAudio) musuAudio.volume = Math.max(0, Math.min(1, v)); } catch {} }
+function musuSetModo(m) { musuModo = (m === "siguiente") ? "siguiente" : "bucle"; if (typeof window !== "undefined") window.__musuModo = musuModo; if (musuAudio) { try { musuAudio.loop = (musuModo === "bucle"); } catch {} } }
+if (typeof window !== "undefined") {
+	window.__musuModo = musuModo;
+	window.__musu = { cargar: musuCargar, importar: musuImportar, quitar: musuQuitar, reordenar: musuReordenar, reproducir: musuReproducir, parar: musuPara, sonando: musuSonando, setModo: musuSetModo, getModo: () => musuModo, setVolumen: musuSetVolumen, MAX: MUSU_MAX, lista: () => musuLista };
+}
 //#endregion
 //#region src/lib/haptics.js
 var bridge$2 = () => typeof window !== "undefined" ? window.AndroidHaptics : null;
@@ -30010,7 +30133,8 @@ className: "st-vocab st-repaso-card" + (repasoColores && item.fuente === "descon
 								SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 									value: sc.id,
 									children: sc.icon + " " + sc.name
-								}, sc.id))
+								}, sc.id)),
+								(0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "select" })
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -34468,6 +34592,137 @@ function Seccion({ icono, titulo, resumen, abierta, onToggle, children }) {
 		})]
 	});
 }
+/* ============ v179 (#2) Gestión de la música del usuario (Ajustes > Sonidos) ============ */
+function MusicaUsuarioGestion(){
+	const M = window.__musu;
+	const [lista, setLista] = (0, import_react.useState)([]);
+	const [modo, setModo] = (0, import_react.useState)('bucle');
+	const [msg, setMsg] = (0, import_react.useState)('');
+	const [importando, setImportando] = (0, import_react.useState)(false);
+	const inputRef = (0, import_react.useRef)(null);
+	const refrescar = (0, import_react.useCallback)(async () => {
+		try {
+			const ls = await M.lista();
+			setLista(ls);
+			setModo(M.getModo());
+		} catch (e) {}
+	}, []);
+	(0, import_react.useEffect)(() => {
+		refrescar();
+		const f = () => refrescar();
+		window.addEventListener('musu-cambio', f);
+		return () => window.removeEventListener('musu-cambio', f);
+	}, []);
+	const alImportar = async (e) => {
+		const files = e.target.files;
+		if (!files || !files.length) return;
+		setImportando(true);
+		setMsg('');
+		try {
+			const r = await M.importar(files);
+			if (r.ok > 0) {
+				setMsg('\u2713 ' + r.ok + ' canci\u00f3n(es) a\u00f1adida(s)');
+				try { haptic$1.success(); } catch (e3) {}
+			}
+			if (r.fallidos.length) setMsg('\u26a0 ' + r.fallidos.join(', '));
+			if (r.ok === 0 && !r.fallidos.length) setMsg('No se pudo importar');
+		} catch (e2) {
+			setMsg('\u26a0 Error al importar');
+		}
+		setImportando(false);
+		if (inputRef.current) inputRef.current.value = '';
+		refrescar();
+	};
+	const mover = async (id, dir) => { try { await M.reordenar(id, dir); refrescar(); } catch (e) {} };
+	const quitar = async (id) => { try { await M.quitar(id); refrescar(); } catch (e) {} try { haptic$1.tap(); } catch (e) {} };
+	const cambiarModo = (m) => { try { M.setModo(m); setModo(m); haptic$1.tap(); } catch (e) {} };
+	const probar = (id) => {
+		try {
+			const A = window.__lumenAmbient;
+			const vol = (typeof A.musicicaVol === 'function' ? A.musicicaVol() : .35);
+			const r = A.play('musu:' + id, vol);
+			if (r && typeof r.then === 'function') r.catch(() => {});
+		} catch (e) {}
+	};
+	return (0, import_jsx_runtime.jsxs)("div", {
+		className: "musu-caja",
+		children: [
+			(0, import_jsx_runtime.jsxs)("div", { className: "musu-header", children: [
+				(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Tu m\u00fasica" }),
+				(0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Importa canciones de tu equipo (m\u00e1x. 10) y \u00e9lalas como fondo al leer o repasar" })
+			]}),
+			(0, import_jsx_runtime.jsx)("input", { ref: inputRef, type: "file", accept: "audio/*", multiple: true, style: { display: "none" }, onChange: alImportar }),
+			(0, import_jsx_runtime.jsx)("button", {
+				className: "musu-btn",
+				disabled: importando || lista.length >= M.MAX,
+				onClick: () => { if (inputRef.current) inputRef.current.click(); },
+				children: importando ? "Importando\u2026" : (lista.length >= M.MAX ? "L\u00edmite alcanzado (10)" : "\u2795 Importar canci\u00f3n")
+			}),
+			(0, import_jsx_runtime.jsxs)("div", { className: "musu-modo", children: [
+				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'bucle' ? ' on' : ''), onClick: () => cambiarModo('bucle'), children: "\U0001f501 Bucle" }),
+				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'siguiente' ? ' on' : ''), onClick: () => cambiarModo('siguiente'), children: "\u23ed\ufe0f Siguiente" })
+			]}),
+			lista.length === 0
+				? (0, import_jsx_runtime.jsx)("div", { className: "musu-vacia", children: "A\u00fan no tienes canciones importadas" })
+				: (0, import_jsx_runtime.jsx)("div", { className: "musu-lista", children: lista.map((c, idx) => (0, import_jsx_runtime.jsxs)("div", {
+					className: "musu-item",
+					children: [
+						(0, import_jsx_runtime.jsx)("span", { className: "musu-play", onClick: () => probar(c.id), children: "\u25b6" }),
+						(0, import_jsx_runtime.jsxs)("div", { className: "musu-info", children: [
+							(0, import_jsx_runtime.jsx)("div", { className: "musu-nombre", children: c.nombre }),
+							(0, import_jsx_runtime.jsx)("div", { className: "musu-meta", children: (Math.round(c.size / 1048576 * 10) / 10).toFixed(1) + " MB" })
+						]}),
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === 0, onClick: () => mover(c.id, -1), children: "\u2191" }),
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === lista.length - 1, onClick: () => mover(c.id, 1), children: "\u2193" }),
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico musu-del", onClick: () => quitar(c.id), children: "\U0001f5d1" })
+					]
+				}, c.id)) }),
+			msg ? (0, import_jsx_runtime.jsx)("div", { className: "musu-msg", children: msg }) : null
+		]
+	});
+}
+/* ============ v179 (#2) Opciones de música del usuario en los menús de selección ============ */
+function MusuOpciones({ tipo }){
+	const M = window.__musu;
+	const [lista, setLista] = (0, import_react.useState)([]);
+	(0, import_react.useEffect)(() => {
+		const f = async () => { try { setLista(await M.lista()); } catch (e) {} };
+		f();
+		window.addEventListener('musu-cambio', f);
+		return () => window.removeEventListener('musu-cambio', f);
+	}, []);
+	if (!lista.length) return null;
+	const tocar = (id) => {
+		try {
+			const A = window.__lumenAmbient;
+			const vol = (typeof A.musicicaVol === 'function' ? A.musicicaVol() : .35);
+			const r = A.play('musu:' + id, vol);
+			if (r && typeof r.then === 'function') r.catch(() => {});
+			haptic$1.tap();
+		} catch (e) {}
+	};
+	if (tipo === 'select') {
+		return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsx)("option", {
+			value: "musu:" + c.id,
+			children: "\U0001f3b5 " + c.nombre
+		}, "musu:" + c.id)) });
+	}
+	if (tipo === 'chip') {
+		return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsx)("button", {
+			className: "chip",
+			onClick: () => tocar(c.id),
+			children: ["\U0001f3b5 ", c.nombre]
+		}, c.id)) });
+	}
+	return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsxs)("button", {
+		className: "mus-card",
+		onClick: () => tocar(c.id),
+		children: [
+			(0, import_jsx_runtime.jsx)("div", { className: "mus-card-ico", children: "\U0001f3b5" }),
+			(0, import_jsx_runtime.jsx)("div", { className: "mus-card-nom", children: c.nombre })
+		]
+	}, c.id)) });
+}
 function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, progress, game, settings, setSettings, onOpen, toast, refreshKey, sheetReq, onSheetReqDone, onStatsChange, onPublicarLibro, onLibrosGratis }) {
 	const [books, setBooks] = (0, import_react.useState)([]);
 	const [imports, setImports] = (0, import_react.useState)([]);
@@ -37137,7 +37392,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								settings.musicOn && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "chips",
 									style: { marginBottom: 4 },
-									children: SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									children: [SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 										className: "chip" + ((settings.musicScene || "lluvia") === sc.id ? " on" : ""),
 										onClick: async () => {
 											await setSettings({ musicScene: sc.id });
@@ -37149,7 +37404,7 @@ const toquesDev = (0, import_react.useRef)(0);
 											" ",
 											sc.name
 										]
-									}, sc.id))
+									}, sc.id)), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "chip" })]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "row",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -37226,6 +37481,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								})
 							]
 						}),
+												(0, import_jsx_runtime.jsx)(MusicaUsuarioGestion, {}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "📖",
 							titulo: "Lectura",
@@ -48914,10 +49170,10 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										if (rM && typeof rM.then === "function") rM.catch(() => {});
 										} catch {}
 										},
-									children: SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									children: [SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 										value: sc.id,
 										children: sc.icon + " " + sc.name
-										}, sc.id))
+										}, sc.id)), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "select" })]
 									})]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "row",
@@ -49849,7 +50105,7 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "mus-grid " + musTab,
-				children: SCENES.filter((sc) => (sc.tag || "calma") === musTab && (musTab === "historias" ? !!sc.soloHistorias : !sc.soloHistorias)).map((sc) => {
+				children: [SCENES.filter((sc) => (sc.tag || "calma") === musTab && (musTab === "historias" ? !!sc.soloHistorias : !sc.soloHistorias)).map((sc) => {
 					const activa = (settings.musicScene || "lluvia") === sc.id;
 					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						className: "mus-card" + (activa ? " on" : ""),
@@ -49882,7 +50138,7 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 							})
 						]
 					}, sc.id);
-				})
+				}), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "grid" })]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				className: "btn ghost mus-parar",

@@ -12863,3 +12863,23 @@ mark.find-flash {
   letter-spacing: .3px;
   margin-left: 2px;
 }
+/* ============ v179 (#2) Gestión de la música del usuario (.musu-*) ============ */
+.musu-caja { margin: 4px 0 10px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--tinte, #4f7cff) 7%, transparent); border: 1px solid color-mix(in srgb, var(--tinte, #4f7cff) 18%, transparent); }
+.musu-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
+.musu-btn { width: 100%; padding: 10px 14px; border: none; border-radius: 10px; background: var(--tinte, #4f7cff); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .12s, opacity .12s; }
+.musu-btn:active { transform: scale(.98); }
+.musu-btn:disabled { opacity: .5; cursor: not-allowed; }
+.musu-modo { display: flex; gap: 6px; margin: 10px 0; }
+.musu-modo-btn { flex: 1; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--tinte, #4f7cff) 30%, transparent); border-radius: 10px; background: transparent; color: var(--texto, #222); font-size: 13px; font-weight: 600; cursor: pointer; }
+.musu-modo-btn.on { background: var(--tinte, #4f7cff); color: #fff; border-color: var(--tinte, #4f7cff); }
+.musu-vacia { padding: 14px; text-align: center; color: var(--texto-suave, #888); font-size: 13px; border: 1px dashed color-mix(in srgb, var(--tinte, #4f7cff) 30%, transparent); border-radius: 10px; }
+.musu-lista { display: flex; flex-direction: column; gap: 6px; }
+.musu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--tinte, #4f7cff) 5%, transparent); }
+.musu-play { cursor: pointer; font-size: 15px; color: var(--tinte, #4f7cff); padding: 2px 4px; }
+.musu-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.musu-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.musu-meta { font-size: 11px; color: var(--texto-suave, #888); }
+.musu-ico { border: none; background: transparent; font-size: 15px; cursor: pointer; padding: 4px 6px; border-radius: 8px; color: var(--texto, #222); }
+.musu-ico:disabled { opacity: .3; cursor: not-allowed; }
+.musu-ico.musu-del { color: #e0524d; }
+.musu-msg { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--tinte, #4f7cff); }
