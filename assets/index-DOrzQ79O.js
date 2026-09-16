@@ -37622,7 +37622,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v177 · escritorio y móvil"
+					children: "Lumen Reader · v178 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42365,8 +42365,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const docFlowChildren = (0, import_react.useMemo)(() => Array.from({ length: pageCount || 1 }, (_, i) => (0, import_jsx_runtime.jsx)("div", {
 		className: "doc-page",
 		style: docAr ? { aspectRatio: String(docAr) } : void 0,
-		children: docImgs[i] ? (0, import_jsx_runtime.jsxs)("div", { className: "doc-page-visual", children: [(0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom })] }) : (0, import_jsx_runtime.jsx)("div", { className: "doc-ph", children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) })
-	}, i)), [pageCount, docAr, docImgs, pdfDoc, docZoom]);
+		children: docImgs[i] ? (0, import_jsx_runtime.jsxs)("div", { className: "doc-page-visual", children: [(0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), settings.origTexto ? (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom }) : null] }) : (0, import_jsx_runtime.jsx)("div", { className: "doc-ph", children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) })
+	}, i)), [pageCount, docAr, docImgs, pdfDoc, docZoom, settings.origTexto]);
 	// v159: el elemento que hace scroll según la pestaña (texto / imágenes / original / carrusel)
 	const scrollerDeModo = (m) => {
 		const root = document.querySelector(".reader");
@@ -44165,6 +44165,7 @@ const docPedir = (desde, hasta) => {
 	// se detiene en el borde); el dedo conserva el avance automático.
 	const wheelActivo = (0, import_react.useRef)(0);
 	const keyActivo = (0, import_react.useRef)(0); // v177 (#7): marca scroll por teclado (flechas) para que el auto-volteo por dedo no se dispare
+	const fabActivo = (0, import_react.useRef)(0); // v177 (#9): marca el scroll del botón ir-arriba/abajo (no debe auto-voltear de página)
 	// v146: auto-avance de la voz NO debe resetear el scroll del usuario
 	const ttsAutoPg = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => {
@@ -44253,6 +44254,7 @@ const docPedir = (desde, hasta) => {
 			if (sheet) return;
 			if (Date.now() - wheelActivo.current < 650) return;
 			if (Date.now() - keyActivo.current < 650) return; // v177 (#7): el teclado tiene su propio buffer (no auto-voltea al llegar al borde)
+			if (Date.now() - fabActivo.current < 900) { fabActivo.current = Date.now(); return; } // v177 (#9): el botón ir-arriba/abajo no debe auto-voltear de página
 			if (Date.now() - ultimoGoPg.current < 1100) return;
 			if (el.scrollHeight - el.clientHeight < 24) return;
 			if (el.scrollTop > 120) el._vioBajo = true;
@@ -45074,6 +45076,7 @@ const docPedir = (desde, hasta) => {
 		const el = document.querySelector(".rd-page");
 		if (!el) return;
 		const abajo = el.scrollTop > el.clientHeight * .5;
+		fabActivo.current = Date.now(); // v177 (#9): el scroll programático no debe disparar el auto-volteo
 		el.scrollTo({
 			top: abajo ? 0 : el.scrollHeight,
 			behavior: "smooth"
@@ -48493,6 +48496,26 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				onClose: closeSheet,
 				title: "Lectura",
 				children: [
+					/* v177 (#8): el texto seleccionable de Original es OPCIONAL (default OFF = más rápido). */
+					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "2px 4px 8px" },
+								children: "Velocidad"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Texto en Original" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Apagado: Original no monta el texto y carga mucho más rápido en PDFs largos. Encendido: puedes seleccionar y copiar texto." })
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, { on: !!settings.origTexto, onChange: (v) => setSettings({ origTexto: v }) })
+								]
+							})
+						]
+					}),
 					// v177 (#3): "Desplazamiento" vive en Lectura (antes estaba en Herramientas).
 					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
 						children: [
