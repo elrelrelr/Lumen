@@ -8,6 +8,7 @@ const GUTENDEX = "https://gutendex.com";
 const OL = "https://openlibrary.org";
 const IA = "https://archive.org";
 const META_CAT = "librosGratis_catalogo";
+const META_GARD = "librosGratis_guardados"; // v180: guardados por categoría (tema)
 const FUENTES = ["gutendex", "openlibrary", "archive"];
 /** v145: 3 bibliotecas de libros gratis (dominio público y obras abiertas):
 *  1) Project Gutenberg (vía Gutendex), 2) Open Library, 3) Archive.org.
@@ -346,6 +347,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 	const [descarga, setDescarga] = (0, import_react.useState)(null);
 	// v148: menú de opciones de descarga (navegador Lumen / dispositivo)
 	const [menuLibro, setMenuLibro] = (0, import_react.useState)(null);
+	// v180: guardados en carpetas/categorías (grupos por tema)
+	const [guardados, setGuardados] = (0, import_react.useState)([]);
+	const [guardTema, setGuardTema] = (0, import_react.useState)("todas");
+	const [guardCat, setGuardCat] = (0, import_react.useState)(null);
+	const [guardNueva, setGuardNueva] = (0, import_react.useState)("");
 	// v148: vigilancia de importación tras descargar en un navegador
 	const [vigilando, setVigilando] = (0, import_react.useState)(null);
 	const vigRef = (0, import_react.useRef)(null);
@@ -702,102 +708,214 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 		return (libro.title || "").toLowerCase().includes(texto) || libro.authors.join(" ").toLowerCase().includes(texto);
 	});
 	const nBibliotecas = fuentes ? FUENTES.filter((id) => fuentes[id]?.ok).length : 0;
+	// v180: guardados (carpetas/categorías por tema)
+	const cargarGuardados = async () => {
+		try {
+			const c = await getMeta(META_GARD, null);
+			if (Array.isArray(c?.lista)) setGuardados(c.lista);
+		} catch {}
+	};
+	(0, import_react.useEffect)(() => {
+		cargarGuardados();
+	}, []);
+	const guardarMetaGard = (lista) => {
+		setGuardados(lista);
+		try {
+			setMeta({ id: META_GARD, lista, at: Date.now() });
+		} catch {}
+	};
+	const esGuardado = (libro) => guardados.find((g) => claveLibro(g.b) === claveLibro(libro)) || null;
+	const guardarEn = (libro, cat) => {
+		const c = String(cat || "").trim() || "Sin categoría";
+		const clave = claveLibro(libro);
+		guardarMetaGard([...guardados.filter((g) => claveLibro(g.b) !== clave), { b: libro, cat: c, at: Date.now() }]);
+		setGuardCat(null);
+		setGuardNueva("");
+		setMenuLibro(null);
+		toast?.("🔖 Guardado en «" + c + "»");
+	};
+	const quitarGuardado = (libro) => {
+		const clave = claveLibro(libro);
+		guardarMetaGard(guardados.filter((g) => claveLibro(g.b) !== clave));
+		setGuardCat(null);
+		setMenuLibro(null);
+		toast?.("Quitado de guardados");
+	};
+	const catsUsadas = () => {
+		const ops = [];
+		for (const g of guardados) if (g.cat && !ops.includes(g.cat)) ops.push(g.cat);
+		return ops;
+	};
+	const catGuard = () => {
+		const ops = [];
+		for (const g of guardados) if (g.cat && g.cat !== "Sin categoría" && !ops.includes(g.cat)) ops.push(g.cat);
+		for (const t of TEMAS) if (t.id !== "all" && !ops.includes(t.label)) ops.push(t.label);
+		return ops.slice(0, 10);
+	};
 	const tarjetas = (lista) => lista.map((libro) => {
 		const ya = enMiBib(libro);
+		const yaListo = !!(ya && ya.status === "ready");
 		const descargando = descarga && descarga.clave === String(libro.id);
+		const guard = esGuardado(libro);
+		const abrir = () => {
+			if (yaListo) {
+				onAbrirLibro?.(ya.id);
+				return;
+			}
+			setMenuLibro(null);
+			// v168: PRIMERO se abre el navegador (integrado de Lumen si
+			// existe, si no el del dispositivo) y se descarga ahí; Lumen
+			// lo importa solo al detectarlo (o a mano con «Elegir archivo»).
+			if (libro.epub || libro.txt || urlLibroDe(libro)) {
+				abrirConNavegador(libro, navDisponible() ? "lumen" : "dispositivo");
+			} else if (libro.ia) {
+				leerGratis(libro).catch(() => {});
+			} else {
+				setMenuLibro(String(libro.id));
+			}
+		};
 		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "lg-card",
-			children: [libro.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-				className: "lg-cover",
-				src: libro.cover,
-				alt: "",
-				loading: "lazy"
-			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "lg-cover lg-falso",
-				children: "📖"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "lg-info",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "lg-title",
-					children: libro.title
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "lg-sub",
-					children: libro.authors.join(", ") || "Autor desconocido"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "lg-sub lg-2",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: `⬇ ${libro.downloads ? Math.round(libro.downloads / 1e3) + " mil" : "—"} ` }), " · ", (libro.bookshelves || [])[0]?.replace("Category: ", "") || "Dominio público"]
+			className: "lg-mini" + (yaListo ? " lg-ya" : ""),
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "lg-mini-top",
+				onClick: abrir,
+				children: [libro.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					className: "lg-cover",
+					src: libro.cover,
+					alt: "",
+					loading: "lazy",
+					draggable: false
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "lg-cover lg-falso",
+					children: "📖"
+				}), yaListo ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "lg-badge",
+					children: "✓"
+				}) : null, descargando ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "lg-prog",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "lg-prog-fill",
+						style: { width: (descarga.pct || 0) + "%" }
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "lg-prog-txt",
+						children: (descarga.pct || 0) + "%"
+					})]
+				}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "lg-mas",
+					title: "Otras opciones",
+					"aria-label": "Otras opciones",
+					onClick: (e) => {
+						e.stopPropagation();
+						setMenuLibro(menuLibro === String(libro.id) ? null : String(libro.id));
+					},
+					children: "⋯"
 				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "lg-nombre",
+				onClick: abrir,
+				children: libro.title
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "lg-autor",
+				children: (libro.authors || [])[0] || "Autor desconocido"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "lg-botones",
-				children: [ya && ya.status === "ready" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "btn primary lg-boton",
-					disabled: true,
-					onClick: () => onAbrirLibro?.(ya.id),
-					children: "✓ En tu biblioteca"
-				}) : descarga ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "btn primary lg-boton",
-					disabled: true,
-					children: `${descarga.pct || 0}%`
-				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "lg-boton-row",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn primary lg-boton",
+				className: "lg-meta",
+				children: [(libro.bookshelves || [])[0]?.replace("Category: ", "") || "Dominio público", " · ", libro.downloads ? (libro.downloads >= 1e6 ? "⬇" + Math.round(libro.downloads / 1e6) + " M" : "⬇" + Math.round(libro.downloads / 1e3) + " mil") : "⬇ 0"]
+			}), menuLibro === String(libro.id) && !descarga && !yaListo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "lg-menu-fondo",
+				onClick: () => setMenuLibro(null),
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "lg-menu",
+					onClick: (e) => e.stopPropagation(),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "lg-menu-tit",
+						children: (libro.title || "").slice(0, 48) || "Libro"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn",
 						onClick: () => {
 							setMenuLibro(null);
-							// v168: PRIMERO se abre el navegador (integrado de Lumen si
-							// existe, si no el del dispositivo) y se descarga ahí; Lumen
-							// lo importa solo al detectarlo (o a mano con «Elegir archivo»).
-							// El fetch directo queda como opción en el menú ⋯.
-							if (libro.epub || libro.txt || urlLibroDe(libro)) {
-								abrirConNavegador(libro, navDisponible() ? "lumen" : "dispositivo");
-							} else if (libro.ia) {
-								leerGratis(libro).catch(() => {});
-							} else {
-								setMenuLibro(String(libro.id));
-							}
+							abrirConNavegador(libro, "lumen");
 						},
-						children: "⬇ Leer gratis"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "lg-boton-mas",
-						title: "Otras formas de descargar",
-						"aria-label": "Otras formas de descargar",
-						onClick: () => setMenuLibro(menuLibro === String(libro.id) ? null : String(libro.id)),
-						children: "⋯"
+						children: "🌐 Navegador de Lumen"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn",
+						onClick: () => {
+							setMenuLibro(null);
+							abrirConNavegador(libro, "dispositivo");
+						},
+						children: "📲 Navegador del dispositivo"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn",
+						onClick: () => {
+							setMenuLibro(null);
+							leerGratis(libro).catch(() => {});
+						},
+						children: "⚡ Descarga directa"
+					}), guard ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn",
+						onClick: () => quitarGuardado(libro),
+						children: "✔ Guardado en «" + guard.cat + "» — quitar"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn primary",
+						onClick: () => {
+							setMenuLibro(null);
+							setGuardCat(String(libro.id));
+						},
+						children: "🔖 Guardar en carpeta / categoría…"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn ghost",
+						onClick: () => setMenuLibro(null),
+						children: "✕ Cerrar"
 					})]
 				})]
-			}),
-			menuLibro === String(libro.id) && !descarga && !ya && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "lg-menu",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "btn",
-					onClick: () => {
-						setMenuLibro(null);
-						abrirConNavegador(libro, "lumen");
-					},
-							children: "🌐 Navegador de Lumen"
+			}), guardCat === String(libro.id) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "lg-menu-fondo",
+				onClick: () => {
+					setGuardCat(null);
+					setGuardNueva("");
+				},
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "lg-menu lg-guardar",
+					onClick: (e) => e.stopPropagation(),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "lg-menu-tit",
+						children: "Guardar «" + (libro.title || "").slice(0, 40) + "» en:"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "chips lg-guardar-chips",
+						children: catGuard().map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "chip",
+							onClick: () => guardarEn(libro, c),
+							children: c
+						}, c))
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "lg-guardar-fila",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "plain",
+							placeholder: "Nueva categoría…",
+							value: guardNueva,
+							onChange: (e) => setGuardNueva(e.target.value),
+							onKeyDown: (e) => {
+								if (e.key === "Enter" && guardNueva.trim()) guardarEn(libro, guardNueva);
+							}
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn",
-							onClick: () => {
-								setMenuLibro(null);
-								abrirConNavegador(libro, "dispositivo");
-							},
-							children: "📲 Navegador del dispositivo"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn",
-							onClick: () => {
-								setMenuLibro(null);
-								leerGratis(libro).catch(() => {});
-							},
-							children: "⚡ Descarga directa"
+							className: "btn primary",
+							disabled: !guardNueva.trim(),
+							onClick: () => guardarEn(libro, guardNueva),
+							children: "Guardar"
+						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "btn ghost",
-					onClick: () => setMenuLibro(null),
-					children: "✕"
+						className: "btn ghost",
+						onClick: () => {
+							setGuardCat(null);
+							setGuardNueva("");
+						},
+						children: "✕ Cerrar"
+					})]
 				})]
-			}),
-			vigilando && vigilando.clave === String(libro.id) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			}), vigilando && vigilando.clave === String(libro.id) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "lg-vigilando",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "👀 Detectando tu descarga…" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					children: "👀 Detectando tu descarga…"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
 					className: "btn",
 					children: ["Elegir archivo", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						type: "file",
@@ -813,6 +931,17 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 			})]
 		}, String(libro.id));
 	});
+	// v180: tiradas horizontales: cada fila tiene 10 libros (6 visibles por pantalla)
+	const filas = (lista) => {
+		const cards = tarjetas(lista);
+		const out = [];
+		for (let i = 0; i < cards.length; i += 10) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			className: "lg-fila",
+			children: cards.slice(i, i + 10)
+		}, i));
+		return out;
+	};
+
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "pb-scrim",
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -853,7 +982,27 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						className: "spinner",
 						style: { display: "inline-block", marginRight: 8 }
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: cargandoFondo >= 2 ? "Cargando otras 2 bibliotecas en segundo plano… los libros nuevos aparecerán solos aquí." : "Cargando otra biblioteca en segundo plano… los libros nuevos aparecerán solos aquí." })]
-				}), !cargando && recomendados && recomendados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				}), !cargando && guardados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "section-title",
+					style: { margin: "14px 4px 4px" },
+					children: `🔖 Guardados · ${guardados.length}`
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "row-sub",
+					style: { margin: "0 4px 8px" },
+					children: "Tus libros guardados en carpetas (categorías por tema). Toca la portada o el nombre para leerlos gratis."
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "chips lg-temas",
+					children: ["todas", ...catsUsadas()].map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "chip" + (guardTema === c ? " on" : ""),
+						onClick: () => setGuardTema(c),
+						children: c === "todas" ? "Todas" : c
+					}, c))
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "lg-filas",
+					children: filas(guardados.filter((g) => guardTema === "todas" || g.cat === guardTema).map((g) => g.b))
+				})]
+			}),  !cargando && recomendados && recomendados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "section-title",
 						style: { margin: "14px 4px 4px" },
@@ -863,8 +1012,8 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						style: { margin: "0 4px 10px" },
 						children: "Elegidos con etiquetas parecidas a lo que ya tienes en tu Lumen (sin cuentas y sin IA)."
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "lg-grid",
-						children: tarjetas(recomendados.filter((l) => !texto || (l.title || "").toLowerCase().includes(texto) || l.authors.join(" ").toLowerCase().includes(texto)))
+						className: "lg-filas",
+						children: filas(recomendados.filter((l) => !texto || (l.title || "").toLowerCase().includes(texto) || l.authors.join(" ").toLowerCase().includes(texto)))
 					})]
 				}), !cargando && (texto.length >= 2 || (remoto && remoto.length > 0)) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -886,8 +1035,8 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						style: { margin: "0 4px 10px" },
 						children: `Sin resultados en las bibliotecas para «${q.trim()}». Prueba con menos palabras.`
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "lg-grid",
-						children: tarjetas(remoto || [])
+						className: "lg-filas",
+						children: filas(remoto || [])
 					})]
 				}), 
 !cargando && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -896,8 +1045,8 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 						style: { margin: "16px 4px 4px" },
 						children: [tema === "all" ? "Todo el catálogo" : (TEMAS.find((t) => t.id === tema) || {}).label, " · ", filtrados.length, " de ", finVentana - (desde || 0), " libros en esta ventana"]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "lg-grid",
-						children: tarjetas(filtrados)
+						className: "lg-filas",
+						children: filas(filtrados.slice(0, 60)) // v180: máximo 6 filas (60), la barra de 100 va después
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "lg-pag",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {

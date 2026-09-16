@@ -11967,19 +11967,7 @@ mark.find-flash {
 .lg-vigilando .btn { margin: 0; font-size: 12.5px; }
 
 /* ============ v150: paginación 100 en 100 en Libros gratis ============ */
-.lg-pag {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 4px 12px;
-  background: var(--bg-elev);
-  border-top: 1px solid var(--line);
-  border-radius: 14px 14px 0 0;
-}
+.lg-pag { display: flex;   align-items: center;   justify-content: space-between;   gap: 10px;   padding: 10px 4px 12px;   background: var(--bg-soft, transparent);   border: 1px solid var(--line);   border-radius: 14px;   margin-top: 4px; }
 .lg-pag .btn {
   flex: 0 0 auto;
   white-space: nowrap;
@@ -12887,37 +12875,51 @@ mark.find-flash {
 .row select.plain { flex: 0 1 auto; max-width: 62%; min-width: 96px; text-overflow: ellipsis; }
 .musu-caja select.plain, .aj select.plain { max-width: 70%; }
 
-/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
+/* v180 (#2): barra "mantener para cambiar de página" — píldora visible con
+   flecha + texto + progreso suave, pegada al borde donde está el dedo */
 .rd-carga-pg {
   position: fixed;
-  left: 0; right: 0;
-  height: 36px;
-  z-index: 90;
-  background: rgba(10, 8, 18, 0.62);
-  backdrop-filter: blur(6px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(320px, 84vw);
+  height: 46px;
+  z-index: 95;
+  border-radius: 23px;
+  background: rgba(13, 10, 22, .8);
+  border: 1.5px solid rgba(124, 92, 255, .65);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
   pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.rd-carga-pg.abajo { bottom: 0; border-radius: 14px 14px 0 0; }
-.rd-carga-pg.arriba { top: 0; border-radius: 0 0 14px 14px; }
+.rd-carga-pg.abajo { bottom: calc(var(--safe-b) + 8px); }
+.rd-carga-pg.arriba { top: calc(var(--safe-t, 0px) + 8px); }
 .rd-carga-pg-fill {
   position: absolute;
   left: 0; top: 0; bottom: 0; width: 100%;
-  background: rgba(124, 92, 255, 0.45);
+  background: linear-gradient(90deg, rgba(124, 92, 255, .55), rgba(124, 92, 255, .9));
   transform-origin: left center;
   transform: scaleX(0);
+  transition: transform .1s linear;
 }
-.rd-carga-pg-txt {
+.rd-carga-pg-chip {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #fff;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13.5px;
+  font-weight: 700;
   letter-spacing: .2px;
-  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  text-shadow: 0 1px 3px rgba(0,0,0,.55);
+  white-space: nowrap;
 }
+.rd-carga-pg-arr { font-size: 18px; line-height: 1; }
+.rd-carga-pg-txt { color: inherit; }
 
 /* ============ v179 (Notas #2): compose pegado al fondo + input y emoji a la misma altura ============ */
 /* La hoja de notas ocupa toda la altura: la lista crece (flex) y el compose
@@ -12942,3 +12944,46 @@ mark.find-flash {
    input y el botón de emojis quedan a la misma altura, uno al lado del otro. */
 .note-compose .nota-fila { align-items: center; width: 100%; min-width: 0; }
 .note-compose .tg-pill { align-items: center; min-width: 0; flex: 1 1 auto; }
+
+/* ============ v180 (#1): asistente académico — tabs compactos + contenido llena la hoja ============ */
+/* Pestañas en UNA fila de píldoras compactas (sin saltar de línea); si no
+   caben, se deslizan horizontalmente en vez de hacer 2 filas grandes. */
+.acad-tabs { display: flex; gap: 5px; flex-wrap: nowrap; overflow-x: auto; margin-bottom: 10px; padding: 2px; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.acad-tabs::-webkit-scrollbar { display: none; }
+.acad-tab { padding: 6px 11px; font-size: 12px; border-radius: 99px; flex: 0 0 auto; }
+/* El contenido de la pestaña activa ocupa toda la altura restante de la
+   hoja (pantalla completa): antes se quedaba a la mitad con vacío abajo. */
+.sheet-body:has(.acad-tabs) { display: flex; flex-direction: column; }
+.sheet-body:has(.acad-tabs) > div:not(.acad-tabs) { flex: 1 0 auto; display: flex; flex-direction: column; }
+.sheet-body:has(.acad-tabs) .acad-resumen-grid { flex: 1 1 auto; }
+.acad-resumen-cell { display: grid; place-items: center; }
+
+/* ==== v180: Libros gratis — rediseño: tiradas de 10 (6 visibles), portada
+     grande arriba, nombre debajo, tap=leer, metadata compacta, menú centrado,
+     guardar en carpeta/categoría, barra de 100 solo al final (no fija) ==== */
+.lg-filas { display: flex; flex-direction: column; gap: 12px; padding: 0 4px 12px; }
+.lg-fila { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding: 2px 2px 6px; -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
+.lg-fila::-webkit-scrollbar { height: 6px; }
+.lg-fila::-webkit-scrollbar-thumb { background: var(--line, #333); border-radius: 3px; }
+.lg-mini { position: relative; flex: 0 0 calc((100% - 40px) / 6); min-width: 0; scroll-snap-align: start; display: flex; flex-direction: column; gap: 5px; padding: 7px 7px 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-soft); }
+.lg-mini.lg-ya { border-color: color-mix(in srgb, #3f9e57 45%, var(--line)); }
+.lg-mini-top { position: relative; cursor: pointer; }
+.lg-mini-top .lg-cover { width: 100%; height: auto; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 8px; display: block; background: #efece4; box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
+.lg-mini-top .lg-cover.lg-falso { display: flex; align-items: center; justify-content: center; font-size: 26px; }
+.lg-badge { position: absolute; left: 4px; bottom: 4px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; background: #2f8f4f; color: #fff; font-size: 11px; line-height: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
+.lg-prog { position: absolute; inset: 0; z-index: 2; border-radius: 8px; background: rgba(0, 0, 0, .55); overflow: hidden; }
+.lg-prog-fill { height: 4px; background: linear-gradient(90deg, #7c5cff, #b18cff); transition: width .2s; }
+.lg-prog-txt { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); text-align: center; color: #fff; font-size: 11px; font-weight: 700; }
+.lg-mas { position: absolute; top: 4px; right: 4px; z-index: 3; width: 24px; height: 24px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: color-mix(in srgb, var(--bg-elev, #fff) 82%, transparent); backdrop-filter: blur(4px); color: var(--fg, #111); font-size: 13px; line-height: 1; display: grid; place-items: center; cursor: pointer; }
+.lg-mas:active { transform: scale(.9); }
+.lg-nombre { cursor: pointer; font-size: 12px; font-weight: 700; line-height: 1.2; min-height: 29px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.lg-autor { font-size: 10px; opacity: .72; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-meta { font-size: 9.5px; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lg-menu-fondo { position: fixed; inset: 0; z-index: 119; background: rgba(0, 0, 0, .35); }
+.lg-menu { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 120; width: min(340px, 92vw); max-height: 76vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-elev, #fff); box-shadow: 0 14px 44px rgba(0, 0, 0, .4); }
+.lg-menu-tit { font-weight: 700; font-size: 13.5px; line-height: 1.3; padding: 0 2px 6px; border-bottom: 1px solid var(--line); }
+.lg-menu .btn { margin: 0; font-size: 13.5px; }
+.lg-guardar { width: min(360px, 92vw); }
+.lg-guardar-chips { justify-content: flex-start; }
+.lg-guardar-fila { display: flex; gap: 8px; align-items: center; }
+.lg-guardar-fila input { flex: 1; min-width: 0; }

@@ -36041,7 +36041,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v179"
+							children: "v180"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37479,9 +37479,9 @@ const toquesDev = (0, import_react.useRef)(0);
 										}
 									})]
 								})
+								(0, import_jsx_runtime.jsx)(MusicaUsuarioGestion, {}),
 							]
 						}),
-												(0, import_jsx_runtime.jsx)(MusicaUsuarioGestion, {}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "📖",
 							titulo: "Lectura",
@@ -37890,7 +37890,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v179 · escritorio y móvil"
+					children: "Lumen Reader · v180 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42331,8 +42331,9 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
 	const [cargaPg, setCargaPg] = (0, import_react.useState)(null);
 	const cargaPgT = (0, import_react.useRef)(null);
+	const cargaPgRaf = (0, import_react.useRef)(null);
 	const cargaPgStart = (0, import_react.useRef)(0);
-	const limpiarCargaPg = () => { if (cargaPgT.current) { clearTimeout(cargaPgT.current); cargaPgT.current = null; } };
+	const limpiarCargaPg = () => { if (cargaPgT.current) { clearTimeout(cargaPgT.current); cargaPgT.current = null; } if (cargaPgRaf.current) { cancelAnimationFrame(cargaPgRaf.current); cargaPgRaf.current = null; } };
 	const [chrome, setChrome] = (0, import_react.useState)(true);
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	const [err, setErr] = (0, import_react.useState)(null);
@@ -44016,14 +44017,22 @@ const go = (0, import_react.useCallback)((delta) => {
 					const dir = dyS < 0 ? "abajo" : "arriba";
 					if (!cargaPgT.current) {
 						cargaPgStart.current = Date.now();
+						setCargaPg({ dir, p: 0 });
+						/* v180 (#2): loop rAF — la barra avanza suave aunque el dedo siga quieto en el borde */
+						const loopCarga = () => {
+							const elC = Date.now() - cargaPgStart.current;
+							if (elC >= 1000) { cargaPgRaf.current = null; return; }
+							setCargaPg((c) => c ? { ...c, p: Math.min(100, elC) } : c);
+							cargaPgRaf.current = requestAnimationFrame(loopCarga);
+						};
+						cargaPgRaf.current = requestAnimationFrame(loopCarga);
 						cargaPgT.current = setTimeout(() => {
 							cargaPgT.current = null;
+							if (cargaPgRaf.current) { cancelAnimationFrame(cargaPgRaf.current); cargaPgRaf.current = null; }
 							setCargaPg(null);
 							go(dir === "abajo" ? 1 : -1);
 						}, 1000);
 					}
-					const el = Date.now() - cargaPgStart.current;
-					setCargaPg({ dir, p: Math.min(100, el) });
 				} else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
 			}
 		}
@@ -44553,6 +44562,7 @@ const docPedir = (desde, hasta, centroArg) => {
 			const esPagina = el.classList.contains("rd-page");
 			const esItem = el.classList.contains("carousel-item");
 			if (!esPagina && !esItem) return;
+			if (esPagina) return; // v180 (#2): en .rd-page la barra "mantener 1s" reemplazó el auto-volteo por scroll (el carrusel lo conserva)
 			if (sheet) return;
 			if (Date.now() - wheelActivo.current < 650) return;
 			if (Date.now() - keyActivo.current < 650) return; // v177 (#7): el teclado tiene su propio buffer (no auto-voltea al llegar al borde)
@@ -45708,12 +45718,15 @@ const docPedir = (desde, hasta, centroArg) => {
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
 /* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
 (cargaPg && (
-			(0, import_jsx_runtime.jsx)("div", {
+			(0, import_jsx_runtime.jsxs)("div", {
 				className: "rd-carga-pg" + (cargaPg.dir === "abajo" ? " abajo" : " arriba"),
 				"aria-hidden": true,
 				children: [
 					(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + Math.min(1, (cargaPg.p || 0) / 100) + ")" } }),
-					(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Cambiar de página" })
+					(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
+						(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: cargaPg.dir === "abajo" ? "↓" : "↑" }),
+						(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Cambiar de página" })
+					] })
 				]
 			})
 		)) ,
