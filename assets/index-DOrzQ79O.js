@@ -10606,7 +10606,7 @@ function fileWrite(name, content) {
 		}
 		console.warn("[persist] respaldo demasiado grande para localStorage");
 	} catch (e) {
-		console.warn("[persist] cuota de almacenamiento superada", e);
+		if (!window.__lumenCuotaAvisada) { window.__lumenCuotaAvisada = true; console.warn("[persist] cuota de localStorage llena: el respaldo completo no cabe; los datos siguen a salvo en la base principal (IndexedDB).", e); }
 	}
 	return false;
 }
@@ -43863,11 +43863,11 @@ const go = (0, import_react.useCallback)((delta) => {
 			})();
 		}
 	};
-const docPedir = (desde, hasta) => {
+const docPedir = (desde, hasta, centroArg) => {
 		// v177 (#3): recorta la cola a una ventana (evita que un scroll rápido o un salto
 		// encole cientos de páginas y congele la UI), prioriza la página que se mira y la limita.
 		const lo = Math.max(0, desde - 1), hi = Math.min((pageCount || 1) - 1, hasta + 1);
-		const centro = (lo + hi) >> 1;
+		const centro = centroArg !== undefined ? centroArg : (lo + hi) >> 1; // v178: si se indica, prioriza esa página
 		docCola.current = docCola.current.filter((i) => i >= lo - 8 && i <= hi + 8);
 		for (let i = desde; i <= hasta; i++) {
 			if (docImgsRef.current[i] !== undefined || docCola.current.includes(i)) continue;
@@ -43984,7 +43984,7 @@ const docPedir = (desde, hasta) => {
 		const ph = el.clientWidth / docAr;
 		if (!ph) return;
 		const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
-		docPedir(Math.max(0, page - 1), Math.min(n - 1, page + Math.ceil(el.clientHeight / ph) + 3));
+		docPedir(Math.max(0, page - 1), Math.min(n - 1, page + Math.ceil(el.clientHeight / ph) + 3), page); // v178: la página objetivo primero
 		if (page === docLast.current) return;
 		docLast.current = page;
 		docNav.current = Date.now(); // v174 (P6)
