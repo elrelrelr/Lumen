@@ -10974,7 +10974,7 @@ html[data-fuente-app='antigua'] textarea {
 .sheet.sheet-full{width:auto;max-width:none}
 .sheet.out{transform:translateY(100%)}
 .sheet-body{max-height:none;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain}
-.hoja-img{top:0;height:100%;max-height:100%;border-radius:0}
+.hoja-img{top:50%;height:auto;max-height:74vh;border-radius:18px}
 .import-card{transition:border-color .15s ease,background .15s ease}
 .import-card.listo{cursor:pointer;border-color:var(--accent)}
 
@@ -12987,3 +12987,13 @@ mark.find-flash {
 .lg-guardar-chips { justify-content: flex-start; }
 .lg-guardar-fila { display: flex; gap: 8px; align-items: center; }
 .lg-guardar-fila input { flex: 1; min-width: 0; }
+
+
+/* ==== v181: lector — segmentado compacto + Libros gratis en móvil ==== */
+/* v181: control de modos (T / libro / imagen) compacto en la barra superior */
+.seg-ico button { display: inline-flex; align-items: center; justify-content: center; padding: 6px 10px; line-height: 1; }
+.seg-ico button svg { display: block; }
+/* v181: Libros gratis — 3 tarjetas por fila en pantallas ≤700px (con 6 se encogían demasiado) */
+@media (max-width: 700px) {
+	.lg-mini { flex: 0 0 calc((100% - 16px) / 3); padding: 6px 6px 7px; }
+}

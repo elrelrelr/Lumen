@@ -13,7 +13,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { c as haptic, i as TEMAS_PERSONAJE, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, i as TEMAS_PERSONAJE, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { CANAL_TELEGRAM, VENTAJAS, canjearCodigo, estadoPremium, sincronizarCodigos } from "./premium-BRwaCNUF.js";
 //#region src/components/Premium.jsx
 var import_react = require_react();

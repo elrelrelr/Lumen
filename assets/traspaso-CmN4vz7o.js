@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DOrzQ79O.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DX181kQz.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
 import { D as saveSettings, M as withDb, O as setMeta, T as putPage, a as allNotes, f as getAllPages, h as getMeta, i as allHighlights, r as allBooks, v as getSettings, w as putBook } from "./db-Ii3ipPL7.js";
 var __vitePreload = (fn, deps) => {
 	try {
@@ -333,7 +333,7 @@ async function importarProgreso(datos, avisar = () => {}) {
 				activo: true,
 				desde: datos.premium.desde || Date.now()
 			});
-			(await __vitePreload(() => import("./index-DOrzQ79O.js").then((n) => n.p), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).fijarPremiumPagado?.(true);
+			(await __vitePreload(() => import("./index-DX181kQz.js").then((n) => n.p), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).fijarPremiumPagado?.(true);
 		}
 		if (datos.identidad?.identidad) {
 			if (!(await getMeta("nostr_identidad", null))?.identidad) await setMeta({

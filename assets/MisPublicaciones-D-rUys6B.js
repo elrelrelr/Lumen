@@ -1,5 +1,5 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { identidadGuardada, npubCorto, relaysGuardados } from "./nostr-zC6Qsl2z.js";
 import { a as generarVitrinaHtml, c as libroDePublicado, d as reenviarPublicado, i as exportarJson, l as listarPublicados, n as enlaceDe, r as estadoDe, t as borrarPublicadoRed, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";

@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DOrzQ79O.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DX181kQz.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
 import { v as getSettings } from "./db-Ii3ipPL7.js";
 var __vitePreload = (fn, deps) => {
 	try {
@@ -32,7 +32,7 @@ var volumenSonidos = () => sonidosVol;
 /** El contexto de audio compartido, o null si no se puede usar. */
 async function contexto() {
 	try {
-		const c = (await __vitePreload(() => import("./index-DOrzQ79O.js").then((n) => n.l), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).__ctx?.() || null;
+		const c = (await __vitePreload(() => import("./index-DX181kQz.js").then((n) => n.l), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).__ctx?.() || null;
 		if (c) return c;
 	} catch {}
 	try {
@@ -60,7 +60,7 @@ async function sonidoLogro() {
 		if (c.state === "suspended") await c.resume().catch(() => {});
 		let vol = .16;
 		try {
-			if ((await __vitePreload(() => import("./index-DOrzQ79O.js").then((n) => n.l), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).isPlaying?.()) vol = .1;
+			if ((await __vitePreload(() => import("./index-DX181kQz.js").then((n) => n.l), __vite__mapDeps([0,1,2,3,4,5,6,7]), import.meta.url)).isPlaying?.()) vol = .1;
 			if (window.__lumenSpeaker?.playing) vol = .09;
 		} catch {}
 		const t0 = c.currentTime + .01;

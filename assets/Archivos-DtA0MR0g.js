@@ -1,5 +1,5 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 //#region src/lib/archivos.js
 var import_react = require_react();
 var puente = () => typeof window !== "undefined" && window.AndroidArchivos ? window.AndroidArchivos : null;

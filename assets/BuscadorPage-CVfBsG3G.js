@@ -1,5 +1,5 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { a as usarPulsacionLarga, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { a as usarPulsacionLarga, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { SITIOS, TIPOS, abrirEnNavegador, alternarFavorito, anadirSitioPropio, borrarDescarga, borrarSitioPropio, cambiarCodigo, cancelarDescargaActiva, cargarEstadoFiltro, comprobarCodigo, cuantosAvanzados, desbloquear, descargaActiva, estaDesbloqueado, favoritos, historial, historialDescargas, navegadorDisponible, olvidar, ordenarSitios, recordar, sitiosPropios, urlDe } from "./buscador-BkphWfy2.js";
 //#region src/components/BuscadorPage.jsx
 var import_react = require_react();

@@ -1,4 +1,4 @@
-const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./nostr-zC6Qsl2z.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js","./index-DOrzQ79O.js","./react-1WJTggxS.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css","./streaming-CGdx3ecV.js"])))=>i.map(i=>d[i]);
+const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./nostr-zC6Qsl2z.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js","./index-DX181kQz.js","./react-1WJTggxS.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css","./streaming-CGdx3ecV.js"])))=>i.map(i=>d[i]);
 import { t as require_react } from "./react-1WJTggxS.js";
 import { O as setMeta, h as getMeta } from "./db-Ii3ipPL7.js";
 var __vitePreload = (fn, deps) => {
@@ -14,7 +14,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados } from "./nostr-zC6Qsl2z.js";
 import { n as disponibilidad, t as descargarLumenPorGateway } from "./streaming-CGdx3ecV.js";
 import { c as libroDePublicado, l as listarPublicados } from "./publicados-63Om61aj.js";
@@ -484,7 +484,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPub
 				return;
 			}
 			const { copyText } = await __vitePreload(async () => {
-				const { copyText } = await import("./index-DOrzQ79O.js").then((n) => n.o);
+				const { copyText } = await import("./index-DX181kQz.js").then((n) => n.o);
 				return { copyText };
 			}, __vite__mapDeps([3,2,4,1,5,6,7,8]), import.meta.url);
 			await copyText(texto);

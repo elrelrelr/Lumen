@@ -1,5 +1,5 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { onTorrent, torrentDisponible, traerArchivo, validarEnlace } from "./torrent-DS6cTKT6.js";
 import { agruparArchivos, anadir, analizar, borrar, cancelarDescarga, costeReal, descargarArchivo, estaAnalizando, listar, marcarDescargado, marcarImportado, marcarProgreso, obtener, onCambio, renombrar, tam } from "./torrentStore-CcjsoCUj.js";
 //#region src/components/TorrentPage.jsx

@@ -13,7 +13,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { identidadGuardada } from "./nostr-zC6Qsl2z.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { A as reparto, D as refrescarCampanas, E as publicarVoto, F as validarFacturaLN, I as verificarPagoLightning, L as votarPendientesAutomatico, M as saldoSats, N as semillaDeLote, O as refrescarVotos, P as soyValidador, R as votosDeLote, S as lotesArchivados, T as publicarEspacio, _ as guardarLightningAddress, a as cerrarCampana, b as ledger, c as crearCampanaLocal, d as espacioActual, f as eventoDeCampana, g as guardarAutoInversion, h as generarFacturaLightning, i as campanasPropias, j as retirar, l as depositar, m as gananciasPorRol, n as campanasCatalogo, o as configAutoInversion, s as consensoDeLote, t as MODOS, u as elegirValidadores, v as guardarModoLectura, w as modoLectura, x as lightningAddress, y as guardarSoyValidador } from "./lumenAds-bXJ8EPsD.js";

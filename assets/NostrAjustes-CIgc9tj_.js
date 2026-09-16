@@ -1,6 +1,6 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { O as setMeta, h as getMeta } from "./db-Ii3ipPL7.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { RELAYS_DEFECTO, borrarIdentidad, descubrirRelays, generarIdentidad, guardarIdentidad, guardarRelays, identidadGuardada, npubCorto, relaysGuardados } from "./nostr-zC6Qsl2z.js";
 //#region src/lib/moderacion.js
 var import_react = require_react();

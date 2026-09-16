@@ -1,6 +1,6 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { f as getAllPages, r as allBooks } from "./db-Ii3ipPL7.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile } from "./index-DX181kQz.js";
 import { eventoDeLibro, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
 import { o as guardarBlobLumen, s as guardarPublicado, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";

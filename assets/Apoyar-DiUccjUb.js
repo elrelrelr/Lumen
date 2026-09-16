@@ -13,7 +13,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { DIRECCIONES, FUENTES_PREMIUM, TEMAS_PREMIUM, copiarDireccion, estadoApoyo, marcarCopiado, marcarMostrada, noMostrarMas } from "./donar-Bb6VSEld.js";
 //#region src/components/Apoyar.jsx
 var import_react = require_react();

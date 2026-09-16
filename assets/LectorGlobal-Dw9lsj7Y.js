@@ -13,7 +13,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { c as haptic, d as hideNativeOverlay, f as isPremium, h as showNativeOverlay, m as onAdEvent, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, d as hideNativeOverlay, f as isPremium, h as showNativeOverlay, m as onAdEvent, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { contarReportes, npubCorto } from "./nostr-zC6Qsl2z.js";
 import { a as traerCapitulo, n as disponibilidad, o as traerManifest, r as precargarCapitulos } from "./streaming-CGdx3ecV.js";
 import { u as obtenerBlobLumen } from "./publicados-63Om61aj.js";

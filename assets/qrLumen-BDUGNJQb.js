@@ -1,4 +1,4 @@
-import { s as qrcodeLib_default } from "./index-DOrzQ79O.js";
+import { s as qrcodeLib_default } from "./index-DX181kQz.js";
 //#region src/lib/qrLumen.js
 /**
 * Genera un QR como data URL PNG.

@@ -1,5 +1,5 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DOrzQ79O.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { h as getMeta, O as setMeta, r as allBooks } from "./db-Ii3ipPL7.js";
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
