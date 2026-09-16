@@ -42369,22 +42369,6 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		pg.addEventListener("scroll", onScrollPg, { passive: true });
 		return () => pg.removeEventListener("scroll", onScrollPg);
 	}, [mode, page]);
-	/* v180b: PC — rueda del ratón en el borde = misma barra "mantener 2s" */
-	(0, import_react.useEffect)(() => {
-		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
-		const onWheelPg = (e) => {
-			const pg = document.querySelector(".rd-page");
-			if (!pg) return;
-			const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
-			const alBajo = sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6;
-			const alTopo = pg.scrollTop <= 4;
-			if (e.deltaY > 0 && alBajo) iniciarCargaPg("abajo");
-			else if (e.deltaY < 0 && alTopo) iniciarCargaPg("arriba");
-			else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
-		};
-		window.addEventListener("wheel", onWheelPg, { passive: true });
-		return () => window.removeEventListener("wheel", onWheelPg);
-	}, [mode, carousel, desp, page, pageCount]);
 	const [chrome, setChrome] = (0, import_react.useState)(true);
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	const [err, setErr] = (0, import_react.useState)(null);
@@ -42672,6 +42656,22 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	// cambiar el modo de desplazamiento (desp) o la vista (mode) se detiene el auto-scroll.
 	(0, import_react.useEffect)(() => { setAutoScrollOn(false); }, [desp, mode]);
 	const pageCount = book?.pageCount || 0;
+	/* v180b: PC — rueda del ratón en el borde = misma barra "mantener 2s" */
+	(0, import_react.useEffect)(() => {
+		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
+		const onWheelPg = (e) => {
+			const pg = document.querySelector(".rd-page");
+			if (!pg) return;
+			const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
+			const alBajo = sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6;
+			const alTopo = pg.scrollTop <= 4;
+			if (e.deltaY > 0 && alBajo) iniciarCargaPg("abajo");
+			else if (e.deltaY < 0 && alTopo) iniciarCargaPg("arriba");
+			else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
+		};
+		window.addEventListener("wheel", onWheelPg, { passive: true });
+		return () => window.removeEventListener("wheel", onWheelPg);
+	}, [mode, carousel, desp, page, pageCount]);
 	// v177 (#5): en Lateral se recalcula el total en PARTES (100→150): cuenta las partes
 	// de cada página para el contador y la barra de progreso.
 	(0, import_react.useEffect)(() => {
