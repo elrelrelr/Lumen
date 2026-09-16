@@ -37478,7 +37478,7 @@ const toquesDev = (0, import_react.useRef)(0);
 											if (v) haptic$1.success();
 										}
 									})]
-								})
+								}),
 								(0, import_jsx_runtime.jsx)(MusicaUsuarioGestion, {}),
 							]
 						}),
