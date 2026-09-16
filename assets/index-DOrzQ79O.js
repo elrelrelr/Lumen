@@ -14567,6 +14567,8 @@ function stop() {
 	current = null;
 	started = false;
 }
+// v179 (#1): marcador anti doble-play de ARCHIVO (ver guard en play()).
+let archivoUltimoPlay = { id: null, t: 0 };
 async function play(sceneId = "lluvia", volume = 1) {
 	if (started && current === sceneId) {
 		setVolume(volume);
@@ -14574,6 +14576,16 @@ async function play(sceneId = "lluvia", volume = 1) {
 	}
 	const escena = escenaDeId(sceneId);
 	if (escena?.archivo) {
+		// v179 (#1): anti doble-play de ARCHIVO. En Lectura, el onChange del select
+		// llama a play() y setBook dispara efectos que llaman a play() del MISMO
+		// sonido en la misma pasada; el 2º stop()->pararArchivo() hacía pause() al
+		// a.play() pendiente del 1º => «play() interrupted by pause()». Si el mismo
+		// archivo ya se pidió hace <400ms, ya está arrancando: no lo interrumpimos.
+		if (archivoUltimoPlay.id === sceneId && Date.now() - archivoUltimoPlay.t < 400) {
+			setVolume(Math.max(0, Math.min(1, volume)));
+			return true;
+		}
+		archivoUltimoPlay = { id: sceneId, t: Date.now() };
 		stop();
 		if (!await tocarArchivo(escena, Math.max(0, Math.min(1, volume)))) return false;
 		current = sceneId;
@@ -29502,6 +29514,15 @@ document.removeEventListener("keydown", onKey);
 		try {
 			if (repasoMusica && repasoMusica !== "predeterminada") play(repasoMusica, Math.max(0, Math.min(1.5, repasoVol / 100))).catch(() => {});
 		} catch {}
+		// v179 (#4): reafirmación RETARDADA. buildRepasoStory + setGroups disparan un
+		// re-render en el que la carga de la historia (c.music && !isPlaying()) vuelve
+		// a tocar la PREDETERMINADA justo después del reafirmamiento de arriba; con
+		// este segundo refuerzo, ya asentado el re-render, la elegida gana y suena.
+		setTimeout(() => {
+			try {
+				if (repasoMusica && repasoMusica !== "predeterminada") play(repasoMusica, Math.max(0, Math.min(1.5, repasoVol / 100))).catch(() => {});
+			} catch {}
+		}, 800);
 		setRepasoCargando(false);
 	};
 	const compartirRepasoPdf = async () => {
@@ -34660,9 +34681,12 @@ const toquesDev = (0, import_react.useRef)(0);
 				// v158: la música de la pantalla de inicio SOLO si «Música al abrir la app»
 				// está activa (con ese botón en NO, ningún toque la arranca) y nunca
 				// dentro del lector (ahí manda la música de lectura, que es independiente).
+				// v179 (#3): la opción «Música al abrir la app» se ELIMINÓ -> sin auto-play
+				// al abrir. La música del home solo suena si el usuario la arranca a mano
+				// desde los controles de sonido (o su música propia, turno siguiente).
 				if (typeof window !== "undefined" && window.__lumenEnLectura) return;
 				getSettings().then((st) => {
-					if (!isPlaying() && st?.musicAuto && st?.musicOn) play(st.musicScene || "lluvia", st.musicVolume ?? .35);
+					if (false && !isPlaying() && st?.musicAuto && st?.musicOn) play(st.musicScene || "lluvia", st.musicVolume ?? .35);
 				}).catch(() => {});
 			} catch {}
 		};
@@ -35760,7 +35784,10 @@ const toquesDev = (0, import_react.useRef)(0);
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "brand-dot",
 						children: "📖"
-					}), "Lumen"]
+					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "brand-ver",
+							children: "v179"
+						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
 					onClick: () => setSheet("stats"),
@@ -37106,22 +37133,7 @@ const toquesDev = (0, import_react.useRef)(0);
 										}
 									})]
 								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "row",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "row-label",
-										children: "Música al abrir la app"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "row-sub",
-										children: "Arranca la app con la escena y el volumen que elijas · solo si el sonido ambiente está activo"
-									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-										on: !!settings.musicAuto,
-										onChange: async (v) => {
-											await setSettings({ musicAuto: v });
-											haptic$1.tap();
-										}
-									})]
-								}),
+								/* v179 (#3): fila «Música al abrir la app» eliminada (sin auto-play al abrir). */
 								settings.musicOn && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "chips",
 									style: { marginBottom: 4 },
@@ -37622,7 +37634,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v178 · escritorio y móvil"
+					children: "Lumen Reader · v179 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42687,17 +42699,17 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	(0, import_react.useEffect)(() => {
 		// v158: al montar el lector solo arranca la música del LIBRO («Iniciar con
 		// música»). La música general es de la pantalla de inicio, no del lector.
+		// v179 (#1): ya no llama a play() aquí (solo marca las banderas). Antes ESTE
+		// efecto y el de gestión (v176 #2) llamaban a play() AMBOS al cambiar una
+		// dep -> doble play: el pararArchivo() del 2º hacía pause() justo cuando el
+		// play() del 1º seguía pendiente => «play() interrupted by pause()», y los
+		// sonidos ARCHIVO (Piano, Electro funk, Ambiente cálido) NUNCA sonaban desde
+		// la pestaña Lectura. Ahora SOLO el efecto de gestión reproduce.
 		if (!book?.musicOnOpen || isPlaying()) return;
 		musReanudado.current = true;
 		musicUserTriggered.current = true;
-		try {
-			const sL = book.musicScene || settings.musicScene || "lluvia";
-			const vL = book.musicVolume ?? settings.musicVolume ?? 1;
-			const rMus2 = play(sL, vL);
-			if (rMus2 && typeof rMus2.then === "function") rMus2.catch(() => {});
-			window.__lumenMusicaLectura = book.id;
-			setFlag("music").catch(() => {});
-		} catch (e) {}
+		window.__lumenMusicaLectura = book.id;
+		setFlag("music").catch(() => {});
 	}, [book?.musicOnOpen, book?.musicScene, book?.musicVolume, settings.musicScene, settings.musicVolume]);
 	(0, import_react.useEffect)(() => {
 		// v176 (#2): en el lector SOLO manda la música del LIBRO (musicOnOpen). La
@@ -50333,8 +50345,9 @@ function App() {
 	const musicaArranqueRef = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => {
 		if (!settings || musicaArranqueRef.current) return;
-		if (!(settings.musicAuto && settings.musicOn)) return;
+		// v179 (#3): «Música al abrir la app» eliminada -> sin auto-play al abrir.
 		musicaArranqueRef.current = true;
+		if (!(settings.musicAuto && settings.musicOn)) return;
 		const arrancar = () => {
 			try {
 				const st = settingsRef.current;
