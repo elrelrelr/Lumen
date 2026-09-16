@@ -2408,9 +2408,9 @@ mark.hl.destello { animation: hlDestello 1.2s ease; }
 }
 .chat-act:active { opacity: 1; background: var(--track); }
 .chat-compose {
-  position: sticky; bottom: 0; display: flex; gap: 8px; align-items: flex-end;
+  position: sticky; bottom: 0; display: flex; gap: 8px; align-items: center;
   background: var(--bg-elev); border-top: 1px solid var(--line);
-  margin: 0 -16px; padding: 10px 16px 4px;
+  margin: 0 -16px; padding: 10px 16px calc(var(--safe-b) + 6px);
 }
 .chat-compose textarea {
   flex: 1; min-height: 42px; max-height: 120px;
@@ -3793,7 +3793,7 @@ textarea.note-input {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 2px;
   background: var(--bg-soft);
   border: 1px solid var(--line);
@@ -9136,9 +9136,9 @@ html[data-fuente-app='antigua'] textarea {
    del botón principal, para no confundirlo con el control de velocidad. */
 /* v170: más compacto (antes 34px) el botón ↑/↓ (volver arriba / bajar al fondo) */
 .rd-scroll-nav {
-  width: 30px;
-  height: 30px;
-  font-size: 12px;
+  width: 42px;   /* v179 (#3): mismo tamaño que los círculos de zoom (.rd-zoom-btn) */
+  height: 42px;
+  font-size: 20px;
   border-radius: 50%;
   border: 1.5px solid var(--line);
   background: var(--bg-elev);
@@ -9364,7 +9364,7 @@ html[data-fuente-app='antigua'] textarea {
 .sw-lumo-tarjeta {
   /* v174 (P5): sin tinte morado — MISMO fondo neutro por tema que la tarjeta
      de racha, para que el oso no aparezca en un rectángulo morado en los temas claros. */
-  background: linear-gradient(150deg, var(--streak-a), var(--streak-b) 70%);
+  background: transparent;
   border: 1px solid var(--line);
   border-radius: 22px;
   padding: 12px 14px;
@@ -9494,7 +9494,7 @@ html[data-fuente-app='antigua'] textarea {
   display: flex;
   flex-direction: column;
   gap: 7px;
-  max-height: 46vh;
+  max-height: 70vh;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
@@ -12864,22 +12864,81 @@ mark.find-flash {
   margin-left: 2px;
 }
 /* ============ v179 (#2) Gestión de la música del usuario (.musu-*) ============ */
-.musu-caja { margin: 4px 0 10px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--tinte, #4f7cff) 7%, transparent); border: 1px solid color-mix(in srgb, var(--tinte, #4f7cff) 18%, transparent); }
+.musu-caja { margin: 4px 0 10px; padding: 12px; border-radius: 14px; background: var(--bg-elev);; border: 1px solid var(--line);; }
 .musu-header { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-.musu-btn { width: 100%; padding: 10px 14px; border: none; border-radius: 10px; background: var(--tinte, #4f7cff); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .12s, opacity .12s; }
+.musu-btn { width: 100%; padding: 10px 14px; border: none; border-radius: 10px; background: var(--accent, #7c5cff); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; transition: transform .12s, opacity .12s; }
 .musu-btn:active { transform: scale(.98); }
 .musu-btn:disabled { opacity: .5; cursor: not-allowed; }
 .musu-modo { display: flex; gap: 6px; margin: 10px 0; }
-.musu-modo-btn { flex: 1; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--tinte, #4f7cff) 30%, transparent); border-radius: 10px; background: transparent; color: var(--texto, #222); font-size: 13px; font-weight: 600; cursor: pointer; }
-.musu-modo-btn.on { background: var(--tinte, #4f7cff); color: #fff; border-color: var(--tinte, #4f7cff); }
-.musu-vacia { padding: 14px; text-align: center; color: var(--texto-suave, #888); font-size: 13px; border: 1px dashed color-mix(in srgb, var(--tinte, #4f7cff) 30%, transparent); border-radius: 10px; }
+.musu-modo-btn { flex: 1; padding: 8px 10px; border: 1px solid var(--line);; border-radius: 10px; background: transparent; color: var(--fg, #ecebf3); font-size: 13px; font-weight: 600; cursor: pointer; }
+.musu-modo-btn.on { background: var(--accent, #7c5cff); color: #fff; border-color: var(--accent, #7c5cff); }
+.musu-vacia { padding: 14px; text-align: center; color: var(--fg-mute, #6b6a80); font-size: 13px; border: 1px dashed var(--line);; border-radius: 10px; }
 .musu-lista { display: flex; flex-direction: column; gap: 6px; }
-.musu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: color-mix(in srgb, var(--tinte, #4f7cff) 5%, transparent); }
-.musu-play { cursor: pointer; font-size: 15px; color: var(--tinte, #4f7cff); padding: 2px 4px; }
+.musu-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--chip-bg, var(--bg-soft));; }
+.musu-play { cursor: pointer; font-size: 15px; color: var(--accent, #7c5cff); padding: 2px 4px; }
 .musu-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .musu-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.musu-meta { font-size: 11px; color: var(--texto-suave, #888); }
-.musu-ico { border: none; background: transparent; font-size: 15px; cursor: pointer; padding: 4px 6px; border-radius: 8px; color: var(--texto, #222); }
+.musu-meta { font-size: 11px; color: var(--fg-mute, #6b6a80); }
+.musu-ico { border: none; background: transparent; font-size: 15px; cursor: pointer; padding: 4px 6px; border-radius: 8px; color: var(--fg, #ecebf3); }
 .musu-ico:disabled { opacity: .3; cursor: not-allowed; }
 .musu-ico.musu-del { color: #e0524d; }
-.musu-msg { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--tinte, #4f7cff); }
+.musu-msg { margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--accent, #7c5cff); }
+/* ============ v179 (issue 1): select de canción legible en móvil ============ */
+.row select.plain { flex: 0 1 auto; max-width: 62%; min-width: 96px; text-overflow: ellipsis; }
+.musu-caja select.plain, .aj select.plain { max-width: 70%; }
+
+/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
+.rd-carga-pg {
+  position: fixed;
+  left: 0; right: 0;
+  height: 36px;
+  z-index: 90;
+  background: rgba(10, 8, 18, 0.62);
+  backdrop-filter: blur(6px);
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.rd-carga-pg.abajo { bottom: 0; border-radius: 14px 14px 0 0; }
+.rd-carga-pg.arriba { top: 0; border-radius: 0 0 14px 14px; }
+.rd-carga-pg-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0; width: 100%;
+  background: rgba(124, 92, 255, 0.45);
+  transform-origin: left center;
+  transform: scaleX(0);
+}
+.rd-carga-pg-txt {
+  position: relative;
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .2px;
+  text-shadow: 0 1px 3px rgba(0,0,0,.6);
+}
+
+/* ============ v179 (Notas #2): compose pegado al fondo + input y emoji a la misma altura ============ */
+/* La hoja de notas ocupa toda la altura: la lista crece (flex) y el compose
+   queda anclado abajo. Sin esto, con pocas notas el compose se quedaba arriba. */
+.sheet-body:has(.note-compose) { display: flex; flex-direction: column; }
+.sheet-body:has(.note-compose) .notes-list { flex: 1 1 0; min-height: 0; }
+.note-compose {
+  position: sticky;
+  bottom: 0;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 -16px;
+  padding: 10px 16px calc(var(--safe-b) + 10px);
+  background: var(--bg-elev);
+  border-top: 1px solid var(--line);
+  box-sizing: border-box;
+  max-width: 100%;
+}
+/* La fila (píldora + enviar) y la píldora centran el contenido: el texto del
+   input y el botón de emojis quedan a la misma altura, uno al lado del otro. */
+.note-compose .nota-fila { align-items: center; width: 100%; min-width: 0; }
+.note-compose .tg-pill { align-items: center; min-width: 0; flex: 1 1 auto; }

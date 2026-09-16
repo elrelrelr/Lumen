@@ -33254,7 +33254,7 @@ var EN = {
 	"Estilo": "Style",
 	"Destino": "Send to",
 	"Generador": "Generator",
-	"Grupos": "Groups",
+	"Categorías": "Groups",
 	"Portada": "Cover",
 	"Documentos": "Documents",
 	"Anuncio": "Ad",
@@ -33534,7 +33534,7 @@ var EN = {
 	"📂 Archivo del teléfono": "📂 File from your phone",
 	"Importar documentos": "Import documents",
 	"Crear libro": "Create a book",
-	"Grupos por tema": "Groups by topic",
+	"Categorías": "Groups by topic",
 	"Mi resumen": "My recap",
 	"Logros y nivel": "Achievements and level",
 	"Ocultar secretos": "Hide secrets",
@@ -34621,13 +34621,13 @@ function MusicaUsuarioGestion(){
 		try {
 			const r = await M.importar(files);
 			if (r.ok > 0) {
-				setMsg('\u2713 ' + r.ok + ' canci\u00f3n(es) a\u00f1adida(s)');
+				setMsg('✓ ' + r.ok + ' canción(es) a\u00f1adida(s)');
 				try { haptic$1.success(); } catch (e3) {}
 			}
-			if (r.fallidos.length) setMsg('\u26a0 ' + r.fallidos.join(', '));
+			if (r.fallidos.length) setMsg('⚠ ' + r.fallidos.join(', '));
 			if (r.ok === 0 && !r.fallidos.length) setMsg('No se pudo importar');
 		} catch (e2) {
-			setMsg('\u26a0 Error al importar');
+			setMsg('⚠ Error al importar');
 		}
 		setImportando(false);
 		if (inputRef.current) inputRef.current.value = '';
@@ -34649,32 +34649,32 @@ function MusicaUsuarioGestion(){
 		children: [
 			(0, import_jsx_runtime.jsxs)("div", { className: "musu-header", children: [
 				(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Tu m\u00fasica" }),
-				(0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Importa canciones de tu equipo (m\u00e1x. 10) y \u00e9lalas como fondo al leer o repasar" })
+				(0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Importa canciones de tu equipo (máx. 10) y élalas como fondo al leer o repasar" })
 			]}),
 			(0, import_jsx_runtime.jsx)("input", { ref: inputRef, type: "file", accept: "audio/*", multiple: true, style: { display: "none" }, onChange: alImportar }),
 			(0, import_jsx_runtime.jsx)("button", {
 				className: "musu-btn",
 				disabled: importando || lista.length >= M.MAX,
 				onClick: () => { if (inputRef.current) inputRef.current.click(); },
-				children: importando ? "Importando\u2026" : (lista.length >= M.MAX ? "L\u00edmite alcanzado (10)" : "\u2795 Importar canci\u00f3n")
+				children: importando ? "Importando…" : (lista.length >= M.MAX ? "Límite alcanzado (10)" : "➕ Importar canción")
 			}),
 			(0, import_jsx_runtime.jsxs)("div", { className: "musu-modo", children: [
-				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'bucle' ? ' on' : ''), onClick: () => cambiarModo('bucle'), children: "\U0001f501 Bucle" }),
-				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'siguiente' ? ' on' : ''), onClick: () => cambiarModo('siguiente'), children: "\u23ed\ufe0f Siguiente" })
+				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'bucle' ? ' on' : ''), onClick: () => cambiarModo('bucle'), children: "🔁 Bucle" }),
+				(0, import_jsx_runtime.jsx)("button", { className: "musu-modo-btn" + (modo === 'siguiente' ? ' on' : ''), onClick: () => cambiarModo('siguiente'), children: "⏭️ Siguiente" })
 			]}),
 			lista.length === 0
-				? (0, import_jsx_runtime.jsx)("div", { className: "musu-vacia", children: "A\u00fan no tienes canciones importadas" })
+				? (0, import_jsx_runtime.jsx)("div", { className: "musu-vacia", children: "Aún no tienes canciones importadas" })
 				: (0, import_jsx_runtime.jsx)("div", { className: "musu-lista", children: lista.map((c, idx) => (0, import_jsx_runtime.jsxs)("div", {
 					className: "musu-item",
 					children: [
-						(0, import_jsx_runtime.jsx)("span", { className: "musu-play", onClick: () => probar(c.id), children: "\u25b6" }),
+						(0, import_jsx_runtime.jsx)("span", { className: "musu-play", onClick: () => probar(c.id), children: "▶" }),
 						(0, import_jsx_runtime.jsxs)("div", { className: "musu-info", children: [
 							(0, import_jsx_runtime.jsx)("div", { className: "musu-nombre", children: c.nombre }),
 							(0, import_jsx_runtime.jsx)("div", { className: "musu-meta", children: (Math.round(c.size / 1048576 * 10) / 10).toFixed(1) + " MB" })
 						]}),
-						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === 0, onClick: () => mover(c.id, -1), children: "\u2191" }),
-						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === lista.length - 1, onClick: () => mover(c.id, 1), children: "\u2193" }),
-						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico musu-del", onClick: () => quitar(c.id), children: "\U0001f5d1" })
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === 0, onClick: () => mover(c.id, -1), children: "↑" }),
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico", disabled: idx === lista.length - 1, onClick: () => mover(c.id, 1), children: "↓" }),
+						(0, import_jsx_runtime.jsx)("button", { className: "musu-ico musu-del", onClick: () => quitar(c.id), children: "🗑" })
 					]
 				}, c.id)) }),
 			msg ? (0, import_jsx_runtime.jsx)("div", { className: "musu-msg", children: msg }) : null
@@ -34704,21 +34704,21 @@ function MusuOpciones({ tipo }){
 	if (tipo === 'select') {
 		return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsx)("option", {
 			value: "musu:" + c.id,
-			children: "\U0001f3b5 " + c.nombre
+			children: "🎵 " + c.nombre
 		}, "musu:" + c.id)) });
 	}
 	if (tipo === 'chip') {
 		return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsx)("button", {
 			className: "chip",
 			onClick: () => tocar(c.id),
-			children: ["\U0001f3b5 ", c.nombre]
+			children: ["🎵 ", c.nombre]
 		}, c.id)) });
 	}
 	return (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: lista.map((c) => (0, import_jsx_runtime.jsxs)("button", {
 		className: "mus-card",
 		onClick: () => tocar(c.id),
 		children: [
-			(0, import_jsx_runtime.jsx)("div", { className: "mus-card-ico", children: "\U0001f3b5" }),
+			(0, import_jsx_runtime.jsx)("div", { className: "mus-card-ico", children: "🎵" }),
 			(0, import_jsx_runtime.jsx)("div", { className: "mus-card-nom", children: c.nombre })
 		]
 	}, c.id)) });
@@ -38523,7 +38523,7 @@ const toquesDev = (0, import_react.useRef)(0);
 									setGrupoNuevo("");
 									await recargarGrupos();
 									haptic$1.success();
-									toast?.("Grupo creado");
+									toast?.("Categoría creada");
 								} else toast?.(r.error === "repetido" ? "Ya existe ese grupo" : "Escribe un nombre");
 							},
 							children: "Crear"
@@ -38568,7 +38568,7 @@ const toquesDev = (0, import_react.useRef)(0);
 											setGrupos(await borrarGrupo(g.id));
 											if (cat === "grupo:" + g.id) setCat("todos");
 											haptic$1.tap();
-											toast?.("Grupo borrado");
+											toast?.("Categoría borrada");
 										},
 										"aria-label": "Borrar grupo",
 										children: "🗑"
@@ -38810,7 +38810,7 @@ const toquesDev = (0, import_react.useRef)(0);
 					],
 					[
 						"🗂",
-						"Grupos por tema",
+						"Categorías",
 						() => setSheet("grupos")
 					],
 					null,
@@ -39376,7 +39376,7 @@ const toquesDev = (0, import_react.useRef)(0);
 									children: "🗂"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "lm-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Grupos" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Meterlo en Psicología, Tareas, Novela…" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Categorías" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Meterlo en Psicología, Tareas, Novela…" })]
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -39624,7 +39624,7 @@ const toquesDev = (0, import_react.useRef)(0);
 									setAsignarLibro(longPress);
 									setLongPress(null);
 								},
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🗂" }), "Grupos"]
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🗂" }), "Categorías"]
 							}),
 													]
 					}),
@@ -42328,6 +42328,11 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [pageMeta, setPageMeta] = (0, import_react.useState)(null);
 	const [mode, setMode] = (0, import_react.useState)("text");
 	const modeInit = (0, import_react.useRef)(false);
+	/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
+	const [cargaPg, setCargaPg] = (0, import_react.useState)(null);
+	const cargaPgT = (0, import_react.useRef)(null);
+	const cargaPgStart = (0, import_react.useRef)(0);
+	const limpiarCargaPg = () => { if (cargaPgT.current) { clearTimeout(cargaPgT.current); cargaPgT.current = null; } };
 	const [chrome, setChrome] = (0, import_react.useState)(true);
 	const [loading, setLoading] = (0, import_react.useState)(true);
 	const [err, setErr] = (0, import_react.useState)(null);
@@ -43194,7 +43199,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			let st = ib >= 0 ? ib + 2 : 0;
 			if (off - st > 300) {
 				const seg = t.slice(st, off);
-				const m = seg.match(/[^.!?\u2026]*[.!?\u2026]\s*$/);
+				const m = seg.match(/[^.!?…]*[.!?…]\s*$/);
 				if (m && m.index != null) st += m.index;
 			}
 			if (off - st >= 8) setUltimoLeido({ full: t, start: st, end: off });
@@ -43999,6 +44004,29 @@ const go = (0, import_react.useCallback)((delta) => {
 			s.moved = true;
 			clearTimeout(longPressT.current);
 		}
+		/* v179 (#1): en TEXTO, al llegar al borde y seguir deslizando, arranca la barra "mantener 1s" */
+		if (!carousel && (desp === "scroll" || desp === "mixto") && mode === "text") {
+			const dyS = e.touches[0].clientY - s.y;
+			const pg = document.querySelector(".rd-page");
+			if (pg) {
+				const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
+				const alBajo = sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6;
+				const alTopo = pg.scrollTop <= 4;
+				if ((dyS < 0 && alBajo) || (dyS > 0 && alTopo)) {
+					const dir = dyS < 0 ? "abajo" : "arriba";
+					if (!cargaPgT.current) {
+						cargaPgStart.current = Date.now();
+						cargaPgT.current = setTimeout(() => {
+							cargaPgT.current = null;
+							setCargaPg(null);
+							go(dir === "abajo" ? 1 : -1);
+						}, 1000);
+					}
+					const el = Date.now() - cargaPgStart.current;
+					setCargaPg({ dir, p: Math.min(100, el) });
+				} else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
+			}
+		}
 	};
 	const onTouchEnd = (e) => {
 		ultimoToque.current = Date.now();
@@ -44033,19 +44061,25 @@ const go = (0, import_react.useCallback)((delta) => {
 					pg = wrap;
 				}
 			}
-			if (!pg) {
+			if (mode === "text") {
+				/* v179 (#1): en TEXTO el cambio de página ya es por "mantener 1s" en la barra (onTouchMove),
+				   no por swipe: aquí solo se limpia la barra si la soltaron antes. */
+				limpiarCargaPg();
+				setCargaPg(null);
+			} else if (!pg) {
 				go(dy < 0 ? 1 : -1);
 				return;
-			}
-			const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
-			if (dy < 0 && (sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6)) {
-				pg.scrollTop = 0;
-				go(1);
-				return;
-			}
-			if (dy > 0 && pg.scrollTop <= 4) {
-				go(-1);
-				return;
+			} else {
+				const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
+				if (dy < 0 && (sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6)) {
+					pg.scrollTop = 0;
+					go(1);
+					return;
+				}
+				if (dy > 0 && pg.scrollTop <= 4) {
+					go(-1);
+					return;
+				}
 			}
 		}
 		if (!s.moved && !s.hadSelection && dt < 500 && Math.abs(dx) < 18 && Math.abs(dy) < 18) {
@@ -45672,6 +45706,17 @@ const docPedir = (desde, hasta, centroArg) => {
 			// v170: se quitó la pastilla «Leyendo pág. N · volver» (.tts-volver):
 			// tapaba botones del auto-scroll. Su función (volver a la página que
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
+/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
+(cargaPg && (
+			(0, import_jsx_runtime.jsx)("div", {
+				className: "rd-carga-pg" + (cargaPg.dir === "abajo" ? " abajo" : " arriba"),
+				"aria-hidden": true,
+				children: [
+					(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + Math.min(1, (cargaPg.p || 0) / 100) + ")" } }),
+					(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Cambiar de página" })
+				]
+			})
+		)) ,
 			autoScrollOn && (mode === "text" || mode === "original") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				className: "auto-stop",
 				"aria-label": "Parar el auto-scroll",
@@ -50558,7 +50603,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 				children: "Tú"
 			}),
 			item("📊", "Mi progreso", () => onSheet("progreso")),
-			item("🗂️", "Grupos por tema", () => onSheet("grupos")),
+			item("🗂️", "Categorías", () => onSheet("grupos")),
 			item("👑", "Lumen Premium", onPremium),
 			item("💙", "Apoyar a Lumen", onApoyar),
 			item("⚙️", "Ajustes", () => onSheet("settings")),
