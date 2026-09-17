@@ -36113,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v187"
+							children: "v188"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37962,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v187 · escritorio y móvil"
+					children: "Lumen Reader · v188 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -44913,43 +44913,17 @@ const docPedir = (desde, hasta, centroArg) => {
 			}
 		};
 		surf.addEventListener("scroll", h, { capture: true, passive: true });
-		// v152: la rueda en el borde no espera a que pares de girar. El scroll
-		// que la página no puede consumir (ya está en el borde) se acumula y,
-		// al superar ~2-3 clics de rueda, cambia de página al momento (igual que
-		// las flechas). Un roce corto (1 clic) no cambia de página por accidente.
-		let edgeAcc = 0;
-		const hw = (e) => {
-			wheelActivo.current = Date.now();
-			const el = surf.querySelector(".rd-page");
-			if (!el || !e.deltaY) { edgeAcc = 0; return; }
-			if (sheet) { edgeAcc = 0; return; }
-			if (el.scrollHeight - el.clientHeight < 24) { edgeAcc = 0; return; }
-			const d = e.deltaY * (e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 1200 : 1);
-			const alBajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-			const alTopo = el.scrollTop <= 8;
-			if (d > 0 && alBajo) {
-				if (Date.now() - ultimoGoPg.current < 350) return;
-				edgeAcc += d;
-				if (edgeAcc >= 200 && page < pageCount - 1) {
-					edgeAcc = 0;
-					ultimoGoPg.current = Date.now();
-					el._vioBajo = false;
-					go(1);
-				}
-			} else if (d < 0 && alTopo) {
-				if (Date.now() - ultimoGoPg.current < 350) return;
-				edgeAcc += d;
-				if (edgeAcc <= -200 && page > 0) {
-					edgeAcc = 0;
-					ultimoGoPg.current = Date.now();
-					el._vioBajo = false;
-					go(-1);
-				}
-			} else {
-				edgeAcc = 0;
-			}
-		};
-		surf.addEventListener("wheel", hw, { capture: true, passive: true });
+		// v188: la acumulación de rueda en el borde (v152/v177) se QUITÓ en texto:
+	// un gesto de rueda al final de la página cambiaba de página SIN la barra
+	// (~200 px de delta, un par de clics; en trackpad, menos). En la pestaña T
+	// la única vía de pasar de página es MANTENER la barra 1,5 s sin mover el
+	// dedo (o el teclado, que exige 3 pulsaciones). Este listener solo registra
+	// el "wheel activo" para que el auto-volteo del carrusel no dispare mientras
+	// se gira la rueda.
+	const hw = (e) => {
+		wheelActivo.current = Date.now();
+	};
+	surf.addEventListener("wheel", hw, { capture: true, passive: true });
 		// v177 (#7): flechas del teclado — al llegar al final/principio hay que pulsar un
 		// poco más (3 pulsaciones) para cambiar de página; así se puede leer el borde.
 		let keyAcc = 0;
