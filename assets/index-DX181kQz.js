@@ -28744,14 +28744,23 @@ var Speaker = class {
 		};
 		this._current = u;
 		// v182: Chrome descarta un speak() emitido justo tras cancel() (el caso
-		// pausa→reanudar dejaba el TTS en silencio total). Se difiere 60 ms.
-		setTimeout(() => {
+		// pausa→reanudar dejaba el TTS en silencio total). v186: además del
+		// diferimiento a 60 ms, se REINTENTA (hasta ~770 ms) si el sintetizador
+		// sigue «asentando» el cancel (speaking/pending): era el caso
+		// Pausar→Reanudar, donde el speak se tiraba en silencio y la voz no
+		// volvía a sonar.
+		const lanzarVoz = (intentos) => {
 			if (!this.playing || this.paused) {
 				u.onend = null;
 				u.onerror = null;
 				return;
 			}
 			try {
+				if ((speechSynthesis.speaking || speechSynthesis.pending) && intentos > 0) {
+					if (speechSynthesis.speaking) try { speechSynthesis.cancel(); } catch {}
+					setTimeout(() => lanzarVoz(intentos - 1), 70);
+					return;
+				}
 				speechSynthesis.speak(u);
 			} catch (err) {
 				console.warn("[tts] speak falló, deteniendo:", err?.message || err);
@@ -28769,7 +28778,8 @@ var Speaker = class {
 					speechSynthesis.resume();
 				}
 			}, 9e3);
-		}, 60);
+		};
+		setTimeout(() => lanzarVoz(10), 60);
 	}
 	_nativeNext() {
 		if (!this.playing || this.paused) return;
@@ -28790,6 +28800,11 @@ var Speaker = class {
 			// dejaba el TTS muerto en Chrome (resume ignorado). resume() relee la frase actual.
 			speechSynthesis.cancel();
 		} catch {}
+		// v186: anular los handlers de la frase interrumpida AHORA. Su onend
+		// llega de forma asíncrona (tras el cancel) y, si el usuario reanuda
+		// antes de que dispare, pasaba el guard (!paused) y hacía saltar la
+		// frase / encadenar _speakCurrent duplicados → silencio o salto raro.
+		if (this._current) try { this._current.onend = null; this._current.onerror = null; } catch {}
 		clearInterval(this._watchdog);
 		this._emit();
 	}
@@ -36051,7 +36066,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v185"
+							children: "v186"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37900,7 +37915,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v185 · escritorio y móvil"
+					children: "Lumen Reader · v186 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -43636,6 +43651,16 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			voiceHold.fired = false;
 			return;
 		}
+		// v186 (#1): tras «Parar» a mitad de página, el botón principal pasa a
+		// ser «Reanudar» y SIGUE desde la frase interrumpida (la cola y el
+		// índice se conservan en speaker). Antes caía en la rama de «leer la
+		// página desde el principio» (o solo la selección activa), por lo que
+		// «reanudar» parecía no funcionar.
+		if (!ttsState.playing && !ttsState.paused && speaker.queue.length > 0 && (speaker.i || 0) < speaker.queue.length && ttsPageRef.current === page) {
+			try { speaker.play(); } catch {}
+			toast?.("▶️ Reanudando la lectura donde iba");
+			return;
+		}
 		if (ttsState.playing || ttsState.paused) {
 			// v176 (#4): la pausa del botón Voz afecta SOLO a la voz (la música de
 			// fondo sigue sonando; se para al salir del libro o en los menús).
@@ -46795,8 +46820,8 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								onPointerLeave: () => clearTimeout(voiceHold.current),
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
-									children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused ? "⏸" : "▶"
-								}), ttsState.paused ? "Reanudar" : ttsState.playing && !ttsState.paused ? "Pausar" : "Voz"]
+							children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused ? "⏸" : "▶"
+						}), ttsState.paused ? "Reanudar" : ttsState.playing && !ttsState.paused ? "Pausar" : (speaker.queue.length > 0 && (speaker.i || 0) < speaker.queue.length && ttsPageRef.current === page ? "Reanudar" : "Voz")]
 							}),
 							(ttsState.playing || ttsState.paused) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool detener",
