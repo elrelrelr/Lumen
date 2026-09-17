@@ -36113,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v189"
+							children: "v190"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37962,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v189 · escritorio y móvil"
+					children: "Lumen Reader · v190 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42512,19 +42512,18 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	/* v180b: "mantener" a 2s, con rueda en PC y sin retroceso instantáneo al top */
 	const visitarAbajo = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => { visitarAbajo.current = false; }, [page]);
-	// v189: OVER-SCROLL — si llegas al final/principio de la página y SIGUES
-	// haciendo scroll (rueda, flechas o dedo arrastrando en el borde), la barra
-	// de «cambiar de página» se va llenando; si se llena (1,5 s de scroll
-	// sostenido en el borde) cambia de página. Si dejas de hacer scroll
-	// (>500 ms sin entradas en el borde) la barra se vacía y te quedas.
+	// v189/v190: OVER-SCROLL — si llegas al final/principio de la página y
+	// sigues haciendo scroll (rueda, flechas o dedo en el borde), se ACTIVA la
+	// barra de «cambiar de página» y se va llenando SOLA hasta 1,5 s (no hace
+	// falta mantener el scroll). Si se llena, cambia de página. Se cancela si
+	// el user hace scroll en dirección contraria (o pulsa la barra / cambia
+	// de página por otra vía).
 	const edgeAccum = (0, import_react.useRef)(0);
-	const edgeLast = (0, import_react.useRef)(0);
 	const edgeDir = (0, import_react.useRef)(null);
 	const edgeRaf = (0, import_react.useRef)(null);
 	const edgeTouchY = (0, import_react.useRef)(null);
 	const resetEdge = () => {
 		edgeAccum.current = 0;
-		edgeLast.current = 0;
 		edgeDir.current = null;
 		edgeTouchY.current = null;
 		if (edgeRaf.current) { cancelAnimationFrame(edgeRaf.current); edgeRaf.current = null; }
@@ -42536,17 +42535,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		if (!pg || pg.scrollHeight - pg.clientHeight < 24) return;
 		if (dir === "abajo" && page >= pageCount - 1) return;
 		if (dir === "arriba" && (page <= 0 || !visitarAbajo.current)) return;
-		const now = Date.now();
 		if (edgeDir.current && edgeDir.current !== dir) resetEdge();
-		if (now - edgeLast.current > 500) edgeAccum.current = 0;
 		edgeDir.current = dir;
-		edgeLast.current = now;
 		if (!edgeRaf.current) {
-			let prev = now;
+			let prev = Date.now();
 			const tick = (d) => {
 				const t = Date.now();
 				if (cargaPgT.current) { edgeRaf.current = null; return; } // un hold de barra tomó el mando
-				if (t - edgeLast.current > 500) { resetEdge(); return; } // se paró el scroll
 				edgeAccum.current += t - prev;
 				prev = t;
 				if (edgeAccum.current >= 1500) {
@@ -44275,12 +44270,14 @@ const go = (0, import_react.useCallback)((delta) => {
 					e.preventDefault();
 					const paso = Math.max(140, Math.round(pg.clientHeight * .82));
 					if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
+						if (edgeDir.current === "arriba") resetEdge(); // v190: dirección contraria cancela
 						const alBajo = pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 24;
-						// v189: en el borde, las flechas alimentan la barra (1,5 s) en vez de
-						// saltar de página al momento
+						// v189/v190: en el borde, las flechas activan la barra (se llena sola
+						// en 1,5 s) en vez de saltar de página al momento
 						if (alBajo && page < pageCount - 1) registrarEdge("abajo");
 						else if (!alBajo) pg.scrollBy({ top: paso, behavior: "smooth" });
 					} else {
+						if (edgeDir.current === "abajo") resetEdge(); // v190: dirección contraria cancela
 						const alTopo = pg.scrollTop <= 8;
 						if (alTopo && page > 0) registrarEdge("arriba");
 						else if (!alTopo) pg.scrollBy({ top: -paso, behavior: "smooth" });
@@ -44377,6 +44374,11 @@ const go = (0, import_react.useCallback)((delta) => {
 				const y = e.touches[0].clientY;
 				const prevY = edgeTouchY.current;
 				edgeTouchY.current = y;
+				// v190: deslizar en dirección contraria cancela el llenado activo
+				if (prevY != null) {
+					if (y > prevY && edgeDir.current === "abajo") { resetEdge(); return; }
+					if (y < prevY && edgeDir.current === "arriba") { resetEdge(); return; }
+				}
 				const alBajo = pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 10;
 				const alTopo = pg.scrollTop <= 10;
 				if (alBajo && prevY != null && y < prevY) registrarEdge("abajo");
@@ -44994,6 +44996,9 @@ const docPedir = (desde, hasta, centroArg) => {
 		if (!el || !e.deltaY || sheet || carousel) return;
 		if (el.scrollHeight - el.clientHeight < 24) return;
 		const d = e.deltaY * (e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 1200 : 1);
+		// v190: rueda en dirección contraria cancela el llenado activo
+		if (d < 0 && edgeDir.current === "abajo") resetEdge();
+		if (d > 0 && edgeDir.current === "arriba") resetEdge();
 		const alBajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
 		const alTopo = el.scrollTop <= 8;
 		if (d > 0 && alBajo) registrarEdge("abajo");
