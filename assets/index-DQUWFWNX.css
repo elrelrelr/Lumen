@@ -11144,6 +11144,9 @@ body:has(.stories){overflow:hidden!important}
    se reenvolvía sin desbordarse: no había nada que desplazar. */
 .orig-html{line-height:1.7;color:var(--fg);word-break:break-word;max-width:min(1000px,80%);margin:0 auto;padding:0 12px;zoom:calc(var(--doczoom,100) / 100)}
 .orig-html img{max-width:100%;height:auto;border-radius:8px}
+/* v191 (#4): los demas media del original quedan acotados — sin «imagen gigante» que revienta el flujo */
+.orig-html svg{max-width:100%;height:auto;max-height:80vh}
+.orig-html video,.orig-html picture{max-width:100%}
 .orig-html p{margin:0 0 10px}
 .orig-html h1,.orig-html h2,.orig-html h3{line-height:1.3}
 .orig-pre{white-space:pre-wrap;word-break:break-word;margin:0 auto;max-width:880px;padding:16px 20px;line-height:1.6;font-size:15px;font-family:inherit;zoom:calc(var(--doczoom,100) / 100)} /* v183 (#5): zoom del bloque (antes solo fuente) */
@@ -13032,3 +13035,18 @@ mark.find-flash {
 @media (max-width: 700px) {
 	.lg-mini { flex: 0 0 calc((100% - 16px) / 3); padding: 6px 6px 7px; }
 }
+
+/* ============ v192 (Notas): hoja con altura, compose al fondo, nota nueva visible ============ */
+/* La hoja de Notas ocupa casi toda la pantalla AUNQUE no haya notas: antes,
+   en PC no tenía suficiente altura y el compose flotaba a la mitad. */
+.sheet:has(.note-compose) { min-height: 72vh; max-height: 90vh; }
+.sheet:has(.note-compose) .sheet-body { flex: 1 1 auto; min-height: 0; max-height: none; }
+/* La lista hace scroll DENTRO de la hoja: el compose queda anclado al fondo
+   de la página siempre, y el «aún no hay notas» queda centrado en el hueco. */
+.sheet:has(.note-compose) .notes-list { flex: 1 1 0; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.sheet:has(.note-compose) .sheet-body > .row-sub { flex: 1 1 auto; display: grid; place-items: center; }
+/* El compose es un flex-item al final (ya no necesita sticky: la hoja crece
+   y él se apoya en el fondo con margin-top: auto). */
+.note-compose { position: static; margin-top: auto; }
+/* v192 (pedido): contenido del textarea de notas centrado */
+.note-compose textarea { align-content: center; }

@@ -36113,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v190"
+							children: "v192"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37962,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v190 · escritorio y móvil"
+					children: "Lumen Reader · v192 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -41965,12 +41965,12 @@ function ScrollFab({ abajo, onTocar, mode, settings, setSettings, docZoom, setDo
 	// v174: el cluster flotante ahora es ZOOM (pila vertical +/%/−) + SUBIR/BAJAR.
 	// El auto-scroll (toggle + velocidad) se movió al panel «Lectura».
 	const z = mode === "text" ? {
-		lab: String(settings.fontSize || 20),
-		menos: () => setSettings({ fontSize: Math.max(14, (settings.fontSize || 20) - 2) }),
-		mas: () => setSettings({ fontSize: Math.min(48, (settings.fontSize || 20) + 2) }),
+		lab: String(settings.fontSize || 22),
+		menos: () => setSettings({ fontSize: Math.max(14, (settings.fontSize || 22) - 2) }),
+		mas: () => setSettings({ fontSize: Math.min(48, (settings.fontSize || 22) + 2) }),
 		reset: () => setSettings({ fontSize: 20 }),
-		min: (settings.fontSize || 20) <= 14,
-		max: (settings.fontSize || 20) >= 48
+		min: (settings.fontSize || 22) <= 14,
+		max: (settings.fontSize || 22) >= 48
 	} : {
 		lab: docZoom + "%",
 		menos: () => setDocZoom((v) => Math.max(50, v - 5)),
@@ -42038,6 +42038,20 @@ function sanearHtmlDoc(html) {
 			const v = String(a.value || "").trim().toLowerCase();
 			if (n.startsWith("on") || n === "srcdoc" || v.startsWith("javascript:")) el.removeAttribute(a.name);
 		}
+	}
+	// v191 (#4): un <svg> con imagen externa (<image src/href relativa>) se
+	// pinta como bloque GIGANTE con URL rota («carga una imagen gigante que su
+	// url está dañada»). Se retira; y el svg sin tamaño alguno queda acotado.
+	for (const svg of tpl.content.querySelectorAll("svg")) {
+		const im = svg.querySelector("image");
+		if (im) {
+			const u = im.getAttribute("src") || im.getAttribute("href") || (typeof im.getAttributeNS === "function" ? im.getAttributeNS("http://www.w3.org/1999/xlink", "href") : null) || "";
+			if (u && !/^(data:|blob:|#)/i.test(u)) {
+				svg.remove();
+				continue;
+			}
+		}
+		if (!svg.getAttribute("viewBox") && !svg.getAttribute("width")) svg.setAttribute("width", "320");
 	}
 	return tpl.innerHTML;
 }
@@ -42184,7 +42198,11 @@ async function extraerEpubHtml(buf) {
 			if (imgs[src] === void 0) {
 				const im = epubBuscarZip(zip, low, epubUnirRutas(dir, src)) || epubBuscarZip(zip, low, src);
 				const size = im ? (im._data?.uncompressedSize || 0) : 0;
-				if (im && size > 0 && size <= IMG_CAP) {
+				// v191 (#4): solo imágenes de verdad — antes, cualquier archivo
+				// con ruta coincidente (p. ej. un xhtml) se volvía «imagen»
+				// rota (blob con bytes que el navegador no decodifica).
+				const esImg = /\.(png|jpe?g|gif|svg|webp|avif|bmp|ico)$/i.test(src);
+				if (im && size > 0 && size <= IMG_CAP && esImg) {
 					try {
 						// v183 (#3): blob URL en vez de base64 — sin codificar los
 						// bytes a string (×1.37) ni inflar el HTML: la imagen entra
@@ -42311,7 +42329,7 @@ function origCachePoner(id, val) {
 	origCacheBytes += b;
 }
 /** Visor del archivo ORIGINAL para epub/docx/pptx/xlsx/md/html/txt. */
-function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
+function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 	const [st, setSt] = (0, import_react.useState)({ cargando: true });
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
@@ -42401,6 +42419,28 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
 			vivo = false;
 		};
 	}, [book.id]);
+	// v191 (#1): los fragmentos se añaden al DOM UNA sola vez (efecto de
+	// abajo): el viejo slice(0, shown).map() re-renderizaba TODOS los
+	// fragmentos ya pintados en cada tick (O(n²) en libros largos) — por eso
+	// el contenido «nunca terminaba de cargar».
+	const origPartesEl = (0, import_react.useRef)(null);
+	const origPartesHechas = (0, import_react.useRef)(0);
+	const origPartesId = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		const cont = origPartesEl.current;
+		if (!cont || !st.partes) return;
+		if (origPartesId.current !== st.partes) {
+			origPartesId.current = st.partes;
+			origPartesHechas.current = 0;
+			cont.innerHTML = "";
+		}
+		while (origPartesHechas.current < st.shown && origPartesHechas.current < st.partes.length) {
+			const d = document.createElement("div");
+			d.innerHTML = st.partes[origPartesHechas.current] || "";
+			cont.appendChild(d);
+			origPartesHechas.current += 1;
+		}
+	}, [st.partes, st.shown]);
 	// v183 (#3): pintura progresiva — añade 3 fragmentos por tick (40 ms) hasta
 	// completar el documento. El contenido crece en pantalla en vez de esperar
 	// un spinner eterno (libros largos); cada fragmento se parsea una sola vez.
@@ -42428,6 +42468,7 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "doc-flow orig-multi",
 		style: flowStyle,
+		onScroll: onFlowScroll,
 		children: [
 			st.iframe && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("iframe", {
 				title: "Original",
@@ -42445,15 +42486,12 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
 				style: { color: fontStyle && fontStyle.color },
 				children: st.texto
 			}),
-			// v183 (#3): fragmentos progresivos — cada div se pinta una vez y
-			// no se re-parsea al añadir los siguientes.
+			// v191 (#1): contenedor vacío — el efecto v191 va añadiendo los
+			// fragmentos al DOM a medida que st.shown crece.
 			st.partes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "orig-html",
 				style: { color: fontStyle && fontStyle.color },
-				children: st.partes.slice(0, st.shown).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					key: i,
-					dangerouslySetInnerHTML: { __html: p }
-				}))
+				ref: origPartesEl
 			})
 		]
 	});
@@ -42819,6 +42857,33 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	// v184: contadores de fallo por página (reintento → error visible)
 	const docFallos = (0, import_react.useRef)({});
 	const docFlowRef = (0, import_react.useRef)(null);
+	// v191: bookId del doc PDF en docPdf.current — el doc solo se reutiliza si
+	// es de ESTE libro (el estado `pdfDoc` viejo podía traer el doc del libro
+	// anterior, ya destruido por la caché → spinner eterno).
+	const docPdfOwner = (0, import_react.useRef)(null);
+	// v191: último zoom aplicado (para re-anclar el flujo al zoomear,
+	// conservando la página en la que se estaba).
+	const docZoomUlt = (0, import_react.useRef)(100);
+	// v191: última página a la que se ancló el flujo HTML (Original no-PDF)
+	const docLastHtml = (0, import_react.useRef)(-1);
+	// v191: último zoom aplicado en el flujo HTML
+	const docZoomUltHtml = (0, import_react.useRef)(100);
+	// v191: la barra ↔ el flujo en el original HTML (EPUB/txt/docx/md) — como
+	// en cualquier visor; antes la barra no hacía nada con estos formatos.
+	const onOrigHtmlScroll = () => {
+		const sc = document.querySelector(".doc-flow.orig-multi");
+		if (!sc) return;
+		const max = sc.scrollHeight - sc.clientHeight;
+		if (max < 40) return;
+		const n = pageCount || 1;
+		if (n < 2) return;
+		const idx = Math.max(0, Math.min(n - 1, Math.round((sc.scrollTop / max) * (n - 1))));
+		if (idx === docLastHtml.current || idx === page) return;
+		docLastHtml.current = idx;
+		docDeScroll.current = true; // el cambio de página viene del scroll: no re-anclar
+		setPage(idx);
+	};
+	const [docErr, setDocErr] = (0, import_react.useState)("");
 	const [hojaImg, setHojaImg] = (0, import_react.useState)(false);
 	usarPantallaAtras(() => setHojaImg(false), void 0, hojaImg);
 	const [guardandoImg, setGuardandoImg] = (0, import_react.useState)("");
@@ -44581,7 +44646,10 @@ const docPedir = (desde, hasta, centroArg) => {
 			// estimar, y como mucho 5 elementos reales alrededor para
 			// corregir el drift (páginas retrato/paisaje mezcladas, v171).
 			const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
-			const ph = el.clientWidth / docAr;
+			// v191: con zoom — --doczoom escala el ancho (y con él la altura)
+			// de la página; antes se contaba a 100% y, con zoom, el contador y
+			// la ventana de carga «se desconectaban» del flujo.
+			const ph = (Math.min(el.clientWidth, 880) / docAr) * (docZoom / 100);
 			if (!ph) return;
 			const top = Math.max(0, el.scrollTop - padT);
 			const est = Math.max(0, Math.min(n - 1, Math.floor((top + el.clientHeight * .4) / ph)));
@@ -44625,6 +44693,7 @@ const docPedir = (desde, hasta, centroArg) => {
 			setDocAr(0);
 		}
 		let vivo = true;
+		setDocErr("");
 		(async () => {
 			try {
 				if (book.kind === "image") {
@@ -44638,12 +44707,20 @@ const docPedir = (desde, hasta, centroArg) => {
 					return;
 				}
 				if (book.kind !== "pdf") return;
-				let doc = docPdf.current || pdfDoc;
+				// v191: solo reutilizar el doc si es de ESTE libro — antes,
+				// `docPdf.current || pdfDoc` podía coger el doc del libro
+				// anterior (o uno ya destruido por la caché de 2 docs) y las
+				// páginas «nunca» cargaban.
+				let doc = docPdfOwner.current === book.id ? docPdf.current : null;
 				if (!doc) {
 					const blob = await getOriginal(book.id);
-					if (!blob) return;
+					if (!blob) {
+						if (vivo) setDocErr("Este libro se importó en una versión anterior y no guardó su archivo original. Vuelve a importarlo para verlo aquí.");
+						return;
+					}
 					doc = await loadPdf(book.id, await blob.arrayBuffer());
 					if (!vivo) return;
+					docPdfOwner.current = book.id;
 					setPdfDoc(doc);
 				}
 			docPdf.current = doc;
@@ -44655,7 +44732,13 @@ const docPedir = (desde, hasta, centroArg) => {
 			const p1 = await doc.getPage(1);
 			if (!vivo || docAr) return;
 			setDocAr(p1.viewport.width / p1.viewport.height);
-			} catch {}
+			} catch (e) {
+			// v191: ya no hay fallos silenciosos — antes cualquier error aquí
+			// dejaba spinners eternos sin explicación («nunca termina de
+			// cargar»). Ahora se avisa con botón para ir a Texto.
+			console.warn("[original] carga PDF:", e?.message || e);
+			if (vivo && !docAr) setDocErr("No se pudo abrir el PDF en Original: " + String(e?.message || e));
+			}
 		})();
 		return () => {
 			vivo = false;
@@ -44665,11 +44748,37 @@ const docPedir = (desde, hasta, centroArg) => {
 		if (mode !== "original") { docGen.current += 1; docCola.current = []; } // v177 (#3): al salir de Original se detiene el render
 	}, [mode]);
 	(0, import_react.useEffect)(() => {
-		if (mode !== "original" || book?.kind !== "pdf" || !docAr) return;
+		if (mode !== "original" || !book) return;
+		if (book.kind !== "pdf") {
+			// v191: original HTML — la barra mueve el flujo a la posición
+			// aproximada de la página (fracción de la altura) y el scroll
+			// devuelve la página (onOrigHtmlScroll). Antes la barra «se
+			// desconectaba» con estos formatos.
+			const root = document.querySelector(".reader");
+			const sc = root ? root.querySelector(".doc-flow.orig-multi") : null;
+			if (!sc) return;
+			const nH = pageCount || 1;
+			if (nH < 2) return;
+			const maxH = sc.scrollHeight - sc.clientHeight;
+			if (maxH < 40) return;
+			const porScrollH = docDeScroll.current;
+			docDeScroll.current = false;
+			const zoomOtroH = docZoom !== docZoomUltHtml.current;
+			docZoomUltHtml.current = docZoom;
+			if (page === docLastHtml.current && !zoomOtroH) return;
+			docLastHtml.current = page;
+			if (porScrollH) return;
+			sc.scrollTo({ top: (page / (nH - 1)) * maxH, behavior: "auto" });
+			return;
+		}
+		if (!docAr) return;
 		const el = docFlowRef.current;
 		if (!el) return;
 		const n = pageCount || 1;
-		const ph = el.clientWidth / docAr;
+		// v191: altura de página CON zoom (antes, solo a 100%: al zoomear el
+		// scrollTo caía corto, el contador «volvía» a otra página y la barra
+		// de páginas no cargaba las hojas que pedías).
+		const ph = (Math.min(el.clientWidth, 880) / docAr) * (docZoom / 100);
 		if (!ph) return;
 		const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
 		// v184: consumir la bandera ANTES del early-return: si el cambio de
@@ -44682,13 +44791,17 @@ const docPedir = (desde, hasta, centroArg) => {
 		const porScroll = docDeScroll.current;
 		docDeScroll.current = false;
 		docPedir(Math.max(0, page - 1), Math.min(n - 1, page + Math.ceil(el.clientHeight / ph) + 3), page); // v178: la página objetivo primero
-		if (page === docLast.current) return;
+		// v191: al cambiar el zoom, re-anclar a la página actual (se
+		// conserva el número de página en el que se estaba).
+		const zoomOtro = docZoom !== docZoomUlt.current;
+		docZoomUlt.current = docZoom;
+		if (page === docLast.current && !zoomOtro) return;
 		docLast.current = page;
 		if (porScroll) return;
 		docView.current = page;
 		docNav.current = Date.now(); // v174 (P6)
 		{ const _tt = padT + page * ph; el.scrollTo({ top: _tt, behavior: Math.abs(_tt - el.scrollTop) / ph > 3 ? "auto" : "smooth" }); } // v177 (#3): lejos = auto (sin cascada de páginas intermedias)
-	}, [mode, book, page, docAr, pageCount]);
+	}, [mode, book, page, docAr, pageCount, docZoom]);
 	// v124: destello de 5 s sobre la palabra/frase buscada al saltar a un
 	// resultado. En Texto resalta la primera ocurrencia en la página visible;
 	// en Original (txt/md/docx/epub/…) igual sobre el documento original; en
@@ -46429,6 +46542,13 @@ const docPedir = (desde, hasta, centroArg) => {
 								children: "Ver texto"
 							})]
 						})
+					}) : book.kind === "pdf" && docErr ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "center-msg",
+						children: [docErr, (0, import_jsx_runtime.jsx)("br", {}), (0, import_jsx_runtime.jsx)("button", {
+							className: "btn sm",
+							onClick: () => setMode("text"),
+							children: "Ver texto"
+						})]
 					}) : book.kind === "pdf" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "doc-flow",
 						ref: docFlowRef,
@@ -46444,6 +46564,8 @@ const docPedir = (desde, hasta, centroArg) => {
 						onVerTexto: () => setMode("text"),
 					fontStyle,
 					flowStyle: docFx()
+,
+						onFlowScroll: onOrigHtmlScroll
 					}),
 					desp === "lateral" && carousel && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -46725,12 +46847,12 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					// progreso (igual que en Texto/Imágenes).
 					(() => {
 						const bz = mode === "text" ? {
-							lab: (settings.fontSize || 20) + "px",
-							menos: () => setSettings({ fontSize: Math.max(14, (settings.fontSize || 20) - 2) }),
-							mas: () => setSettings({ fontSize: Math.min(48, (settings.fontSize || 20) + 2) }),
+							lab: (settings.fontSize || 22) + "px",
+							menos: () => setSettings({ fontSize: Math.max(14, (settings.fontSize || 22) - 2) }),
+							mas: () => setSettings({ fontSize: Math.min(48, (settings.fontSize || 22) + 2) }),
 							reset: () => setSettings({ fontSize: 20 }),
-							min: (settings.fontSize || 20) <= 14,
-							max: (settings.fontSize || 20) >= 48
+							min: (settings.fontSize || 22) <= 14,
+							max: (settings.fontSize || 22) >= 48
 						} : {
 							lab: docZoom + "%",
 							menos: () => setDocZoom((z) => Math.max(50, z - 5)),
@@ -48015,6 +48137,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						className: "notes-list",
 						children: notes.map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "note-item",
+							"data-nid": n.id,
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									style: {
@@ -48192,7 +48315,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 											setNotaDictando(false);
 											setNotaParcial("");
 										}
-										await addNote({
+										const rec = await addNote({
 											bookId: book.id,
 											page,
 											note: noteDraft.trim(),
@@ -48202,6 +48325,17 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 											idioma: idiomaLibro?.code || idiomaLibro?.bcp || langStr(book?.lang, "es")
 										});
 										setNoteDraft("");
+										setNotaAdjunto(null);
+										setNotaEmojis(false);
+										haptic$1.success();
+										await reloadMarks();
+										saveFullBackup({ immediate: true }).catch(() => {});
+										// v192: la lista va ordenada por página — la nota nueva
+										// podía quedar fuera de vista; se desplaza hasta ella.
+										const nl = document.querySelector(".sheet .notes-list");
+										const elN = nl ? nl.querySelector('[data-nid="' + rec.id + '"]') : null;
+										if (elN) elN.scrollIntoView({ block: "center", behavior: "smooth" });
+										toast?.("Nota guardada");
 										setNotaAdjunto(null);
 										setNotaEmojis(false);
 										haptic$1.success();

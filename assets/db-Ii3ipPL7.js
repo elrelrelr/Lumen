@@ -438,7 +438,7 @@ var DEFAULT_SETTINGS = {
 	citationBubbles: true,
 	karaokeColor: "#7c5cff",
 	karaokeStyle: "fondo",
-	fontSize: 20,
+	fontSize: 22,
 	appScale: 100,
 	appFuente: "sistema",
 	sonidosUi: true,
