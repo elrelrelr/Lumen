@@ -36113,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v192"
+							children: "v193"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37962,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v192 · escritorio y móvil"
+					children: "Lumen Reader · v193 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42549,6 +42549,9 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const limpiarCargaPg = () => { if (cargaPgT.current) { clearTimeout(cargaPgT.current); cargaPgT.current = null; } if (cargaPgRaf.current) { cancelAnimationFrame(cargaPgRaf.current); cargaPgRaf.current = null; } };
 	/* v180b: "mantener" a 2s, con rueda en PC y sin retroceso instantáneo al top */
 	const visitarAbajo = (0, import_react.useRef)(false);
+	// v193: último cambio de página (para el grace de 0,9 s en el borde
+	// «anterior»: no confundir la inercia tras pasar de página con intención)
+	const edgeGoTs = (0, import_react.useRef)(0);
 	(0, import_react.useEffect)(() => { visitarAbajo.current = false; }, [page]);
 	// v189/v190: OVER-SCROLL — si llegas al final/principio de la página y
 	// sigues haciendo scroll (rueda, flechas o dedo en el borde), se ACTIVA la
@@ -42572,7 +42575,12 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		const pg = surfaceRef.current ? surfaceRef.current.querySelector(".rd-page") : null;
 		if (!pg || pg.scrollHeight - pg.clientHeight < 24) return;
 		if (dir === "abajo" && page >= pageCount - 1) return;
-		if (dir === "arriba" && (page <= 0 || !visitarAbajo.current)) return;
+		if (dir === "arriba" && page <= 0) return;
+		// v193: el borde «anterior» funciona IGUAL que el «siguiente». El guard
+		// viejo (visitarAbajo: exigir haber bajado antes) dejaba la barra de
+		// página anterior muerta casi siempre. Ahora solo se ignora ~0,9 s tras
+		// un cambio de página (inercia de rueda/dedo al terminar de pasar).
+		if (dir === "arriba" && Date.now() - edgeGoTs.current < 900) return;
 		if (edgeDir.current && edgeDir.current !== dir) resetEdge();
 		edgeDir.current = dir;
 		if (!edgeRaf.current) {
@@ -42595,7 +42603,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			edgeRaf.current = requestAnimationFrame(() => tick(dir));
 		}
 	};
-	(0, import_react.useEffect)(() => { resetEdge(); }, [page]);
+	(0, import_react.useEffect)(() => { resetEdge(); edgeGoTs.current = Date.now(); }, [page]);
 	// v183 (#2): `directo` = el user mantiene pulsada la barra visible; su
 	// intención es explícita, así que no aplica el guard de borde de v180b.
 	const iniciarCargaPg = (dir, directo) => {
@@ -44731,7 +44739,11 @@ const docPedir = (desde, hasta, centroArg) => {
 			// (aspect-ratio) sin ese paso intermedio.
 			const p1 = await doc.getPage(1);
 			if (!vivo || docAr) return;
-			setDocAr(p1.viewport.width / p1.viewport.height);
+			// v193: pdf.js 5.x eliminó `page.viewport` (p1.viewport salía
+			// undefined → crash en `.width` y «No se pudo abrir el PDF»).
+			// Se usa el oficial getViewport().
+			const vp1 = (p1.getViewport ? p1.getViewport({ scale: 1 }) : p1.viewport);
+			setDocAr(vp1.width / vp1.height);
 			} catch (e) {
 			// v191: ya no hay fallos silenciosos — antes cualquier error aquí
 			// dejaba spinners eternos sin explicación («nunca termina de
