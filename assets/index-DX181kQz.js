@@ -36113,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v188"
+							children: "v189"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37962,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v188 · escritorio y móvil"
+					children: "Lumen Reader · v189 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42512,10 +42512,62 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	/* v180b: "mantener" a 2s, con rueda en PC y sin retroceso instantáneo al top */
 	const visitarAbajo = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => { visitarAbajo.current = false; }, [page]);
+	// v189: OVER-SCROLL — si llegas al final/principio de la página y SIGUES
+	// haciendo scroll (rueda, flechas o dedo arrastrando en el borde), la barra
+	// de «cambiar de página» se va llenando; si se llena (1,5 s de scroll
+	// sostenido en el borde) cambia de página. Si dejas de hacer scroll
+	// (>500 ms sin entradas en el borde) la barra se vacía y te quedas.
+	const edgeAccum = (0, import_react.useRef)(0);
+	const edgeLast = (0, import_react.useRef)(0);
+	const edgeDir = (0, import_react.useRef)(null);
+	const edgeRaf = (0, import_react.useRef)(null);
+	const edgeTouchY = (0, import_react.useRef)(null);
+	const resetEdge = () => {
+		edgeAccum.current = 0;
+		edgeLast.current = 0;
+		edgeDir.current = null;
+		edgeTouchY.current = null;
+		if (edgeRaf.current) { cancelAnimationFrame(edgeRaf.current); edgeRaf.current = null; }
+		setCargaPg(null);
+	};
+	const registrarEdge = (dir) => {
+		if (cargaPgT.current || carousel || sheet || quoteOpen || jumpOpen) return;
+		const pg = surfaceRef.current ? surfaceRef.current.querySelector(".rd-page") : null;
+		if (!pg || pg.scrollHeight - pg.clientHeight < 24) return;
+		if (dir === "abajo" && page >= pageCount - 1) return;
+		if (dir === "arriba" && (page <= 0 || !visitarAbajo.current)) return;
+		const now = Date.now();
+		if (edgeDir.current && edgeDir.current !== dir) resetEdge();
+		if (now - edgeLast.current > 500) edgeAccum.current = 0;
+		edgeDir.current = dir;
+		edgeLast.current = now;
+		if (!edgeRaf.current) {
+			let prev = now;
+			const tick = (d) => {
+				const t = Date.now();
+				if (cargaPgT.current) { edgeRaf.current = null; return; } // un hold de barra tomó el mando
+				if (t - edgeLast.current > 500) { resetEdge(); return; } // se paró el scroll
+				edgeAccum.current += t - prev;
+				prev = t;
+				if (edgeAccum.current >= 1500) {
+					const destino = d;
+					resetEdge();
+					ultimoGoPg.current = Date.now();
+					go(destino === "abajo" ? 1 : -1);
+					return;
+				}
+				setCargaPg({ dir: d, p: edgeAccum.current });
+				edgeRaf.current = requestAnimationFrame(() => tick(d));
+			};
+			edgeRaf.current = requestAnimationFrame(() => tick(dir));
+		}
+	};
+	(0, import_react.useEffect)(() => { resetEdge(); }, [page]);
 	// v183 (#2): `directo` = el user mantiene pulsada la barra visible; su
 	// intención es explícita, así que no aplica el guard de borde de v180b.
 	const iniciarCargaPg = (dir, directo) => {
 		if (cargaPgT.current) return;
+		if (edgeRaf.current) resetEdge(); // v189: el hold de barra reemplaza el over-scroll
 		if (dir === "abajo" && page >= pageCount - 1) return;
 		if (dir === "arriba" && page <= 0) return;
 		// v180b: para retroceder hay que haber bajado un poco dentro de ESTA página
@@ -44224,14 +44276,16 @@ const go = (0, import_react.useCallback)((delta) => {
 					const paso = Math.max(140, Math.round(pg.clientHeight * .82));
 					if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ") {
 						const alBajo = pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 24;
-						if (alBajo && page < pageCount - 1) { ultimoGoPg.current = Date.now(); go(1); }
-						else pg.scrollBy({ top: paso, behavior: "smooth" });
+						// v189: en el borde, las flechas alimentan la barra (1,5 s) en vez de
+						// saltar de página al momento
+						if (alBajo && page < pageCount - 1) registrarEdge("abajo");
+						else if (!alBajo) pg.scrollBy({ top: paso, behavior: "smooth" });
 					} else {
 						const alTopo = pg.scrollTop <= 8;
-						if (alTopo && page > 0) { ultimoGoPg.current = Date.now(); go(-1); }
-						else pg.scrollBy({ top: -paso, behavior: "smooth" });
+						if (alTopo && page > 0) registrarEdge("arriba");
+						else if (!alTopo) pg.scrollBy({ top: -paso, behavior: "smooth" });
 					}
-				}
+					}
 				return;
 			}
 			if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") go(1);
@@ -44279,6 +44333,7 @@ const go = (0, import_react.useCallback)((delta) => {
 		if (!hadSelection) longPressT.current = setTimeout(() => {
 			if (touch.current) touch.current.selecting = true;
 		}, 300);
+		edgeTouchY.current = null; // v189: el arrastre empieza de cero
 		touch.current = {
 			x: e.touches[0].clientX,
 			y: e.touches[0].clientY,
@@ -44314,9 +44369,24 @@ const go = (0, import_react.useCallback)((delta) => {
 			limpiarCargaPg();
 			setCargaPg(null);
 		}
+		// v189: dedo en el borde intentando seguir deslizando → alimenta la
+		// barra de «cambiar de página» (mismo llenado de 1,5 s que rueda/flechas).
+		if (!carousel && (desp === "scroll" || desp === "mixto") && mode === "text" && !cargaPgT.current) {
+			const pg = surfaceRef.current ? surfaceRef.current.querySelector(".rd-page") : null;
+			if (pg && pg.scrollHeight - pg.clientHeight >= 24) {
+				const y = e.touches[0].clientY;
+				const prevY = edgeTouchY.current;
+				edgeTouchY.current = y;
+				const alBajo = pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 10;
+				const alTopo = pg.scrollTop <= 10;
+				if (alBajo && prevY != null && y < prevY) registrarEdge("abajo");
+				else if (alTopo && prevY != null && y > prevY) registrarEdge("arriba");
+			}
+		}
 	};
 	const onTouchEnd = (e) => {
 		ultimoToque.current = Date.now();
+		edgeTouchY.current = null; // v189
 		if (e.touches.length < 2) pinch.current = null;
 		const s = touch.current;
 		touch.current = null;
@@ -44913,40 +44983,34 @@ const docPedir = (desde, hasta, centroArg) => {
 			}
 		};
 		surf.addEventListener("scroll", h, { capture: true, passive: true });
-		// v188: la acumulación de rueda en el borde (v152/v177) se QUITÓ en texto:
-	// un gesto de rueda al final de la página cambiaba de página SIN la barra
-	// (~200 px de delta, un par de clics; en trackpad, menos). En la pestaña T
-	// la única vía de pasar de página es MANTENER la barra 1,5 s sin mover el
-	// dedo (o el teclado, que exige 3 pulsaciones). Este listener solo registra
-	// el "wheel activo" para que el auto-volteo del carrusel no dispare mientras
-	// se gira la rueda.
+		// v189: la rueda en el borde ALIMENTA la barra de «cambiar de página»
+	// (over-scroll): cada giro en el borde suma al llenado; si la barra se
+	// llena (1,5 s de scroll sostenido en el borde) cambia de página, y si
+	// dejas de girar se vacía. (Antes, v152/v177: un par de clics de rueda
+	// saltaban de página al momento; v188: nada. Ahora: la barra.)
 	const hw = (e) => {
 		wheelActivo.current = Date.now();
+		const el = surf.querySelector(".rd-page");
+		if (!el || !e.deltaY || sheet || carousel) return;
+		if (el.scrollHeight - el.clientHeight < 24) return;
+		const d = e.deltaY * (e.deltaMode === 1 ? 20 : e.deltaMode === 2 ? 1200 : 1);
+		const alBajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
+		const alTopo = el.scrollTop <= 8;
+		if (d > 0 && alBajo) registrarEdge("abajo");
+		else if (d < 0 && alTopo) registrarEdge("arriba");
 	};
 	surf.addEventListener("wheel", hw, { capture: true, passive: true });
-		// v177 (#7): flechas del teclado — al llegar al final/principio hay que pulsar un
-		// poco más (3 pulsaciones) para cambiar de página; así se puede leer el borde.
-		let keyAcc = 0;
+		// v177 (#7): el teclado tiene su propio buffer (no auto-voltea al llegar
+		// al borde). v189: las flechas en el borde YA NO pasan de página a la
+		// tercera pulsación: alimentan la barra de «cambiar de página» (mismo
+		// llenado de 1,5 s que rueda/over-scroll, vía el handler de window).
+		// Aquí solo se marca el teclado activo para los guards del carrusel.
 		const hk = (e) => {
 			const k = e.key;
 			const down = k === "ArrowDown" || k === "PageDown" || k === " " || k === "End";
 			const up = k === "ArrowUp" || k === "PageUp" || k === "Home";
 			if (!down && !up) return;
 			keyActivo.current = Date.now();
-			if (sheet) { keyAcc = 0; return; }
-			const el = surf.querySelector(".rd-page");
-			if (!el || el.scrollHeight - el.clientHeight < 24) { keyAcc = 0; return; }
-			const alBajo = el.scrollTop + el.clientHeight >= el.scrollHeight - 8;
-			const alTopo = el.scrollTop <= 8;
-			if (down && alBajo && page < pageCount - 1) {
-				if (Date.now() - ultimoGoPg.current < 350) return;
-				keyAcc += 1;
-				if (keyAcc >= 3) { keyAcc = 0; ultimoGoPg.current = Date.now(); el._vioBajo = false; go(1); }
-			} else if (up && alTopo && page > 0) {
-				if (Date.now() - ultimoGoPg.current < 350) return;
-				keyAcc -= 1;
-				if (keyAcc <= -3) { keyAcc = 0; ultimoGoPg.current = Date.now(); el._vioBajo = false; go(-1); }
-			} else keyAcc = 0;
 		};
 		surf.addEventListener("keydown", hk, { capture: true });
 		return () => {
