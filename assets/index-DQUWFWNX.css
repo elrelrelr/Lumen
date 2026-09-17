@@ -12909,7 +12909,11 @@ mark.find-flash {
   -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
   pointer-events: auto;
-  touch-action: none;
+  /* v187 (#3): pan-y — arrancar un scroll vertical DESDE la barra no se
+     traga (y el browser dispara pointercancel → el hold se cancela).
+     Antes (none) un gesto que empezaba en la barra ni scrollaba ni
+     cancelaba: si el dedo se quedaba 2 s, pasaba de página "sin querer". */
+  touch-action: pan-y;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;

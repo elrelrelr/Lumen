@@ -28526,6 +28526,7 @@ var Speaker = class {
 		this.i = 0;
 		this.playing = false;
 		this.paused = false;
+		this._realPause = false;
 		this.rate = 1;
 		this.pitch = 1;
 		this.volume = 1;
@@ -28761,7 +28762,21 @@ var Speaker = class {
 					setTimeout(() => lanzarVoz(intentos - 1), 70);
 					return;
 				}
+				// v187: confirmar que el utterance ARRANCA. Si en 2,5 s no
+				// dispara onstart (Chrome lo descartó en silencio), forzar
+				// cancel y reemitir una última vez: antes el reanudar se
+				// quedaba en silencio total sin aviso.
+				u.onstart = () => { u._arranco = true; };
 				speechSynthesis.speak(u);
+				setTimeout(() => {
+					if (!this.playing || this.paused || u._arranco || u._rescate) return;
+					u._rescate = true;
+					try { speechSynthesis.cancel(); } catch {}
+					setTimeout(() => {
+						if (!this.playing || this.paused) { u.onend = null; u.onerror = null; return; }
+						try { speechSynthesis.speak(u); } catch {}
+					}, 150);
+				}, 2500);
 			} catch (err) {
 				console.warn("[tts] speak falló, deteniendo:", err?.message || err);
 				clearInterval(this._watchdog);
@@ -28770,14 +28785,7 @@ var Speaker = class {
 				this.onEnd?.();
 				return;
 			}
-			clearInterval(this._watchdog);
-			this._watchdog = setInterval(() => {
-				if (!this.playing || this.paused) return;
-				if (speechSynthesis.speaking && !speechSynthesis.paused) {
-					speechSynthesis.pause();
-					speechSynthesis.resume();
-				}
-			}, 9e3);
+			this._armarWatchdog();
 		};
 		setTimeout(() => lanzarVoz(10), 60);
 	}
@@ -28786,25 +28794,50 @@ var Speaker = class {
 		this.i++;
 		this._speakCurrent();
 	}
+	_armarWatchdog() {
+		clearInterval(this._watchdog);
+		this._watchdog = setInterval(() => {
+			if (!this.playing || this.paused) return;
+			if (speechSynthesis.speaking && !speechSynthesis.paused) {
+				speechSynthesis.pause();
+				speechSynthesis.resume();
+			}
+		}, 9e3);
+	}
 	pause() {
 		this.paused = true;
 		avisarGesto("voz", true);
 		bgStart(false);
+		// v187: primero intentar una PAUSA REAL (speechSynthesis.pause()).
+		// v182 se iba directo a cancel() y resume() tenía que re-speak la
+		// frase: Chrome descarta en silencio ese speak si el sintetizador
+		// sigue «asentando» el cancel → el reanudar se quedaba en silencio.
+		// Con una pausa real, resume() levanta la MISMA frase y no hay
+		// cancel/speak en el camino. Si Chrome ignora la pause (entre frases
+		// o justo tras un speak), se cae a cancel() 150 ms después.
+		this._realPause = false;
 		const b = bridge();
 		if (b) try {
 			if (this._nativeQueue && typeof b.pause === "function") b.pause();
 			else b.stop();
 		} catch {}
-		else if ("speechSynthesis" in window) try {
-			// v182: cancelar YA — dejar el utterance en «paused» y que resume() lo levante
-			// dejaba el TTS muerto en Chrome (resume ignorado). resume() relee la frase actual.
-			speechSynthesis.cancel();
-		} catch {}
-		// v186: anular los handlers de la frase interrumpida AHORA. Su onend
-		// llega de forma asíncrona (tras el cancel) y, si el usuario reanuda
-		// antes de que dispare, pasaba el guard (!paused) y hacía saltar la
-		// frase / encadenar _speakCurrent duplicados → silencio o salto raro.
-		if (this._current) try { this._current.onend = null; this._current.onerror = null; } catch {}
+		else if ("speechSynthesis" in window) {
+			try {
+				if (speechSynthesis.speaking && !speechSynthesis.paused) speechSynthesis.pause();
+			} catch {}
+			setTimeout(() => {
+				if (!this.paused) return; // ya reanudó o se detuvo
+				try {
+					if (speechSynthesis.paused) { this._realPause = true; return; }
+				} catch {}
+				this._realPause = false;
+				// v186: anular los handlers de la frase interrumpida ANTES del
+				// cancel: su onend llega asíncrono y, si el usuario reanuda
+				// antes, pasaba el guard (!paused) y hacía saltar frases.
+				if (this._current) try { this._current.onend = null; this._current.onerror = null; } catch {}
+				try { speechSynthesis.cancel(); } catch {}
+			}, 150);
+		}
 		clearInterval(this._watchdog);
 		this._emit();
 	}
@@ -28820,10 +28853,23 @@ var Speaker = class {
 			nb.resume();
 			return;
 		} catch {}
-		if (!bridge() && "speechSynthesis" in window && speechSynthesis.paused) try {
-			speechSynthesis.resume();
-			if (speechSynthesis.speaking) return;
-		} catch {}
+		if (!bridge() && "speechSynthesis" in window) {
+			// v187: si quedó una pausa REAL (o una pause nativa pendiente),
+			// solo se levanta: la voz sigue la misma frase sin re-speak.
+			if (this._realPause || speechSynthesis.paused) {
+				try {
+					speechSynthesis.resume();
+					if (speechSynthesis.speaking || speechSynthesis.pending) {
+						this._realPause = false;
+						this._armarWatchdog();
+						return;
+					}
+				} catch {}
+				this._realPause = false;
+			}
+		}
+		// Fallback: relee la frase actual (con reintento + rescate onstart
+		// en _speakCurrent por si Chrome tira el speak en silencio).
 		this._speakCurrent();
 	}
 	toggle() {
@@ -28867,6 +28913,7 @@ var Speaker = class {
 		this.playing = false;
 		this.paused = false;
 		this._nativeQueue = false;
+		this._realPause = false;
 		avisarGesto("voz", false);
 		__vitePreload(() => Promise.resolve().then(() => ambient_exports).then(async (a) => {
 			a.agacharPorVoz?.(false);
@@ -36066,7 +36113,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v186"
+							children: "v187"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37915,7 +37962,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v186 · escritorio y móvil"
+					children: "Lumen Reader · v187 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42457,6 +42504,10 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const cargaPgT = (0, import_react.useRef)(null);
 	const cargaPgRaf = (0, import_react.useRef)(null);
 	const cargaPgStart = (0, import_react.useRef)(0);
+	// v187 (#3): punto donde empezó el hold — si el dedo se desplaza >12 px
+	// (intención de scroll), el hold se cancela: pasar de página exige 1,5 s
+	// quietos, nunca un arrastre.
+	const cargaPgPt = (0, import_react.useRef)(null);
 	const limpiarCargaPg = () => { if (cargaPgT.current) { clearTimeout(cargaPgT.current); cargaPgT.current = null; } if (cargaPgRaf.current) { cancelAnimationFrame(cargaPgRaf.current); cargaPgRaf.current = null; } };
 	/* v180b: "mantener" a 2s, con rueda en PC y sin retroceso instantáneo al top */
 	const visitarAbajo = (0, import_react.useRef)(false);
@@ -42474,7 +42525,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		setCargaPg({ dir, p: 0 });
 		const loopCarga = () => {
 			const elC = Date.now() - cargaPgStart.current;
-			if (elC >= 2000) { cargaPgRaf.current = null; return; }
+			if (elC >= 1500) { cargaPgRaf.current = null; return; } // v187 (#4): 1,5 s
 			setCargaPg((c) => c ? { ...c, p: elC } : c);
 			cargaPgRaf.current = requestAnimationFrame(loopCarga);
 		};
@@ -42484,7 +42535,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			if (cargaPgRaf.current) { cancelAnimationFrame(cargaPgRaf.current); cargaPgRaf.current = null; }
 			setCargaPg(null);
 			go(dir === "abajo" ? 1 : -1);
-		}, 2000);
+		}, 1500); // v187 (#4): 1,5 s
 	};
 	// v183 (#2): al soltar (o salir) la barra, cancela el conteo sin pasar de página
 	const detenerCargaPg = () => { if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); } };
@@ -43646,6 +43697,46 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		ttsState.paused,
 		toast
 	]);
+	// v187 (#2): botón «Sincronizar con la voz» del menú Lectura en voz alta —
+	// lleva el scroll a la página que está leyendo la voz; si ya es esa
+	// página, baja a la frase actual (karaoke, o el nodo del offset si el
+	// karaoke está apagado).
+	const sincronizarConVoz = (0, import_react.useCallback)(() => {
+		const dest = ttsPageRef.current != null ? ttsPageRef.current : page;
+		if (dest !== page) {
+			setPage(dest); // el karaoke/effect la centra al llegar
+			haptic$1.success?.();
+			return;
+		}
+		try {
+			const el = karaokeRef.current;
+			if (el && el.offsetParent !== null) {
+				el.scrollIntoView({ block: "center", behavior: "smooth" });
+				haptic$1.success?.();
+				return;
+			}
+			const rd = surfaceRef.current ? surfaceRef.current.querySelector(".rd-page .rd-text") : null;
+			const r = typeof speaker.currentRange === "function" ? speaker.currentRange() : null;
+			if (rd && r && r.start >= 0) {
+				const walker = document.createTreeWalker(rd, NodeFilter.SHOW_TEXT);
+				let node, pos = 0, target = null, off = 0;
+				while ((node = walker.nextNode())) {
+					const len = node.textContent.length;
+					if (pos + len >= r.start) { target = node; off = Math.max(0, r.start - pos); break; }
+					pos += len;
+				}
+				if (target) {
+					const rg = document.createRange();
+					rg.setStart(target, Math.min(off, target.length));
+					rg.collapse(true);
+					(rg.startContainer.parentElement || rd).scrollIntoView({ block: "center", behavior: "smooth" });
+					haptic$1.success?.();
+					return;
+				}
+			}
+		} catch {}
+		toast?.("📍 La voz está leyendo esta página");
+	}, [page, toast]);
 	const toggleTts = (0, import_react.useCallback)(() => {
 		if (voiceHold.fired) {
 			voiceHold.fired = false;
@@ -46040,7 +46131,8 @@ const docPedir = (desde, hasta, centroArg) => {
 									children: page > 0 ? (0, import_jsx_runtime.jsxs)("div", {
 										className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "arriba" ? " activa" : ""),
 										"aria-label": "Mantener para volver a la página anterior",
-										onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("arriba", true); },
+										onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); cargaPgPt.current = { x: e.clientX, y: e.clientY }; iniciarCargaPg("arriba", true); },
+										onPointerMove: (e) => { const p0 = cargaPgPt.current; if (p0 && cargaPgT.current && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 12) detenerCargaPg(); },
 										onPointerUp: detenerCargaPg,
 										onPointerLeave: detenerCargaPg,
 										onPointerCancel: detenerCargaPg,
@@ -46050,7 +46142,7 @@ const docPedir = (desde, hasta, centroArg) => {
 										onTouchMove: (e) => e.stopPropagation(),
 										onTouchEnd: (e) => e.stopPropagation(),
 										children: [
-											(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "arriba" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+											(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "arriba" ? Math.min(1, (cargaPg.p || 0) / 1500) : 0) + ")" } }),
 											(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
 												(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↑" }),
 												(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Página anterior" })
@@ -46205,7 +46297,8 @@ const docPedir = (desde, hasta, centroArg) => {
 								children: page < pageCount - 1 ? (0, import_jsx_runtime.jsxs)("div", {
 									className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "abajo" ? " activa" : ""),
 									"aria-label": "Mantener para pasar a la siguiente página",
-									onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("abajo", true); },
+									onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); cargaPgPt.current = { x: e.clientX, y: e.clientY }; iniciarCargaPg("abajo", true); },
+									onPointerMove: (e) => { const p0 = cargaPgPt.current; if (p0 && cargaPgT.current && Math.hypot(e.clientX - p0.x, e.clientY - p0.y) > 12) detenerCargaPg(); },
 									onPointerUp: detenerCargaPg,
 									onPointerLeave: detenerCargaPg,
 									onPointerCancel: detenerCargaPg,
@@ -46215,7 +46308,7 @@ const docPedir = (desde, hasta, centroArg) => {
 									onTouchMove: (e) => e.stopPropagation(),
 									onTouchEnd: (e) => e.stopPropagation(),
 									children: [
-										(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "abajo" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+										(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "abajo" ? Math.min(1, (cargaPg.p || 0) / 1500) : 0) + ")" } }),
 										(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
 											(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↓" }),
 											(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Siguiente página" })
@@ -49694,16 +49787,20 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				open: sheet === "tts",
 				onClose: closeSheet,
 				title: "🔊 Lectura en voz alta",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TtsPanel, {
-					settings,
-					setSettings,
-					toast,
-					autoRef: autoAdvance,
-					text,
-					bookTitle: book?.title,
-					page: page + 1,
-					idiomaDetectado: idiomaLibro
-				})
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TtsPanel, {
+			settings,
+			setSettings,
+			toast,
+			autoRef: autoAdvance,
+			text,
+			bookTitle: book?.title,
+			page: page + 1,
+			idiomaDetectado: idiomaLibro,
+			// v187 (#2): botón de sincronizar scroll con la página que se lee
+			vozActiva: ttsState.playing || ttsState.paused,
+			ttsPageVoz: (ttsPage != null ? ttsPage : page) + 1,
+			onSyncVoz: sincronizarConVoz
+		})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: sheet === "ocr",
@@ -50167,7 +50264,7 @@ function CanvasHost({ canvas }) {
 		}
 	});
 }
-function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page, idiomaDetectado }) {
+function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page, idiomaDetectado, vozActiva, ttsPageVoz, onSyncVoz }) {
 	const [musTab, setMusTab] = (0, import_react.useState)("calma");
 	const plegarSecciones = (0, import_react.useCallback)((nodo) => {
 		if (!nodo) return;
@@ -50237,6 +50334,22 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "aud-cab-txt",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Audio" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Voz, música y automatismos" })]
+			})]
+		}),
+		// v187 (#2): sincronizar el scroll con la página que está leyendo la voz
+		vozActiva && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "row",
+			style: { marginBottom: 12 },
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "row-label",
+				children: "📍 Sincronizar con la voz"
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "row-sub",
+				children: ["Ir a la página que está leyendo (pág. ", ttsPageVoz, ")"]
+			})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				className: "btn sm primary",
+				onClick: () => { onSyncVoz?.(); },
+				children: "Sincronizar"
 			})]
 		}),
 		!ttsAvailable() && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
