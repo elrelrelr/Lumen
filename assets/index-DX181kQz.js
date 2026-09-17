@@ -36051,7 +36051,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v184"
+							children: "v185"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37900,7 +37900,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v184 · escritorio y móvil"
+					children: "Lumen Reader · v185 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42780,19 +42780,17 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	(0, import_react.useEffect)(() => {
 		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
 		if (sheet || quoteOpen || jumpOpen) return; // v182: con hoja/menú encima, la rueda no cambia de página
-		const onWheelPg = (e) => {
-			if (sheet || quoteOpen || jumpOpen) return;
-			const t = e.target;
-			if (t && t.closest && t.closest(".sheet, .hoja-img, .selection-pop, .cite-scrim, .cite-bubble, .jump-dialog, .backdrop, .rd-top, .rd-bottom")) return;
-			const pg = document.querySelector(".rd-page");
-			if (!pg) return;
-			const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
-			const alBajo = sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6;
-			const alTopo = pg.scrollTop <= 4;
-			if (e.deltaY > 0 && alBajo) iniciarCargaPg("abajo");
-			else if (e.deltaY < 0 && alTopo) iniciarCargaPg("arriba");
-			else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
-		};
+	const onWheelPg = (e) => {
+		if (sheet || quoteOpen || jumpOpen) return;
+		const t = e.target;
+		if (t && t.closest && t.closest(".sheet, .hoja-img, .selection-pop, .cite-scrim, .cite-bubble, .jump-dialog, .backdrop, .rd-top, .rd-bottom")) return;
+		// v185 (#1): el auto-salto al hacer rueda en el borde queda DESACTIVADO:
+		// chocaban dos maneras de pasar de página (el borde + las barras).
+		// Ahora las páginas se cambian SOLO desde las barras separadoras que
+		// viven dentro del scroll; la rueda aquí solo cancela un hold en curso
+		// (p. ej. mantener la barra con el clic y girar la rueda para volver).
+		if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
+	};
 		window.addEventListener("wheel", onWheelPg, { passive: true });
 		return () => window.removeEventListener("wheel", onWheelPg);
 	}, [mode, carousel, desp, page, pageCount, sheet, quoteOpen, jumpOpen]);
@@ -44193,18 +44191,12 @@ const go = (0, import_react.useCallback)((delta) => {
 			s.moved = true;
 			clearTimeout(longPressT.current);
 		}
-		/* v179 (#1): en TEXTO, al llegar al borde y seguir deslizando, arranca la barra "mantener 1s" */
-		if (!carousel && (desp === "scroll" || desp === "mixto") && mode === "text") {
-			const dyS = e.touches[0].clientY - s.y;
-			const pg = document.querySelector(".rd-page");
-			if (pg) {
-				const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
-				const alBajo = sinScrollReal || pg.scrollTop + pg.clientHeight >= pg.scrollHeight - 6;
-				const alTopo = pg.scrollTop <= 4;
-				if (dyS < 0 && alBajo) iniciarCargaPg("abajo");
-				else if (dyS > 0 && alTopo) iniciarCargaPg("arriba");
-				else if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); }
-			}
+		// v185 (#1): ya no arranca la barra por seguir deslizando en el borde —
+		// las barras son los separadores DENTRO del scroll. Mover el dedo
+		// durante un hold lo cancela (misma intención que en v179).
+		if (!carousel && (desp === "scroll" || desp === "mixto") && mode === "text" && cargaPgT.current) {
+			limpiarCargaPg();
+			setCargaPg(null);
 		}
 	};
 	const onTouchEnd = (e) => {
@@ -45924,45 +45916,10 @@ const docPedir = (desde, hasta, centroArg) => {
 			// v170: se quitó la pastilla «Leyendo pág. N · volver» (.tts-volver):
 			// tapaba botones del auto-scroll. Su función (volver a la página que
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
-/* v183 (#2): barras de página SIEMPRE visibles en la pestaña TEXTO, en el
-   centro de la banda de 125 px libre sobre/bajo el texto (el scroll no las
-   tapiza nunca). Mantenerlas pulsadas 2 s cambia de página — igual que la
-   rueda o el gesto en el borde; soltar antes cancela. Ocultas con hoja/menú
-   encima (z 88/120) y en el carrusel, que tiene su propia navegación. */
-mode === "text" && !sheet && !quoteOpen && !jumpOpen && !(desp === "lateral" && lateralPartes.length > 1) && pageCount > 1 && (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-	page > 0 && (0, import_jsx_runtime.jsxs)("div", {
-		className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "arriba" ? " activa" : "") + " arriba",
-		"aria-label": "Mantener para volver a la página anterior",
-		onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("arriba", true); },
-		onPointerUp: detenerCargaPg,
-		onPointerLeave: detenerCargaPg,
-		onPointerCancel: detenerCargaPg,
-		onContextMenu: (e) => e.preventDefault(),
-		children: [
-			(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "arriba" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
-			(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
-				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↑" }),
-				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Página anterior" })
-			] })
-		]
-	}),
-	page < pageCount - 1 && (0, import_jsx_runtime.jsxs)("div", {
-		className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "abajo" ? " activa" : "") + " abajo",
-		"aria-label": "Mantener para pasar a la siguiente página",
-		onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("abajo", true); },
-		onPointerUp: detenerCargaPg,
-		onPointerLeave: detenerCargaPg,
-		onPointerCancel: detenerCargaPg,
-		onContextMenu: (e) => e.preventDefault(),
-		children: [
-			(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "abajo" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
-			(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
-				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↓" }),
-				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Siguiente página" })
-			] })
-		]
-	})
-]}) ,
+/* v185 (#2): las barras de página ya NO son fijas: son los separadores de
+   página DENTRO del flujo de scroll (ver las zonas .rd-zona dentro de
+   .rd-page): [barra anterior] · [texto] · [barra siguiente], todo con un
+   solo scroll — cada barra se va de la pantalla con su contenido. */
 			autoScrollOn && (mode === "text" || mode === "original") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				className: "auto-stop",
 				"aria-label": "Parar el auto-scroll",
@@ -46047,8 +46004,36 @@ mode === "text" && !sheet && !quoteOpen && !jumpOpen && !(desp === "lateral" && 
 					]
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "rd-page desp-" + desp,
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollFab, {
+							children: [
+								/* v185 (#2): separador SUPERIOR — parte de la página (no
+								   flota fuera): al hacer scroll se va de la pantalla.
+								   Siempre reserva su banda de 125 px (separador de
+								   páginas), con la barra «anterior» si hay página previa. */
+								(0, import_jsx_runtime.jsx)("div", {
+									className: "rd-zona rd-zona-sup",
+									"aria-hidden": page > 0 ? undefined : "true",
+									children: page > 0 ? (0, import_jsx_runtime.jsxs)("div", {
+										className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "arriba" ? " activa" : ""),
+										"aria-label": "Mantener para volver a la página anterior",
+										onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("arriba", true); },
+										onPointerUp: detenerCargaPg,
+										onPointerLeave: detenerCargaPg,
+										onPointerCancel: detenerCargaPg,
+										onContextMenu: (e) => e.preventDefault(),
+										onClick: (e) => e.stopPropagation(),
+										onTouchStart: (e) => e.stopPropagation(),
+										onTouchMove: (e) => e.stopPropagation(),
+										onTouchEnd: (e) => e.stopPropagation(),
+										children: [
+											(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "arriba" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+											(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
+												(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↑" }),
+												(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Página anterior" })
+											] })
+										]
+									}) : null
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollFab, {
 									abajo: scrollAbajo,
 									onTocar: irArribaAbajo,
 									mode: mode,
@@ -46184,7 +46169,35 @@ mode === "text" && !sheet && !quoteOpen && !jumpOpen && !(desp === "lateral" && 
 										children: renderTextBody(partes[1])
 									})
 								] });
-							})()
+							})(),
+							/* v185 (#2): separador INFERIOR — al fondo de la página:
+							   el usuario lee hasta aquí, ve la barra «siguiente» y la
+							   mantiene 2 s para pasar. Igual que el superior, siempre
+							   reserva su banda de 125 px. */
+							(0, import_jsx_runtime.jsx)("div", {
+								className: "rd-zona rd-zona-inf",
+								"aria-hidden": page < pageCount - 1 ? undefined : "true",
+								children: page < pageCount - 1 ? (0, import_jsx_runtime.jsxs)("div", {
+									className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "abajo" ? " activa" : ""),
+									"aria-label": "Mantener para pasar a la siguiente página",
+									onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("abajo", true); },
+									onPointerUp: detenerCargaPg,
+									onPointerLeave: detenerCargaPg,
+									onPointerCancel: detenerCargaPg,
+									onContextMenu: (e) => e.preventDefault(),
+									onClick: (e) => e.stopPropagation(),
+									onTouchStart: (e) => e.stopPropagation(),
+									onTouchMove: (e) => e.stopPropagation(),
+									onTouchEnd: (e) => e.stopPropagation(),
+									children: [
+										(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "abajo" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+										(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
+											(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↓" }),
+											(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Siguiente página" })
+										] })
+									]
+								}) : null
+							})
 						]
 					}, page) : mode === "imagenes" ? carousel ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "carousel orig desp-" + desp,

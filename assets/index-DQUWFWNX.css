@@ -550,11 +550,12 @@ textarea {
 
 .rd-page {
   position: absolute;
-  /* v183 (#2): el texto NUNCA entra en las bandas de las barras de página:
-     125 px libres bajo la barra superior (≈ safe-t+60) y sobre la inferior
-     (≈ safe-b+74). Es el propio contenedor el que se retrae, no un padding
-     que el scroll se come: las bandas permanecen fijas en todo momento. */
-  inset: calc(var(--safe-t, 0px) + 60px + 125px) 0 calc(var(--safe-b, 0px) + 74px + 125px) 0;
+  /* v185 (#2): el contenedor vuelve a ocupar todo el alto: las bandas de las
+     barras son los separadores .rd-zona DENTRO del flujo de scroll (arriba y
+     abajo del texto). Ellos mismos reservan el hueco de la chrome (safe-t+60
+     / safe-b+74) + su banda de 125 px, así el texto arranca en el mismo sitio
+     que antes y las barras se van de la pantalla con el scroll. */
+  inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
@@ -12890,19 +12891,16 @@ mark.find-flash {
 .row select.plain { flex: 0 1 auto; max-width: 62%; min-width: 96px; text-overflow: ellipsis; }
 .musu-caja select.plain, .aj select.plain { max-width: 70%; }
 
-/* v180 (#2) / v183 (#2): barra "mantener para cambiar de página".
-   Ahora SIEMPRE visible (no solo durante el conteo), fija en el centro de
-   la banda de 125 px libre sobre/bajo el texto (banda superior:
-   safe-t+60 → safe-t+185; inferior: safe-b+199 → safe-b+74): la barra de
-   46 px queda centrada con ≈39 px libres a cada lado. Operable: mantener
-   pulsada 2 s cambia de página; soltar cancela. */
+/* v180 (#2) / v183 (#2) / v185 (#2): barra "mantener para cambiar de página".
+   v185: ya NO es position:fixed — vive DENTRO del flujo de scroll, centrada
+   en su banda de 125 px (los separadores .rd-zona, parte de la página).
+   Operable: mantenerla pulsada 2 s cambia de página; soltar cancela. */
 .rd-carga-pg {
-  position: fixed;
+  position: absolute;
   left: 50%;
   transform: translateX(-50%);
   width: min(320px, 84vw);
   height: 46px;
-  z-index: 95;
   border-radius: 23px;
   background: rgba(13, 10, 22, .8);
   border: 1.5px solid rgba(124, 92, 255, .65);
@@ -12910,7 +12908,6 @@ mark.find-flash {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   overflow: hidden;
-  /* v183 (#2): ahora se manipula directamente (antes era solo indicador) */
   pointer-events: auto;
   touch-action: none;
   user-select: none;
@@ -12921,9 +12918,17 @@ mark.find-flash {
   align-items: center;
   justify-content: center;
 }
-.rd-carga-pg.abajo { bottom: calc(var(--safe-b, 0px) + 74px + 39px); } /* v183 (#2): centro de la banda de 125 px inferior */
-.rd-carga-pg.arriba { top: calc(var(--safe-t, 0px) + 60px + 39px); } /* v183 (#2): centro de la banda de 125 px superior */
 .rd-carga-pg.activa { border-color: rgba(124, 92, 255, .95); box-shadow: 0 8px 28px rgba(124, 92, 255, .4); }
+/* v185 (#2): separadores de página — bandas de 125 px con la barra centrada,
+   DENTRO del scroll (desaparecen con él). La franja extra (safe-t+60 /
+   safe-b+74) deja libre la chrome (barra de título / barra de herramientas).
+   Altura constante aunque no haya barra (página 1 / última): el texto no
+   salta de sitio al pasar de página. */
+.rd-zona { position: relative; pointer-events: none; }
+.rd-zona-sup { height: calc(var(--safe-t, 0px) + 60px + 125px); }
+.rd-zona-inf { height: calc(var(--safe-b, 0px) + 74px + 125px); }
+.rd-zona-sup .rd-carga-pg { top: calc(var(--safe-t, 0px) + 60px + 39px); }
+.rd-zona-inf .rd-carga-pg { bottom: calc(var(--safe-b, 0px) + 74px + 39px); }
 .rd-carga-pg-fill {
   position: absolute;
   left: 0; top: 0; bottom: 0; width: 100%;
