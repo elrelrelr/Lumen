@@ -27526,7 +27526,9 @@ async function buildRepasoStory(opts = {}) {
 	const enriqDesconocidas = await Promise.all(desconocidas.slice(0, 30).map(enriquecer));
 	const vencidas = enriqDesconocidas.filter((p) => p.due);
 	const otras = enriqDesconocidas.filter((p) => !p.due);
-	const cola = [];
+	// v183: let — la rama de orden por primeraLetra/nombre reasigna cola
+	// (con const saltaba TypeError en estricto al ordenar el repaso)
+	let cola = [];
 	const nVenc = Math.min(vencidas.length, 5);
 	cola.push(...vencidas.slice(0, nVenc));
 	cola.push(...otras.slice(0, Math.max(0, 6 - cola.length)));
@@ -28741,24 +28743,33 @@ var Speaker = class {
 			this._speakCurrent();
 		};
 		this._current = u;
-		try {
-			speechSynthesis.speak(u);
-		} catch (err) {
-			console.warn("[tts] speak falló, deteniendo:", err?.message || err);
-			clearInterval(this._watchdog);
-			this.playing = false;
-			this._emit();
-			this.onEnd?.();
-			return;
-		}
-		clearInterval(this._watchdog);
-		this._watchdog = setInterval(() => {
-			if (!this.playing || this.paused) return;
-			if (speechSynthesis.speaking && !speechSynthesis.paused) {
-				speechSynthesis.pause();
-				speechSynthesis.resume();
+		// v182: Chrome descarta un speak() emitido justo tras cancel() (el caso
+		// pausa→reanudar dejaba el TTS en silencio total). Se difiere 60 ms.
+		setTimeout(() => {
+			if (!this.playing || this.paused) {
+				u.onend = null;
+				u.onerror = null;
+				return;
 			}
-		}, 9e3);
+			try {
+				speechSynthesis.speak(u);
+			} catch (err) {
+				console.warn("[tts] speak falló, deteniendo:", err?.message || err);
+				clearInterval(this._watchdog);
+				this.playing = false;
+				this._emit();
+				this.onEnd?.();
+				return;
+			}
+			clearInterval(this._watchdog);
+			this._watchdog = setInterval(() => {
+				if (!this.playing || this.paused) return;
+				if (speechSynthesis.speaking && !speechSynthesis.paused) {
+					speechSynthesis.pause();
+					speechSynthesis.resume();
+				}
+			}, 9e3);
+		}, 60);
 	}
 	_nativeNext() {
 		if (!this.playing || this.paused) return;
@@ -28775,10 +28786,9 @@ var Speaker = class {
 			else b.stop();
 		} catch {}
 		else if ("speechSynthesis" in window) try {
-			speechSynthesis.pause();
-			setTimeout(() => {
-				if (this.paused && speechSynthesis.speaking) speechSynthesis.cancel();
-			}, 250);
+			// v182: cancelar YA — dejar el utterance en «paused» y que resume() lo levante
+			// dejaba el TTS muerto en Chrome (resume ignorado). resume() relee la frase actual.
+			speechSynthesis.cancel();
 		} catch {}
 		clearInterval(this._watchdog);
 		this._emit();
@@ -36041,7 +36051,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v181"
+							children: "v184"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37890,7 +37900,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v181 · escritorio y móvil"
+					children: "Lumen Reader · v184 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42114,9 +42124,12 @@ async function extraerEpubHtml(buf) {
 				const size = im ? (im._data?.uncompressedSize || 0) : 0;
 				if (im && size > 0 && size <= IMG_CAP) {
 					try {
-						const b64 = await im.async("base64");
+						// v183 (#3): blob URL en vez de base64 — sin codificar los
+						// bytes a string (×1.37) ni inflar el HTML: la imagen entra
+						// al DOM como una URL corta y el parseo cae a la mínima.
+						const bytes = await im.async("uint8array");
 						const ext = (src.split(/[/.]/).pop() || "jpg").toLowerCase();
-						imgs[src] = "data:" + (mimeExt[ext] || "image/jpeg") + ";base64," + b64;
+						imgs[src] = URL.createObjectURL(new Blob([bytes], { type: mimeExt[ext] || "image/jpeg" }));
 					} catch { imgs[src] = null; }
 				} else imgs[src] = null;
 			}
@@ -42133,7 +42146,12 @@ async function extraerEpubHtml(buf) {
 		const portada = await epubPortadaDataUrl(buf);
 		if (portada) portadaHtml = '<div class="orig-portada" style="text-align:center;margin:0 0 22px"><img src="' + portada + '" alt="Portada" style="max-width:min(420px,66%);max-height:62vh;height:auto;display:inline-block;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.35)"></div>';
 	} catch {}
-	return sanearHtmlDoc(portadaHtml + partes.join('<hr style="border:0;border-top:1px solid var(--line);margin:22px 0">'));
+	// v183 (#3): devuelve el HTML final y las partes (capítulo a capítulo,
+	// ya saneadas) para que OriginalDoc pinte de forma progresiva y pueda
+	// cachear el resultado por libro.
+	const hrSep = '<hr style="border:0;border-top:1px solid var(--line);margin:22px 0">';
+	const limpias = (portadaHtml ? [portadaHtml, ...partes] : [...partes]).map((p) => sanearHtmlDoc(p));
+	return { html: limpias.join(hrSep), partes: limpias };
 }
 /** PPTX → tarjetas por diapositiva. */
 async function extraerPptxHtml(buf) {
@@ -42185,64 +42203,150 @@ async function extraerXlsxHtml(buf) {
 	}
 	return partes.join("") || "<p>Hoja de cálculo sin datos.</p>";
 }
+/** v183 (#3): troza un HTML en fragmentos de ~256 KB cortando solo en
+    fronteras de etiqueta («<» precedido por no-alfanumérico) para poder
+    pintarlo de forma progresiva sin romper etiquetas a la mitad. */
+function trozarHtml(html, objetivo = 256 * 1024) {
+	const h = String(html || "");
+	if (!h || h.length <= objetivo * 2) return [h];
+	const esBorde = (k) => h[k] === "<" && (k === 0 || !/[A-Za-z0-9]/.test(h[k - 1]));
+	const partes = [];
+	let i = 0;
+	while (i < h.length) {
+		let fin = Math.min(i + objetivo, h.length);
+		if (fin < h.length) {
+			// avanzar a la siguiente frontera de etiqueta (si está cerca)
+			let j = fin;
+			const tope = Math.min(h.length, fin + objetivo * 8);
+			while (j < tope && !esBorde(j)) j++;
+			// si no hay ninguna, retroceder a la última frontera segura
+			if (j >= tope) { j = fin; while (j > i + 1 && !esBorde(j)) j--; if (j <= i + 1) j = fin; }
+			fin = j;
+		}
+		partes.push(h.slice(i, fin));
+		i = fin;
+		if (partes.length >= 80) { const resto = h.slice(i); if (resto) partes.push(resto); break; }
+	}
+	return partes;
+}
+/** v183 (#3): caché pequeña (LRU, máx. 4 libros / 24 MB) del original ya
+    extraído: cambiar de pestaña y volver no vuelve a leer el archivo ni a
+    parsear todo de nuevo (antes: spinner eterno en libros largos). */
+const origCache = new Map();
+let origCacheBytes = 0;
+function origCachePoner(id, val) {
+	const b = val.bytes || 0;
+	const CAP = 24 * 1024 * 1024;
+	if (b > 12 * 1024 * 1024) return; // demasiado grande para memorizar
+	if (origCache.has(id)) { origCacheBytes -= origCache.get(id).bytes || 0; origCache.delete(id); }
+	while ((origCache.size >= 4 || origCacheBytes + b > CAP) && origCache.size > 0) {
+		const k = origCache.keys().next().value;
+		origCacheBytes -= origCache.get(k).bytes || 0;
+		origCache.delete(k);
+	}
+	if (origCacheBytes + b > CAP) return; // no cabe ni con la caché vacía
+	origCache.set(id, val);
+	origCacheBytes += b;
+}
 /** Visor del archivo ORIGINAL para epub/docx/pptx/xlsx/md/html/txt. */
 function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
 	const [st, setSt] = (0, import_react.useState)({ cargando: true });
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
 		setSt({ cargando: true });
-		(async () => {
-			try {
-				const blob = await getOriginal(book.id);
+	(async () => {
+		try {
+			// v183 (#3): si ya lo extraimos en esta sesión, pintamos al instante
+			// (sin re-leer el archivo ni re-parsear): el «flash» al cambiar de
+			// pestaña desaparece.
+			const cached = origCache.get(book.id);
+			if (cached) {
 				if (!vivo) return;
-				if (!blob) {
-					setSt({ error: "Este libro se importó en una versión anterior y no guardó su archivo original. Vuelve a importarlo para verlo aquí en su formato original." });
-					return;
-				}
-				const kind = book.kind;
-				if (kind === "html") {
-					setSt({ iframe: URL.createObjectURL(blob) });
-					return;
-				}
-				if (kind === "txt" || kind === "srt") {
-					setSt({ texto: await blob.text() });
-					return;
-				}
-				if (kind === "md") {
-					setSt({ html: mdAHtmlDoc(await blob.text()) });
-					return;
-				}
-				const buf = await blob.arrayBuffer();
-				if (kind === "docx") {
-					const mammoth = await __vitePreload(() => import("./docx-C8HcItRg.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1)), __vite__mapDeps([3,1]), import.meta.url);
-					const r = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer: buf });
-					if (vivo) setSt({ html: sanearHtmlDoc(r.value) });
-					return;
-				}
-				if (kind === "epub") {
-					const h = await extraerEpubHtml(buf);
-					if (vivo) setSt({ html: h });
-					return;
-				}
-				if (kind === "pptx") {
-					const h = await extraerPptxHtml(buf);
-					if (vivo) setSt({ html: h });
-					return;
-				}
-				if (kind === "xlsx") {
-					const h = await extraerXlsxHtml(buf);
-					if (vivo) setSt({ html: h });
-					return;
-				}
-				if (vivo) setSt({ error: "Este formato no tiene visor original." });
-			} catch (e) {
-				if (vivo) setSt({ error: "No se pudo abrir el original: " + String(e?.message || e) });
+				if (cached.tipo === "html") setSt({ partes: cached.partes, shown: cached.partes.length });
+				else setSt({ texto: cached.texto });
+				return;
 			}
-		})();
+			const blob = await getOriginal(book.id);
+			if (!vivo) return;
+			if (!blob) {
+				setSt({ error: "Este libro se importó en una versión anterior y no guardó su archivo original. Vuelve a importarlo para verlo aquí en su formato original." });
+				return;
+			}
+			const kind = book.kind;
+			if (kind === "html") {
+				setSt({ iframe: URL.createObjectURL(blob) });
+				return;
+			}
+			if (kind === "txt" || kind === "srt") {
+				const t = await blob.text();
+				if (!vivo) return;
+				origCachePoner(book.id, { tipo: "texto", texto: t, bytes: t.length });
+				setSt({ texto: t });
+				return;
+			}
+			if (kind === "md") {
+				const h = mdAHtmlDoc(await blob.text());
+				if (!vivo) return;
+				const partes = trozarHtml(h);
+				origCachePoner(book.id, { tipo: "html", partes, bytes: h.length });
+				setSt({ partes, shown: 1 });
+				return;
+			}
+			const buf = await blob.arrayBuffer();
+			if (kind === "docx") {
+				const mammoth = await __vitePreload(() => import("./docx-C8HcItRg.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1)), __vite__mapDeps([3,1]), import.meta.url);
+				const r = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer: buf });
+				if (vivo) {
+					const h = sanearHtmlDoc(r.value);
+					const partes = trozarHtml(h);
+					origCachePoner(book.id, { tipo: "html", partes, bytes: h.length });
+					setSt({ partes, shown: 1 });
+				}
+				return;
+			}
+			if (kind === "epub") {
+				const r = await extraerEpubHtml(buf);
+				if (vivo) {
+					origCachePoner(book.id, { tipo: "html", partes: r.partes, bytes: r.html.length });
+					setSt({ partes: r.partes, shown: 1 });
+				}
+				return;
+			}
+			if (kind === "pptx") {
+				const h = await extraerPptxHtml(buf);
+				if (vivo) {
+					const partes = trozarHtml(h);
+					origCachePoner(book.id, { tipo: "html", partes, bytes: h.length });
+					setSt({ partes, shown: 1 });
+				}
+				return;
+			}
+			if (kind === "xlsx") {
+				const h = await extraerXlsxHtml(buf);
+				if (vivo) {
+					const partes = trozarHtml(h);
+					origCachePoner(book.id, { tipo: "html", partes, bytes: h.length });
+					setSt({ partes, shown: 1 });
+				}
+				return;
+			}
+			if (vivo) setSt({ error: "Este formato no tiene visor original." });
+		} catch (e) {
+			if (vivo) setSt({ error: "No se pudo abrir el original: " + String(e?.message || e) });
+		}
+	})();
 		return () => {
 			vivo = false;
 		};
 	}, [book.id]);
+	// v183 (#3): pintura progresiva — añade 3 fragmentos por tick (40 ms) hasta
+	// completar el documento. El contenido crece en pantalla en vez de esperar
+	// un spinner eterno (libros largos); cada fragmento se parsea una sola vez.
+	(0, import_react.useEffect)(() => {
+		if (!st.partes || st.shown >= st.partes.length) return;
+		const t = setTimeout(() => setSt((s) => (s && s.partes && s.shown < s.partes.length) ? { ...s, shown: Math.min(s.shown + 3, s.partes.length) } : s), 40);
+		return () => clearTimeout(t);
+	}, [st.partes, st.shown]);
 	if (st.cargando) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "center-msg",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
@@ -42279,10 +42383,15 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle }) {
 				style: { color: fontStyle && fontStyle.color },
 				children: st.texto
 			}),
-			st.html != null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+			// v183 (#3): fragmentos progresivos — cada div se pinta una vez y
+			// no se re-parsea al añadir los siguientes.
+			st.partes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "orig-html",
 				style: { color: fontStyle && fontStyle.color },
-				dangerouslySetInnerHTML: { __html: st.html }
+				children: st.partes.slice(0, st.shown).map((p, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					key: i,
+					dangerouslySetInnerHTML: { __html: p }
+				}))
 			})
 		]
 	});
@@ -42337,13 +42446,15 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	/* v180b: "mantener" a 2s, con rueda en PC y sin retroceso instantáneo al top */
 	const visitarAbajo = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => { visitarAbajo.current = false; }, [page]);
-	const iniciarCargaPg = (dir) => {
+	// v183 (#2): `directo` = el user mantiene pulsada la barra visible; su
+	// intención es explícita, así que no aplica el guard de borde de v180b.
+	const iniciarCargaPg = (dir, directo) => {
 		if (cargaPgT.current) return;
 		if (dir === "abajo" && page >= pageCount - 1) return;
 		if (dir === "arriba" && page <= 0) return;
 		// v180b: para retroceder hay que haber bajado un poco dentro de ESTA página
 		// (evita: paso a la 6, caigo arriba y al subir un poquito, vuelve a la 5)
-		if (dir === "arriba" && !visitarAbajo.current) return;
+		if (!directo && dir === "arriba" && !visitarAbajo.current) return;
 		cargaPgStart.current = Date.now();
 		setCargaPg({ dir, p: 0 });
 		const loopCarga = () => {
@@ -42360,6 +42471,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			go(dir === "abajo" ? 1 : -1);
 		}, 2000);
 	};
+	// v183 (#2): al soltar (o salir) la barra, cancela el conteo sin pasar de página
+	const detenerCargaPg = () => { if (cargaPgT.current) { limpiarCargaPg(); setCargaPg(null); } };
 	/* v180b: vigila el scroll de la página: marca que el usuario bajó dentro de ella */
 	(0, import_react.useEffect)(() => {
 		if (mode !== "text") return;
@@ -42585,6 +42698,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const docTrabajos = (0, import_react.useRef)(0);
 	const docGen = (0, import_react.useRef)(0);
 	const docNav = (0, import_react.useRef)(0); // v174 (P6): timestamp del último scroll programático
+	// v184: el cambio de «page» viene del propio scroll del usuario (no re-anclar)
+	const docDeScroll = (0, import_react.useRef)(false);
+	// v184: último índice detectado en el viewport (para no gastar renders en
+	// páginas que el usuario ya dejó atrás con un scroll rápido)
+	const docView = (0, import_react.useRef)(-1);
+	// v184: contadores de fallo por página (reintento → error visible)
+	const docFallos = (0, import_react.useRef)({});
 	const docFlowRef = (0, import_react.useRef)(null);
 	const [hojaImg, setHojaImg] = (0, import_react.useState)(false);
 	usarPantallaAtras(() => setHojaImg(false), void 0, hojaImg);
@@ -42659,7 +42779,11 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	/* v180b: PC — rueda del ratón en el borde = misma barra "mantener 2s" */
 	(0, import_react.useEffect)(() => {
 		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
+		if (sheet || quoteOpen || jumpOpen) return; // v182: con hoja/menú encima, la rueda no cambia de página
 		const onWheelPg = (e) => {
+			if (sheet || quoteOpen || jumpOpen) return;
+			const t = e.target;
+			if (t && t.closest && t.closest(".sheet, .hoja-img, .selection-pop, .cite-scrim, .cite-bubble, .jump-dialog, .backdrop, .rd-top, .rd-bottom")) return;
 			const pg = document.querySelector(".rd-page");
 			if (!pg) return;
 			const sinScrollReal = pg.scrollHeight - pg.clientHeight < 160;
@@ -42671,7 +42795,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		};
 		window.addEventListener("wheel", onWheelPg, { passive: true });
 		return () => window.removeEventListener("wheel", onWheelPg);
-	}, [mode, carousel, desp, page, pageCount]);
+	}, [mode, carousel, desp, page, pageCount, sheet, quoteOpen, jumpOpen]);
 	// v177 (#5): en Lateral se recalcula el total en PARTES (100→150): cuenta las partes
 	// de cada página para el contador y la barra de progreso.
 	(0, import_react.useEffect)(() => {
@@ -42690,7 +42814,17 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const docFlowChildren = (0, import_react.useMemo)(() => Array.from({ length: pageCount || 1 }, (_, i) => (0, import_jsx_runtime.jsx)("div", {
 		className: "doc-page",
 		style: docAr ? { aspectRatio: String(docAr) } : void 0,
-		children: docImgs[i] ? (0, import_jsx_runtime.jsxs)("div", { className: "doc-page-visual", children: [(0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), settings.origTexto ? (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom }) : null] }) : (0, import_jsx_runtime.jsx)("div", { className: "doc-ph", children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) })
+		children: docImgs[i] ? (0, import_jsx_runtime.jsxs)("div", { className: "doc-page-visual", children: [(0, import_jsx_runtime.jsx)("img", { src: docImgs[i], alt: "" }), settings.origTexto ? (0, import_jsx_runtime.jsx)(PdfPageTextLayer, { pdfDoc: pdfDoc, pageIndex: i, src: docImgs[i], zoom: docZoom }) : null] }) : docImgs[i] === null ? (0, import_jsx_runtime.jsxs)("div", {
+			// v184: página que falló tras 3 intentos — antes era un spinner
+			// eterno sin explicación. Tocar reintenta de nuevo.
+			className: "doc-ph doc-ph-err",
+			onClick: () => {
+				docImgsRef.current[i] = undefined;
+				docFallos.current[i] = 0;
+				setDocImgs((m) => { const nx = { ...m }; delete nx[i]; return nx; });
+				docPedir(i, i, i);
+			}
+		}, ["⚠ Error al cargar la pág. ", i + 1, " · toca para reintentar"]) : (0, import_jsx_runtime.jsx)("div", { className: "doc-ph", children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) })
 	}, i)), [pageCount, docAr, docImgs, pdfDoc, docZoom, settings.origTexto]);
 	// v159: el elemento que hace scroll según la pestaña (texto / imágenes / original / carrusel)
 	const scrollerDeModo = (m) => {
@@ -43117,7 +43251,10 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 						if (cancelled || !mounted.current) return;
 						setPdfDoc(doc);
 					}
-					const w = surfaceRef.current?.clientWidth || window.innerWidth;
+					// v182: techo de 1200px CSS — en PC de escritorio el canvas salía de ~3000×3900
+					// píxeles (muy lento); en móvil (~780px) era rápido. 1200×dpr2=2400px sigue
+					// nítido y ocupa el ancho completo.
+					const w = Math.min(surfaceRef.current?.clientWidth || window.innerWidth, 1200);
 					const cv = await renderPageToCanvas(doc, page + 1, w);
 					if (cancelled || !mounted.current) return;
 					setCanvasEl(cv);
@@ -44173,6 +44310,11 @@ const go = (0, import_react.useCallback)((delta) => {
 							new Promise((r) => setTimeout(r, 45000))
 						]);
 						if (gen !== docGen.current || docImgsRef.current[i] !== undefined) return;
+						// v184: si en el medio el usuario ya se desplazó lejos, no gastamos
+						// el convertToBlob ni la caché en una página dejada atrás: el hueco
+						// del pool se libera para la ventana que SÍ se mira; si vuelve, se
+						// vuelve a pedir (docImgsRef[i] queda undefined).
+						if (docView.current >= 0 && Math.abs(i - docView.current) > 24) return;
 						// v177 (#3): JPEG asíncrono (convertToBlob) para NO bloquear la main-thread;
 						// si no hay convertToBlob, toDataURL con un yield antes (fallback).
 						let url;
@@ -44199,7 +44341,28 @@ const go = (0, import_react.useCallback)((delta) => {
 							return nx;
 						});
 					}
-				} catch {}
+				} catch (e) {
+					// v184: un fallo ya no deja la página en spinner eterno.
+					// Reintenta 2 veces (2,5 s después: pico de memoria, cmap
+					// tardío…); si sigue fallando, la marca para que el
+					// placeholder muestre el error con «toca para reintentar».
+					if (gen !== docGen.current) return;
+					const f = (docFallos.current[i] || 0) + 1;
+					docFallos.current[i] = f;
+					if (docImgsRef.current[i] === undefined) {
+						if (f < 3) {
+							setTimeout(() => {
+								if (gen === docGen.current && docImgsRef.current[i] === undefined) {
+									if (!docCola.current.includes(i)) docCola.current.push(i);
+									docDrenar();
+								}
+							}, 2500);
+						} else {
+							docImgsRef.current[i] = null;
+							setDocImgs((m) => ({ ...m, [i]: null }));
+						}
+					}
+				}
 				finally {
 					docTrabajos.current -= 1;
 					docDrenar();
@@ -44231,43 +44394,37 @@ const docPedir = (desde, hasta, centroArg) => {
 			// reescribe «page» con la posición intermedia (evita que el contador
 			// "reboten" a la página de antes al llegar con el smooth-scroll).
 			const navegando = Date.now() - docNav.current < 650;
-			// v171: detectar la página con los elementos .doc-page REALES y la
-			// línea de lectura (40% de la altura). Antes usaba una altura uniforme
-			// (clientWidth/docAr) que fallaba: ej. libro de 15 marcaba 11 al fondo.
-			const pages = el.querySelectorAll(".doc-page");
-			if (pages.length) {
-				const elTop = el.getBoundingClientRect().top;
-				const readingY = elTop + el.clientHeight * 0.4;
-				let idx = 0;
-				for (let i = 0; i < pages.length; i++) {
-					if (pages[i].getBoundingClientRect().top <= readingY) idx = i;
-					else break;
+			// v184: estimación aritmética + corrección local. Antes este loop
+			// medía TODOS los .doc-page (getBoundingClientRect ×800 por frame
+			// en un PDF largo: congelaba la main-thread en PC y el scroll
+			// rápido «nunca» llegaba a la 800). Ahora: altura uniforme para
+			// estimar, y como mucho 5 elementos reales alrededor para
+			// corregir el drift (páginas retrato/paisaje mezcladas, v171).
+			const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
+			const ph = el.clientWidth / docAr;
+			if (!ph) return;
+			const top = Math.max(0, el.scrollTop - padT);
+			const est = Math.max(0, Math.min(n - 1, Math.floor((top + el.clientHeight * .4) / ph)));
+			let idx = est;
+			const pages = el.children;
+			if (pages.length === n) {
+				const off = el.getBoundingClientRect().top;
+				const readingY = off + el.clientHeight * 0.4;
+				const lo = Math.max(0, est - 2);
+				const hi = Math.min(n - 1, est + 2);
+				let real = -1;
+				for (let i = hi; i >= lo; i--) {
+					if (pages[i].getBoundingClientRect().top <= readingY) { real = i; break; }
 				}
-				idx = Math.max(0, Math.min(n - 1, idx));
-				if (!navegando && idx !== docLast.current) {
-					docLast.current = idx;
-					setPage(idx);
-				}
-			} else if (docAr) {
-				const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
-				const ph = el.clientWidth / docAr;
-				if (ph) {
-					const top = Math.max(0, el.scrollTop - padT);
-					const idx = Math.max(0, Math.min(n - 1, Math.floor((top + el.clientHeight * .4) / ph)));
-					if (!navegando && idx !== docLast.current) {
-						docLast.current = idx;
-						setPage(idx);
-					}
-				}
+				idx = Math.max(0, real >= 0 ? real : lo - 1);
 			}
-			if (docAr) {
-				const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
-				const ph = el.clientWidth / docAr;
-				if (ph) {
-					const top = Math.max(0, el.scrollTop - padT);
-					docPedir(Math.max(0, Math.floor(top / ph) - 2), Math.min(n - 1, Math.ceil((top + el.clientHeight) / ph) + 2));
-				}
+			docView.current = idx;
+			if (!navegando && idx !== docLast.current) {
+				docLast.current = idx;
+				docDeScroll.current = true; // v184: el cambio viene del scroll del usuario
+				setPage(idx);
 			}
+			docPedir(Math.max(0, Math.floor(top / ph) - 2), Math.min(n - 1, Math.ceil((top + el.clientHeight) / ph) + 2));
 		});
 	};
 	(0, import_react.useEffect)(() => {
@@ -44281,6 +44438,9 @@ const docPedir = (desde, hasta, centroArg) => {
 			docLast.current = -1;
 			docGen.current += 1;
 			docTrabajos.current = 0;
+			docDeScroll.current = false; // v184
+			docView.current = -1; // v184
+			docFallos.current = {}; // v184
 			setDocImgs({});
 			setDocAr(0);
 		}
@@ -44306,11 +44466,15 @@ const docPedir = (desde, hasta, centroArg) => {
 					if (!vivo) return;
 					setPdfDoc(doc);
 				}
-				docPdf.current = doc;
-				if (!vivo || docAr) return;
-				const c0 = await renderPageToCanvas(doc, 1, 260);
-				if (!vivo) return;
-				setDocAr(c0.width / c0.height);
+			docPdf.current = doc;
+			if (!vivo || docAr) return;
+			// v184: el aspecto sale del viewport de la pág. 1 (sin render
+			// previo a 260 px): en PDFs largos el primer lienzo en pantalla
+			// llega un render entero antes, y las 800 hojas cobran su altura
+			// (aspect-ratio) sin ese paso intermedio.
+			const p1 = await doc.getPage(1);
+			if (!vivo || docAr) return;
+			setDocAr(p1.viewport.width / p1.viewport.height);
 			} catch {}
 		})();
 		return () => {
@@ -44328,9 +44492,20 @@ const docPedir = (desde, hasta, centroArg) => {
 		const ph = el.clientWidth / docAr;
 		if (!ph) return;
 		const padT = parseFloat(getComputedStyle(el).paddingTop) || 0;
+		// v184: consumir la bandera ANTES del early-return: si el cambio de
+		// «page» vino del propio scroll del usuario, NO re-anclar la posición.
+		// El viejo scrollTo (smooth en saltos <3 páginas) peleaba con la rueda
+		// en PC — cada paso re-anclaba al estimado y «pasar de la 1 a la 800»
+		// nunca llegaba (en teléfono el fling era >3 págs/frame → auto → no
+		// se notaba). Los saltos por UI (ir-a-página, búsqueda, anterior/
+		// siguiente) conservan su anclaje.
+		const porScroll = docDeScroll.current;
+		docDeScroll.current = false;
 		docPedir(Math.max(0, page - 1), Math.min(n - 1, page + Math.ceil(el.clientHeight / ph) + 3), page); // v178: la página objetivo primero
 		if (page === docLast.current) return;
 		docLast.current = page;
+		if (porScroll) return;
+		docView.current = page;
 		docNav.current = Date.now(); // v174 (P6)
 		{ const _tt = padT + page * ph; el.scrollTo({ top: _tt, behavior: Math.abs(_tt - el.scrollTop) / ph > 3 ? "auto" : "smooth" }); } // v177 (#3): lejos = auto (sin cascada de páginas intermedias)
 	}, [mode, book, page, docAr, pageCount]);
@@ -45749,20 +45924,45 @@ const docPedir = (desde, hasta, centroArg) => {
 			// v170: se quitó la pastilla «Leyendo pág. N · volver» (.tts-volver):
 			// tapaba botones del auto-scroll. Su función (volver a la página que
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
-/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
-(cargaPg && (
-			(0, import_jsx_runtime.jsxs)("div", {
-				className: "rd-carga-pg" + (cargaPg.dir === "abajo" ? " abajo" : " arriba"),
-				"aria-hidden": true,
-				children: [
-					(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + Math.min(1, (cargaPg.p || 0) / 2000) + ")" } }),
-					(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
-						(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: cargaPg.dir === "abajo" ? "↓" : "↑" }),
-						(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Cambiar de página" })
-					] })
-				]
-			})
-		)) ,
+/* v183 (#2): barras de página SIEMPRE visibles en la pestaña TEXTO, en el
+   centro de la banda de 125 px libre sobre/bajo el texto (el scroll no las
+   tapiza nunca). Mantenerlas pulsadas 2 s cambia de página — igual que la
+   rueda o el gesto en el borde; soltar antes cancela. Ocultas con hoja/menú
+   encima (z 88/120) y en el carrusel, que tiene su propia navegación. */
+mode === "text" && !sheet && !quoteOpen && !jumpOpen && !(desp === "lateral" && lateralPartes.length > 1) && pageCount > 1 && (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+	page > 0 && (0, import_jsx_runtime.jsxs)("div", {
+		className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "arriba" ? " activa" : "") + " arriba",
+		"aria-label": "Mantener para volver a la página anterior",
+		onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("arriba", true); },
+		onPointerUp: detenerCargaPg,
+		onPointerLeave: detenerCargaPg,
+		onPointerCancel: detenerCargaPg,
+		onContextMenu: (e) => e.preventDefault(),
+		children: [
+			(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "arriba" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+			(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
+				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↑" }),
+				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Página anterior" })
+			] })
+		]
+	}),
+	page < pageCount - 1 && (0, import_jsx_runtime.jsxs)("div", {
+		className: "rd-carga-pg" + (cargaPg && cargaPg.dir === "abajo" ? " activa" : "") + " abajo",
+		"aria-label": "Mantener para pasar a la siguiente página",
+		onPointerDown: (e) => { e.preventDefault(); e.stopPropagation(); iniciarCargaPg("abajo", true); },
+		onPointerUp: detenerCargaPg,
+		onPointerLeave: detenerCargaPg,
+		onPointerCancel: detenerCargaPg,
+		onContextMenu: (e) => e.preventDefault(),
+		children: [
+			(0, import_jsx_runtime.jsx)("div", { className: "rd-carga-pg-fill", style: { transform: "scaleX(" + (cargaPg && cargaPg.dir === "abajo" ? Math.min(1, (cargaPg.p || 0) / 2000) : 0) + ")" } }),
+			(0, import_jsx_runtime.jsxs)("div", { className: "rd-carga-pg-chip", children: [
+				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-arr", children: "↓" }),
+				(0, import_jsx_runtime.jsx)("span", { className: "rd-carga-pg-txt", children: "Siguiente página" })
+			] })
+		]
+	})
+]}) ,
 			autoScrollOn && (mode === "text" || mode === "original") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				className: "auto-stop",
 				"aria-label": "Parar el auto-scroll",
@@ -51644,11 +51844,16 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 							},
 							children: "+30 XP"
 						})
-					] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn primary",
-						style: { marginTop: 18 },
-						children: "Continuar"
-					})] })
+			] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				className: "btn primary",
+				style: { marginTop: 18 },
+				// v183 (#1): onClick propio — el aviso es pointer-events:none
+				// (no bloquea el lector) y el click del botón no siempre llegaba
+				// al handler del contenedor: había que esperar al auto-cierre.
+				// Ahora cierra (o avanza al siguiente logro) al toque.
+				onClick: (e) => { e.stopPropagation(); setRewards((r) => r.slice(1)); },
+				children: "Continuar"
+			})] })
 				})
 			]
 		})]
