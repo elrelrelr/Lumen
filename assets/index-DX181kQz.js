@@ -10482,12 +10482,13 @@ function localRead(key) {
 }
 /** Construye un respaldo compacto: sólo lo que duele perder. */
 async function buildSnapshot() {
-	const [books, stats, game, settings, reminder] = await Promise.all([
+	const [books, stats, game, settings, reminder, lumo] = await Promise.all([
 		allBooks(),
 		getMeta("stats", null),
 		getMeta("game", null),
 		getSettings(),
-		getMeta("reminder", null)
+		getMeta("reminder", null),
+		getMeta("lumo", null)
 	]);
 	const positions = {};
 	for (const b of books) positions[b.id] = {
@@ -10505,7 +10506,8 @@ async function buildSnapshot() {
 		stats: compactStats(stats),
 		game,
 		settings,
-		reminder
+		reminder,
+		lumo
 	};
 }
 /** Los días pasados no necesitan la lista completa de páginas, sólo el conteo. */
@@ -10914,7 +10916,8 @@ async function restoreIfNeeded() {
 		stats: false,
 		game: false,
 		settings: false,
-		positions: 0
+		positions: 0,
+		lumo: false
 	};
 	try {
 		const [stats, game] = await Promise.all([getMeta("stats", null), getMeta("game", null)]);
@@ -10944,6 +10947,33 @@ async function restoreIfNeeded() {
 			...backup.reminder,
 			id: "reminder"
 		});
+		// v194: nunca perder las compras de Lumo. Si el respaldo es más
+		// completo (más inventario o más XP) se FUSIONA con lo actual:
+		// uniones de inventario/muebles, máximo de XP/monedas. Nunca se
+		// pisa un estado actual más avanzado.
+		const curLumo = await getMeta("lumo", null);
+		const bakLumo = backup.lumo;
+		if (bakLumo) {
+			const invCur = (curLumo?.inventory || []).length;
+			const invBak = (bakLumo.inventory || []).length;
+			const xpCur = curLumo?.xp || 0;
+			const xpBak = bakLumo.xp || 0;
+			if (!curLumo || invBak > invCur || xpBak > xpCur) {
+				const unionL = (a, b) => Array.from(new Set([...(a || []), ...(b || [])]));
+				await setMeta({
+					id: "lumo",
+					...bakLumo,
+					...(curLumo || {}),
+					inventory: unionL(bakLumo.inventory, curLumo?.inventory),
+					room: unionL(bakLumo.room, curLumo?.room),
+					roomFuera: unionL(bakLumo.roomFuera, curLumo?.roomFuera),
+					equipped: { ...(bakLumo.equipped || {}), ...(curLumo?.equipped || {}) },
+					xp: Math.max(xpBak, xpCur),
+					coins: Math.max(bakLumo.coins || 0, curLumo?.coins || 0)
+				});
+				report.lumo = true;
+			}
+		}
 		const books = await allBooks();
 		for (const b of books) {
 			const saved = backup.positions?.[b.id];
@@ -23174,42 +23204,14 @@ var lumo_exports = /* @__PURE__ */ __exportAll({
 	onPaginaLeyendo: () => onPaginaLeyendo
 });
 var KEY = "lumo";
-var SCHEMA = 1;
+var SCHEMA = 2;
 var STAGES = [
 	{
-		id: "baby",
+		id: "lumo",
 		minXp: 0,
-		maxXp: 500,
-		icon: "🥚",
-		nombre: "Bebé"
-	},
-	{
-		id: "young",
-		minXp: 500,
-		maxXp: 2e3,
-		icon: "🐣",
-		nombre: "Joven"
-	},
-	{
-		id: "adventurer",
-		minXp: 2e3,
-		maxXp: 5e3,
-		icon: "🎒",
-		nombre: "Aventurero"
-	},
-	{
-		id: "wise",
-		minXp: 5e3,
-		maxXp: 15e3,
-		icon: "🦉",
-		nombre: "Sabio"
-	},
-	{
-		id: "guardian",
-		minXp: 15e3,
 		maxXp: null,
-		icon: "👑",
-		nombre: "Guardián de la Biblioteca"
+		icon: "🐻",
+		nombre: "Lumo"
 	}
 ];
 var SHOP = [
@@ -23387,6 +23389,69 @@ var SHOP = [
 		precio: 170,
 		nombre: "Acuario",
 		premium: false
+	},
+	{
+		id: "glasses_solar",
+		cat: "glasses",
+		precio: 160,
+		nombre: "Gafas oscuras",
+		premium: false
+	},
+	{
+		id: "glasses_vintage",
+		cat: "glasses",
+		precio: 240,
+		nombre: "Gafas vintage",
+		premium: true
+	},
+	{
+		id: "ball_roja",
+		cat: "toy",
+		precio: 150,
+		nombre: "Bola roja",
+		premium: false
+	},
+	{
+		id: "martillo_thor",
+		cat: "weapon",
+		precio: 400,
+		nombre: "Martillo de Thor",
+		premium: true
+	},
+	{
+		id: "bracelete_dorado",
+		cat: "wrist",
+		precio: 220,
+		nombre: "Brazalete dorado",
+		premium: false
+	},
+	{
+		id: "piercing_oreja",
+		cat: "ear",
+		precio: 90,
+		nombre: "Piercing de oreja",
+		premium: false
+	},
+	{
+		id: "hat_kit",
+		cat: "hat",
+		precio: 130,
+		nombre: "Gorra deportiva",
+		premium: false
+	},
+	{
+		id: "cape_estrellas",
+		cat: "cape",
+		precio: 380,
+		nombre: "Capa de estrellas",
+		premium: true
+	},
+	{
+		id: "flower_girasol",
+		cat: "flower",
+		precio: 120,
+		nombre: "Girasol",
+		premium: false
 	}
 ];
 var ROOM_ORDER = [
@@ -23425,10 +23490,15 @@ var EMPTY = {
 		bow: null,
 		crown: null,
 		flower: null,
+		toy: null,
+		weapon: null,
+		wrist: null,
+		ear: null,
 		bg: null
 	},
 	inventory: [],
 	room: [],
+	roomFuera: [],
 	missions: {
 		date: null,
 		done: []
@@ -23442,7 +23512,25 @@ var EMPTY = {
 };
 async function cargarLumo() {
 	const d = await getMeta(KEY, null);
-	if (!d) return { ...EMPTY };
+	if (!d) return {
+		...EMPTY,
+		equipped: { ...EMPTY.equipped },
+		streak: { ...EMPTY.streak },
+		missions: { ...EMPTY.missions },
+		inventory: [],
+		room: [],
+		roomFuera: []
+	};
+	const inv = Array.isArray(d.inventory) ? d.inventory : [];
+	const room = Array.isArray(d.room) ? d.room : [];
+	const roomFuera = Array.isArray(d.roomFuera) ? d.roomFuera : [];
+	// v194: nunca perder compras — los muebles ganados por libros (primero en
+	// ROOM_ORDER) deben estar en room o roomFuera; si "desaparecieron" de
+	// ambos, se recuperan en roomFuera (propiedad, aunque oculto).
+	const unidos = new Set([...room, ...roomFuera]);
+	const ganados = Math.min(d.booksFinished || 0, ROOM_ORDER.length);
+	for (let i = 0; i < ganados; i++)
+		if (!unidos.has(ROOM_ORDER[i])) roomFuera.push(ROOM_ORDER[i]);
 	return {
 		...EMPTY,
 		...d,
@@ -23453,7 +23541,14 @@ async function cargarLumo() {
 		equipped: {
 			...EMPTY.equipped,
 			...d.equipped || {}
-		}
+		},
+		missions: {
+			...EMPTY.missions,
+			...d.missions || {}
+		},
+		inventory: inv,
+		room,
+		roomFuera
 	};
 }
 async function guardarLumo(d) {
@@ -23559,7 +23654,7 @@ async function onLibroFin() {
 	d.coins += 50;
 	await revisarMisiones(d, "libro");
 	const nuevo = ROOM_ORDER[Math.min(d.booksFinished - 1, ROOM_ORDER.length - 1)];
-	if (nuevo && !d.room.includes(nuevo)) d.room = [...d.room, nuevo];
+	if (nuevo && !d.room.includes(nuevo) && !(d.roomFuera || []).includes(nuevo)) d.room = [...d.room, nuevo];
 	await guardarLumo(d);
 	return {
 		d,
@@ -23675,7 +23770,7 @@ var DECOR_MOBLES = {
 	decor_acuario: "acuario"
 };
 function slotDeCat(cat) {
-	return { glasses: "glasses", hat: "hat", scarf: "scarf", backpack: "backpack", cape: "cape", bow: "bow", crown: "crown", flower: "flower" }[cat] || null;
+	return { glasses: "glasses", hat: "hat", scarf: "scarf", backpack: "backpack", cape: "cape", bow: "bow", crown: "crown", flower: "flower", toy: "toy", weapon: "weapon", wrist: "wrist", ear: "ear" }[cat] || null;
 }
 async function comprarItem(id) {
 	const d = await cargarLumo();
@@ -23732,13 +23827,36 @@ async function equipar(id, cat) {
 	if (!d.inventory.includes(id)) throw new Error("No tienes ese artículo");
 	if (cat === "decor") {
 		// v126: los adornos viven en la habitación
+		// v194: quitar/poner mueve entre room y roomFuera (nunca se pierde)
 		const moble = DECOR_MOBLES[id];
-		if (moble) d.room = d.room.includes(moble) ? d.room.filter((x) => x !== moble) : [...d.room, moble];
+		if (moble) {
+			const fuera = d.roomFuera || [];
+			if (d.room.includes(moble)) {
+				d.room = d.room.filter((x) => x !== moble);
+				if (!fuera.includes(moble)) d.roomFuera = [...fuera, moble];
+			} else if (fuera.includes(moble)) {
+				d.roomFuera = fuera.filter((x) => x !== moble);
+				d.room = [...d.room, moble];
+			}
+		}
 	} else if (cat === "bg") d.equipped.bg = d.equipped.bg === id ? null : id;
 	else {
 		const slot = slotDeCat(cat) || "cape";
 		d.equipped[slot] = d.equipped[slot] === id ? null : id;
 	}
+	await guardarLumo(d);
+	return d;
+}
+async function toggleMueble(tipo) {
+	const d = await cargarLumo();
+	const fuera = d.roomFuera || [];
+	if (d.room.includes(tipo)) {
+		d.room = d.room.filter((x) => x !== tipo);
+		if (!fuera.includes(tipo)) d.roomFuera = [...fuera, tipo];
+	} else if (fuera.includes(tipo)) {
+		d.roomFuera = fuera.filter((x) => x !== tipo);
+		d.room = [...d.room, tipo];
+	} else throw new Error("Ese mueble aún no está desbloqueado");
 	await guardarLumo(d);
 	return d;
 }
@@ -23756,6 +23874,7 @@ if (typeof window !== "undefined") window.__lumenLumo = {
 	misiones: misionesDelDia,
 	comprar: comprarItem,
 	equipar,
+	toggleMueble,
 	tienda: SHOP,
 	etapas: STAGES
 };
@@ -23814,6 +23933,14 @@ function lumoAccesorio(id, lado) {
 			lumoJ("circle", { cx: 165, cy: 172, r: 8, fill: "#fff" }),
 			lumoJ("circle", { cx: 122, cy: 222, r: 9, fill: "#fff" }),
 			lumoJ("path", { d: "M103 141 Q135 157 167 141", fill: "none", stroke: "#9db8e8", strokeWidth: 5, strokeLinecap: "round" })
+		] });
+		if (id === "cape_estrellas") return lumoJ("g", { children: [
+			lumoJ("path", { d: "M105 138 Q78 182 74 244 Q135 262 196 244 Q192 182 165 138 Q135 156 105 138 Z", fill: "#283593" }),
+			lumoJ("path", { d: lumoStar(112, 178, 7, 3), fill: "#f1c40f" }),
+			lumoJ("path", { d: lumoStar(152, 206, 8, 3.4), fill: "#ffd54f" }),
+			lumoJ("path", { d: lumoStar(135, 236, 6, 2.6), fill: "#f1c40f" }),
+			lumoJ("path", { d: lumoStar(176, 178, 5, 2.2), fill: "#ffd54f" }),
+			lumoJ("path", { d: "M103 141 Q135 157 167 141", fill: "none", stroke: "#1a237e", strokeWidth: 5, strokeLinecap: "round" })
 		] });
 		if (id === "backpack_adventure") return lumoJ("g", { children: [
 			lumoJ("rect", { x: 64, y: 150, width: 24, height: 52, rx: 11, fill: "#c0392b" }),
@@ -23892,6 +24019,64 @@ function lumoAccesorio(id, lado) {
 		lumoJ("path", { d: "M190 52 L190 32", stroke: "#2e7d32", strokeWidth: 2.5, strokeLinecap: "round" }),
 		lumoJ("path", { d: "M190 41 Q182 37 180 44 Q186 47 190 41 Z", fill: "#43a047" }),
 		lumoJ("path", { d: "M182 30 Q182 14 190 21 Q198 14 198 30 Q190 37 182 30 Z", fill: "#e91e63" })
+	] });
+	if (id === "flower_girasol") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M190 52 L190 30", stroke: "#2e7d32", strokeWidth: 2.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M190 41 Q182 37 180 44 Q186 47 190 41 Z", fill: "#43a047" }),
+		Array.from({ length: 12 }).map((_, i) => {
+			const a = i * Math.PI / 6;
+			const px = 190 + 9.5 * Math.cos(a);
+			const py = 24 + 9.5 * Math.sin(a);
+			return lumoJ("ellipse", {
+				cx: px,
+				cy: py,
+				rx: 6.5,
+				ry: 3.4,
+				fill: "#f9a825",
+				transform: `rotate(${i * 30} ${px.toFixed(1)} ${py.toFixed(1)})`
+			}, i);
+		}),
+		lumoJ("circle", { cx: 190, cy: 24, r: 6, fill: "#6d4c41" }),
+		lumoJ("circle", { cx: 188.4, cy: 22.4, r: 1.6, fill: "#8d6e63" })
+	] });
+	if (id === "hat_kit") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M100 48 Q102 14 135 12 Q168 14 170 48 Z", fill: "#2f6fb2" }),
+		lumoJ("path", { d: "M135 12 L135 48", stroke: "#1f4f80", strokeWidth: 2.5 }),
+		lumoJ("ellipse", { cx: 135, cy: 49, rx: 48, ry: 9, fill: "#245a92" }),
+		lumoJ("circle", { cx: 135, cy: 14, r: 4, fill: "#1f4f80" })
+	] });
+	if (id === "glasses_solar") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M99 86 Q99 77 110 77 L118 77 Q127 77 127 87 L126 96 Q125 104 113 104 Q100 104 99 92 Z", fill: "#16202b", stroke: "#0b1117", strokeWidth: 2 }),
+		lumoJ("path", { d: "M149 83 Q149 74 160 74 L168 74 Q177 74 177 84 L176 93 Q175 101 163 101 Q150 101 149 89 Z", fill: "#16202b", stroke: "#0b1117", strokeWidth: 2 }),
+		lumoJ("path", { d: "M126 85 Q138 79 150 83", fill: "none", stroke: "#0b1117", strokeWidth: 3 }),
+		lumoJ("path", { d: "M99 88 L90 82 M177 85 L186 79", stroke: "#0b1117", strokeWidth: 3, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M104 84 L112 82 M154 81 L162 79", stroke: "#4a5b6e", strokeWidth: 2, strokeLinecap: "round", opacity: .8 })
+	] });
+	if (id === "glasses_vintage") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 112, cy: 92, r: 13, fill: "rgba(255,236,205,.4)", stroke: "#8a5a2b", strokeWidth: 3 }),
+		lumoJ("circle", { cx: 164, cy: 89, r: 13, fill: "rgba(255,236,205,.4)", stroke: "#8a5a2b", strokeWidth: 3 }),
+		lumoJ("path", { d: "M125 90 Q138 85 151 88", fill: "none", stroke: "#8a5a2b", strokeWidth: 3 }),
+		lumoJ("path", { d: "M100 90 L92 84 M176 87 L184 81", stroke: "#8a5a2b", strokeWidth: 3, strokeLinecap: "round" })
+	] });
+	if (id === "ball_roja") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 92, cy: 204, r: 17, fill: "#e0393e", stroke: "#b02529", strokeWidth: 2.5 }),
+		lumoJ("path", { d: "M78 197 Q92 205 106 197 M79 211 Q92 218 105 211", fill: "none", stroke: "#b02529", strokeWidth: 2.5 }),
+		lumoJ("circle", { cx: 85, cy: 197, r: 4.5, fill: "#ff9a9a", opacity: .85 })
+	] });
+	if (id === "martillo_thor") return lumoJ("g", { children: [
+		lumoJ("rect", { x: 168, y: 184, width: 11, height: 36, rx: 4, fill: "#7a4a21", stroke: "#5d3717", strokeWidth: 2, transform: "rotate(18 173 202)" }),
+		lumoJ("rect", { x: 142, y: 157, width: 54, height: 27, rx: 6, fill: "#93a1b3", stroke: "#5c6b7f", strokeWidth: 2.5, transform: "rotate(18 169 170)" }),
+		lumoJ("rect", { x: 149, y: 162, width: 40, height: 6, rx: 3, fill: "#c7d2de", opacity: .7, transform: "rotate(18 169 170)" }),
+		lumoJ("path", { d: lumoStar(169, 170, 7.5, 3.2), fill: "#f1c40f", stroke: "#d4a017", strokeWidth: 1.5 })
+	] });
+	if (id === "bracelete_dorado") return lumoJ("g", { children: [
+		lumoJ("ellipse", { cx: 172, cy: 185, rx: 14, ry: 7.5, fill: "none", stroke: "#f1c40f", strokeWidth: 5, transform: "rotate(18 172 185)" }),
+		lumoJ("circle", { cx: 184, cy: 190, r: 3, fill: "#ffe08a" }),
+		lumoJ("circle", { cx: 159, cy: 179, r: 2.4, fill: "#ffe08a" })
+	] });
+	if (id === "piercing_oreja") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 70, cy: 64, r: 4.5, fill: "none", stroke: "#c0c8d4", strokeWidth: 2.2 }),
+		lumoJ("circle", { cx: 70, cy: 71, r: 2.2, fill: "#e8edf4" })
 	] });
 	return null;
 }
@@ -24090,7 +24275,11 @@ var LumoOso = ({ estado, eq }) => {
 			lumoAccesorio(eq2.hat, "frente"),
 			lumoAccesorio(eq2.crown, "frente"),
 			lumoAccesorio(eq2.bow, "frente"),
-			lumoAccesorio(eq2.flower, "frente")
+			lumoAccesorio(eq2.flower, "frente"),
+		lumoAccesorio(eq2.toy, "frente"),
+		lumoAccesorio(eq2.weapon, "frente"),
+		lumoAccesorio(eq2.wrist, "frente"),
+		lumoAccesorio(eq2.ear, "frente")
 		]
 	});
 };
@@ -24134,6 +24323,15 @@ var ICONO_ACC = {
 	bow_rosa: "🎀",
 	crown_estrella: "⭐",
 	flower_tulipan: "🌷",
+	flower_girasol: "🌻",
+	glasses_solar: "🕶️",
+	glasses_vintage: "👓",
+	ball_roja: "🔴",
+	martillo_thor: "🔨",
+	bracelete_dorado: "⚜️",
+	piercing_oreja: "✨",
+	hat_kit: "🧢",
+	cape_estrellas: "🌌",
 	decor_guitarra: "🎸",
 	decor_peluche: "🧸",
 	decor_acuario: "🐠"
@@ -24146,14 +24344,18 @@ var ICONO_BG = {
 	bg_espacio: "🚀"
 };
 var ICONO_CROPE = {
-	glasses: "90 74 94 42",
+	glasses: "84 70 106 48",
 	hat: "88 -16 94 72",
 	crown: "100 4 70 50",
 	bow: "42 34 52 44",
-	flower: "172 10 38 50",
+	flower: "166 0 48 56",
 	scarf: "98 128 74 64",
 	cape: "64 128 140 140",
-	backpack: "54 136 162 76"
+	backpack: "54 136 162 76",
+	toy: "62 176 62 56",
+	weapon: "134 148 70 78",
+	wrist: "146 166 52 38",
+	ear: "50 44 40 36"
 };
 var LumoIcono = ({ id }) => {
 	try {
@@ -24290,7 +24492,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	}, [open, refrescar]);
 	const st = d ? estadoLumo(d, leyendo) : "normal";
 	const etapa = d ? etapaDeXp(d.xp) : STAGES[0];
-	const progresoEtapa = d ? etapa.maxXp ? Math.min(1, (d.xp - etapa.minXp) / (etapa.maxXp - etapa.minXp)) : 1 : 0;
+	const progresoEtapa = d ? Math.min(1, (d.xp % 500) / 500) : 0;
 	const misiones = d ? misionesDelDia(d) : [];
 	const accIcons = [];
 	if (d) {
@@ -24416,8 +24618,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 							className: "lumo-estado",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
 								etapa.icon,
-								" Lumo ",
-								etapa.nombre
+								" Lumo"
 							] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "lumo-frase",
 								children: [
@@ -24442,7 +24643,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											className: "lumo-bar-ic",
 											children: "⭐"
 										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["Nivel ", etapa.nombre] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["XP"] }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 											className: "lumo-bar-v",
 											children: [d.xp, " XP"]
@@ -24640,30 +24841,44 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "row-sub",
 							style: { marginBottom: 8 },
-							children: "Cada libro terminado desbloquea un mueble para la habitación de Lumo."
+							children: "Cada libro terminado desbloquea un mueble. Puedes quitarlo y volver a ponerlo cuando quieras: nunca se pierde."
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "lumo-hab",
 							children: ROOM_ORDER.map((r) => {
-								return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "lumo-hab-item" + (d.room.includes(r) ? " on" : ""),
-									children: {
-										bookshelf: "📚",
-										plant: "🪴",
-										lamp: "💡",
-										rug: "🧶",
-										library: "🏛️",
-										trophy: "🏆",
-										globe: "🌍",
-										painting: "🖼️",
-										guitarra: "🎸",
-										peluche: "🧸",
-										acuario: "🐠",
-										piano: "🎹",
-										carro: "🚗",
-										radio: "📻"
-									}[r] || "❔"
-								}, r);
+							const enRoom = d.room.includes(r);
+							const enFuera = (d.roomFuera || []).includes(r);
+							const desbloq = enRoom || enFuera;
+							const n = ROOM_ORDER.indexOf(r) + 1;
+							return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "lumo-hab-item" + (enRoom ? " on" : desbloq ? " off" : ""),
+							children: [
+							{
+bookshelf: "📚",
+									plant: "🪴",
+									lamp: "💡",
+									rug: "🧶",
+									library: "🏛️",
+									trophy: "🏆",
+									globe: "🌍",
+									painting: "🖼️",
+									guitarra: "🎸",
+									peluche: "🧸",
+									acuario: "🐠",
+									piano: "🎹",
+									carro: "🚗",
+									radio: "📻"
+							}[r] || "❔",
+							desbloq ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn sm lumo-hab-btn",
+							onClick: () => accion(() => toggleMueble(r)),
+							children: enRoom ? "Quitar" : "Poner"
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+							className: "lumo-hab-locked",
+							children: "🔒 libro " + n
+							})
+							]
+}, r);
 							})
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -34824,6 +35039,7 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [vaultOpen, setVaultOpen] = (0, import_react.useState)(false);
 	const [chatOpen, setChatOpen] = (0, import_react.useState)(false);
 	const [lumoOpen, setLumoOpen] = (0, import_react.useState)(false);
+	const [lumoTick, setLumoTick] = (0, import_react.useState)(0);
 	const [lumoIdx, setLumoIdx] = (0, import_react.useState)(0);
 	const [lumoMini, setLumoMini] = (0, import_react.useState)(null);
 	const [chatTab, setChatTab] = (0, import_react.useState)("chat");
@@ -35212,7 +35428,8 @@ const toquesDev = (0, import_react.useRef)(0);
 				if (vivo) setLumoMini({
 					etapa: m.etapaDeXp(d.xp),
 					energy: d.energy,
-					coins: d.coins
+					coins: d.coins,
+					equipped: d.equipped || {}
 				});
 			} catch {}
 		};
@@ -35222,7 +35439,7 @@ const toquesDev = (0, import_react.useRef)(0);
 			vivo = false;
 			clearInterval(id);
 		};
-	}, [refreshKey]);
+	}, [refreshKey, lumoTick]);
 	(0, import_react.useEffect)(() => {
 		if (sheet || lumoOpen || storiesOpen || chatOpen) return;
 		const iv = setInterval(() => {
@@ -36113,7 +36330,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v193"
+							children: "v194"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -36352,11 +36569,11 @@ const toquesDev = (0, import_react.useRef)(0);
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "sw-lumo-cab-etapa",
-										children: lumoMini?.etapa?.icon || "🐻"
+										children: "🐻"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 										className: "sw-lumo-cab-txt",
-										children: ["Lumo ", lumoMini?.etapa?.nombre || ""]
+										children: "Lumo"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 										className: "sw-level",
@@ -36371,8 +36588,9 @@ const toquesDev = (0, import_react.useRef)(0);
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "sw-lumo-oso",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoOso, {
-											estado: "normal"
-									})
+																						estado: "normal",
+											eq: lumoMini?.equipped
+								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "sw-lumo-barras",
@@ -37962,7 +38180,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v193 · escritorio y móvil"
+					children: "Lumen Reader · v194 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -40443,7 +40661,10 @@ setBusyId(null);
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Lumo, {
 				open: lumoOpen,
-				onClose: () => setLumoOpen(false),
+				onClose: () => {
+					setLumoOpen(false);
+					setLumoTick((t) => t + 1);
+				},
 				toast,
 				onLibrosGratis: () => {
 					setLumoOpen(false);
