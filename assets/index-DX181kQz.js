@@ -43231,17 +43231,23 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [tradPos, setTradPos] = (0, import_react.useState)(() => {
 		try {
 			const v = JSON.parse(localStorage.getItem("lumen_trad_pos") || "null");
-			return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null;
+			if (!v || !Number.isFinite(v.x) || !Number.isFinite(v.y)) return null;
+			const w = window.innerWidth || 800,
+				h = window.innerHeight || 500;
+			return { x: Math.max(4, Math.min(v.x, w - 80)), y: Math.max(4, Math.min(v.y, h - 48)) };
 		} catch {
 			return null;
 		}
 	});
 	const tradDrag = (0, import_react.useRef)(null);
+	// v197b: el arrastre se mueve por DELTA (posición inicial + desplazamiento del
+	// puntero) y aplica SIEMPRE left/top con right/bottom en auto: así la barra
+	// corre libre en los DOS ejes, en PC y en móvil, sin importar el layout.
 	const arrastrarTrad = (0, import_react.useCallback)((e) => {
 		if (e.target.closest("button")) return;
 		const el = e.currentTarget;
 		const r = el.getBoundingClientRect();
-		tradDrag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height, pos: null };
+		tradDrag.current = { px: e.clientX, py: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height, pos: null };
 		try {
 			el.setPointerCapture(e.pointerId);
 		} catch {}
@@ -43250,12 +43256,14 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		const d = tradDrag.current;
 		if (!d) return;
 		const el = e.currentTarget;
-		let x = e.clientX - d.dx,
-			y = e.clientY - d.dy;
+		let x = d.left + (e.clientX - d.px),
+			y = d.top + (e.clientY - d.py);
 		x = Math.max(4, Math.min(x, window.innerWidth - d.w - 4));
 		y = Math.max(4, Math.min(y, window.innerHeight - d.h - 4));
 		el.style.left = x + "px";
 		el.style.top = y + "px";
+		el.style.right = "auto";
+		el.style.bottom = "auto";
 		d.pos = { x, y };
 	}, []);
 	const soltarTrad = (0, import_react.useCallback)(() => {
@@ -46830,7 +46838,7 @@ const docPedir = (desde, hasta, centroArg) => {
 											   ⚖️ Paralelo · 🌐 Solo traducción · 📖 Solo original (no cierra nada) · ✕ Quitar. */
 											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 												className: "trad-minibar",
-												style: tradPos ? { left: tradPos.x + "px", top: tradPos.y + "px" } : void 0,
+												style: tradPos ? { left: tradPos.x + "px", top: tradPos.y + "px", right: "auto", bottom: "auto" } : void 0,
 												onPointerDown: arrastrarTrad,
 												onPointerMove: moverTrad,
 												onPointerUp: soltarTrad,
