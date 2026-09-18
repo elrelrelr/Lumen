@@ -22014,26 +22014,37 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 		}
 	};
 	(0, import_react.useEffect)(() => () => dictRef.current?.stop(), []);
-	const send = async () => {
+const send = async () => {
 		const v = draft.trim();
+		// v202: el avión también envía la grabación pendiente (onstop la guarda)
+		if (recAudio) {
+			pararRec(true);
+			return;
+		}
 		if (!v && !adjunto) return;
 		if (dictando) {
 			dictRef.current?.stop();
 			setDictando(false);
 			setParcial("");
 		}
-		await addNote({
-			bookId: "",
+		try {
+			await addNote({
+				bookId: "",
 			page: 0,
-			note: v || (adjunto ? "🖼️ Imagen" : ""),
-			image: adjunto || void 0,
-			bookTitle: "Nota rápida"
-		});
-		setDraft("");
-		setAdjunto(null);
-		haptic$1.success();
-		await reload();
-		saveFullBackup({ immediate: true }).catch(() => {});
+				note: v || (adjunto ? "🖼️ Imagen" : ""),
+				image: adjunto || void 0,
+				bookTitle: "Nota rápida"
+			});
+			setDraft("");
+			setAdjunto(null);
+			haptic$1.success();
+			await reload();
+			saveFullBackup({ immediate: true }).catch(() => {});
+			toast?.("✓ Mensaje enviado");
+		} catch (e) {
+			console.warn("[enviar-guardados]", e);
+			toast?.("No se pudo enviar el mensaje, intenta de nuevo");
+		}
 	};
 	const [exportando, setExportando] = (0, import_react.useState)(false);
 	const [resultadoExp, setResultadoExp] = (0, import_react.useState)(null);
@@ -22486,10 +22497,8 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 								alternarSel(g.it);
 								return;
 							}
-							if (g.it.bookId && onOpenBook) {
-								onOpenBook(g.it.bookId, g.it.page);
-								onClose?.();
-							}
+							// v202: el tap NO abre el libro (para poder scrollar/arrastrar
+							// libremente): hay un botón «Abrir» en la barra de acciones.
 						},
 						onLargo: () => {
 							alternarSel(g.it);
@@ -22537,6 +22546,20 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "gd-msg-actions-bar",
 									children: [
+										// v202: botón especial para abrir el libro desde el mensaje
+										g.it.bookId && onOpenBook && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+											className: "gd-action-pill",
+											"aria-label": "Abrir en el libro",
+											onClick: (e) => {
+												e.stopPropagation();
+												onOpenBook(g.it.bookId, g.it.page);
+												onClose?.();
+											},
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconBook, {
+												width: 15,
+												height: 15
+											}), " Abrir"]
+										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 											className: "gd-action-pill",
 											onClick: async (e) => {
@@ -22618,12 +22641,6 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "pin-body",
-									onClick: () => {
-										if (item.bookId && onOpenBook) {
-											onOpenBook(item.bookId, item.page);
-											onClose?.();
-										}
-									},
 									children: [
 										tab === "frases" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 											className: "pin-quote-mark",
@@ -22684,6 +22701,20 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "gd-msg-actions-bar",
 											children: [
+												// v202: botón especial para abrir el libro desde el pin
+												item.bookId && onOpenBook && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													className: "gd-action-pill",
+													"aria-label": "Abrir en el libro",
+													onClick: (e) => {
+														e.stopPropagation();
+														onOpenBook(item.bookId, item.page);
+														onClose?.();
+													},
+													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconBook, {
+														width: 15,
+														height: 15
+													}), " Abrir"]
+												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 													className: "gd-action-pill",
 													onClick: (e) => {
@@ -22910,7 +22941,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 						className: "chat-send",
 						onClick: send,
 						"aria-label": "Enviar",
-						disabled: !draft.trim() && !adjunto,
+						disabled: !draft.trim() && !adjunto && !recAudio,
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconSend, {
 							width: 19,
 							height: 19
@@ -36316,7 +36347,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v201"
+							children: "v202"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38219,7 +38250,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v201 · escritorio y móvil"
+					children: "Lumen Reader · v202 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -46370,11 +46401,25 @@ const docPedir = (desde, hasta, centroArg) => {
 			out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsx)("mark", {
 				className: "hl" + (r.h.color === "desconocida" ? " hl-desconocida" : ""),
 				"data-hlid": r.h.id,
-				onClick: r.h.color === "desconocida" ? (e) => {
+				onClick: (e) => {
 					e.stopPropagation();
 					if (window.getSelection?.().toString()) return;
-					cargarInfoHL(r.h);
-				} : void 0,
+					if (r.h.color === "desconocida") { cargarInfoHL(r.h); return; }
+					// v202: tocar un texto marcado es como tocar una referencia:
+					// lo selecciona TODO y abre la selection-pop abajo (copiar,
+					// buscar, traducir, desmarcar el resaltado entero…).
+					try {
+						const rng = document.createRange();
+						rng.selectNodeContents(e.currentTarget);
+						const s2 = window.getSelection();
+						s2.removeAllRanges();
+						s2.addRange(rng);
+					} catch {}
+					setSelection((e.currentTarget.textContent || "").trim());
+					setSelPos({ anclaAbajo: true });
+					setPaletaAbierta(false);
+					haptic$1.tap();
+				},
 				style: {
 					background: c.hex,
 					color: "#1a1a1a"
@@ -46420,8 +46465,11 @@ const docPedir = (desde, hasta, centroArg) => {
 			let at = -1;
 			if (typeof h.offset === "number" && h.offset >= 0 && t.slice(h.offset, h.offset + needle.length) === needle) at = h.offset;
 			else at = t.indexOf(needle);
-			if (at < 0) continue;
-			if (at < fin && at + needle.length > off) {
+			// v202: solape exacto, O la selección es un pedazo del resaltado
+			// (o viceversa, la selección lo rodea): se quita el resaltado ENTERO.
+			let borrado = at >= 0 && at < fin && at + needle.length > off;
+			if (!borrado && tSel.length >= 3 && (needle.includes(tSel) || tSel.includes(needle))) borrado = true;
+			if (borrado) {
 				try { await deleteHighlight(h.id); quitados++; } catch {}
 			}
 		}
@@ -48698,6 +48746,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 											setNotaDictando(false);
 											setNotaParcial("");
 										}
+										try {
 										const rec = await addNote({
 											bookId: book.id,
 											page,
@@ -48727,6 +48776,10 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										await reloadMarks();
 										saveFullBackup({ immediate: true }).catch(() => {});
 										toast?.("Nota guardada");
+										} catch (e2) {
+											console.warn("[guardar-nota]", e2);
+											toast?.("No se pudo guardar la nota, intenta de nuevo");
+										}
 									},
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconSend, {
 										width: 19,
@@ -51366,7 +51419,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v201" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v202" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

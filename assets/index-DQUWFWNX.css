@@ -13260,3 +13260,10 @@ mark.find-flash {
   .chat-compose .tg-pill { max-width: 620px; }
   .note-compose { max-width: 680px; margin: 0 auto; }
 }
+
+
+/* ============ v202: listas de guardados (scroll sin abrir libros) ============ */
+/* El tap en el cuerpo de un mensaje/pin ya no abre el libro: para eso existe el
+   botón «Abrir». Así se puede arrastrar el scroll sin entrar al libro por error. */
+.pin-body { cursor: default; }
+.gd-body .chat-msg .chat-text { cursor: default; }
