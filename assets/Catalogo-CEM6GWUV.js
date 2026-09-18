@@ -353,7 +353,7 @@ function textoLimpio(s) {
 	if (s == null) return "";
 	return String(s).replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>|<\/div>|<\/li>|<li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
 }
-function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, toast }) {
+function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
 	const [reportes, setReportes] = (0, import_react.useState)([]);
@@ -641,39 +641,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "cg-cuerpo",
-						children: [estado === "cargando" && libros.length === 0 && misLibros.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "center-msg",
-							style: { padding: 60 },
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-								style: {
-									color: "var(--fg-dim)",
-									marginTop: 12
-								},
-								children: "Conectando con los relays…"
-							})]
-						}) : visibles.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "center-msg",
-							style: { padding: 60 },
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									style: { fontSize: 44 },
-									children: "📭"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									style: {
-										color: "var(--fg-dim)",
-										maxWidth: 300,
-										margin: "10px auto"
-									},
-									children: busqueda ? "Nada coincide con tu búsqueda." : "Todavía no hay libros publicados. ¡Sé el primero!"
-								}),
-								!busqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn primary",
-									onClick: () => onPublicar?.({ modo: "nuevo" }),
-									children: "＋ Publicar mi primer libro"
-								})
-							]
-						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+						children: (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 							destacado && !busqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "cg-destacado",
 								onClick: () => {
@@ -751,8 +719,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										}
 									}, libro.id))
 								})]
-							})
-						] }),
+							}),
 						/* v198: sección embebida de LIBROS GRATIS (todo el catálogo con su
 						buscador; la ventana 100/100 se controla desde cg-pie). */
 						LGComp ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LGComp, {
@@ -761,9 +728,11 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							onAbrirLibro: (id) => {
 								onAbrirLibroLocal?.(id);
 							},
-							onVentana: setLgVentana
+							onVentana: setLgVentana,
+							onBuscarWeb: onBuscarWeb
 						}) : null
 						]
+						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-pie",

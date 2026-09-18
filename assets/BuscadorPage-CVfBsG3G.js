@@ -4,8 +4,9 @@ import { SITIOS, TIPOS, abrirEnNavegador, alternarFavorito, anadirSitioPropio, b
 //#region src/components/BuscadorPage.jsx
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
-function BuscadorPage({ onSalir, toast, onMagnet }) {
-	const [texto, setTexto] = (0, import_react.useState)("");
+function BuscadorPage({ onSalir, toast, onMagnet, qInicial }) {
+	// v199: la barra de búsqueda de Lumen Store pre-llena la consulta
+	const [texto, setTexto] = (0, import_react.useState)(qInicial || "");
 	const [hist, setHist] = (0, import_react.useState)([]);
 	const [favs, setFavs] = (0, import_react.useState)([]);
 	const [detalle, setDetalle] = (0, import_react.useState)(null);

@@ -24797,15 +24797,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 							opacity: .65
 						},
 						children: "Lo que compres se pone a Lumo al momento · los adornos van a su habitación"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn",
-						style: {
-							width: "100%",
-							marginBottom: 10
-						},
-						onClick: () => onLibrosGratis?.(),
-						children: "📚 Libros gratis en la app (Gutenberg, sin cuentas)"
-					}), SHOP.map((it) => {
+					}),  SHOP.map((it) => {
 						const tiene = d.inventory.includes(it.id);
 						const equipado = Object.values(d.equipped).includes(it.id) || (it.cat === "decor" && d.room.includes(DECOR_MOBLES[it.id]));
 						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -36336,7 +36328,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v198"
+							children: "v199"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38239,7 +38231,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v198 · escritorio y móvil"
+					children: "Lumen Reader · v199 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -38541,24 +38533,14 @@ const toquesDev = (0, import_react.useRef)(0);
 								"Archivo"
 							],
 							[
-								"buscar",
-								"🔎",
-								"Buscar"
-							],
-							[
-								"web",
-								"🔗",
-								"Web"
-							],
-							[
 								"torrent",
 								"🧲",
 								"Torrent"
 							],
 							[
 								"global",
-								"🌐",
-								"Global"
+								"🛒",
+								"Store"
 							]
 						].map(([id, ic, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							className: "imp-tab" + (impTab === id ? " on" : ""),
@@ -38568,57 +38550,6 @@ const toquesDev = (0, import_react.useRef)(0);
 							},
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: ic }), et]
 						}, id))
-					}),
-					impTab === "buscar" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "imp-bloque",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "tp-acceso",
-							onClick: () => {
-								onAbrirBuscador?.();
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-ic",
-									children: "🔎"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Buscar libros en la web" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Escribe el título y elige dónde buscarlo" })]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-fl",
-									children: "›"
-								})
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							style: {
-								marginTop: 12,
-								lineHeight: 1.5,
-								opacity: .75
-							},
-							children: "Manda tu búsqueda a Anna's Archive, Project Gutenberg, Internet Archive, Sci-Hub y más. Lo que descargues dentro de la app entra solo en tu biblioteca."
-						}), 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "tp-acceso",
-							style: { marginTop: 10 },
-							onClick: () => {
-								onLibrosGratis?.();
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-ic",
-									children: "📚"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Libros gratis" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Gutenberg, sin cuentas: entra directo a tu biblioteca" })]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-fl",
-									children: "›"
-								})
-							]
-						})]
 					}),
 					impTab === "torrent" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "imp-bloque",
@@ -38683,95 +38614,6 @@ const toquesDev = (0, import_react.useRef)(0);
 							},
 							children: "Libros firmados por sus autores, en relays públicos gratuitos. Cada libro se comparte por torrent desde el móvil de quien lo publicó. Nadie puede borrarlo: ni nosotros."
 						})]
-					}),
-					impTab === "web" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "imp-bloque",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-label",
-								style: { marginBottom: 6 },
-								children: "🔗 Página web"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								className: "plain",
-								style: {
-									width: "100%",
-									marginBottom: 8
-								},
-								value: urlImport,
-								inputMode: "url",
-								placeholder: "https://ejemplo.com/articulo",
-								onChange: (e) => setUrlImport(e.target.value)
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn",
-								style: { width: "100%" },
-								disabled: urlCargando || !urlImport.trim(),
-								onClick: async () => {
-									setUrlCargando(true);
-									setUrlPaso("Conectando…");
-									try {
-										const { importarDesdeUrl, paginate } = await __vitePreload(async () => {
-											const { importarDesdeUrl, paginate } = await Promise.resolve().then(() => import_exports);
-											return {
-												importarDesdeUrl,
-												paginate
-											};
-										}, void 0, import.meta.url);
-										const { titulo, texto } = await importarDesdeUrl(urlImport, (pct, txt) => setUrlPaso(txt || pct + "%"));
-										const paginas = paginate(texto);
-										const id = uid();
-										const now = Date.now();
-										await putBook({
-											id,
-											title: titulo,
-											fileName: titulo + ".txt",
-											kind: "web",
-											sourceUrl: urlImport.trim(),
-											size: texto.length,
-											pageCount: paginas.length,
-											lastPage: 0,
-											addedAt: now,
-											openedAt: now,
-											status: "ready",
-											hasOriginal: false,
-											ocrPages: [],
-											needsOcrPages: [],
-											percentRead: 0,
-											own: true
-										});
-										await putPages(paginas.map((t, i) => ({
-											bookId: id,
-											index: i,
-											text: t,
-											needsOcr: false,
-											ocrDone: false,
-											source: "web"
-										})));
-										setUrlImport("");
-										setSheet(null);
-										haptic$1.success();
-										toast?.(`✓ «${titulo.slice(0, 28)}» importado`);
-										reload();
-									} catch (e) {
-										toast?.(e?.message || "No se pudo importar esa página");
-									} finally {
-										setUrlCargando(false);
-										setUrlPaso("");
-									}
-								},
-								children: urlCargando ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }),
-									" ",
-									urlPaso
-								] }) : "Extraer el texto de la página"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-sub",
-								style: { marginTop: 8 },
-								children: "Se guarda el texto del artículo, sin anuncios ni menús. Algunas webs bloquean el acceso desde otras aplicaciones; en ese caso se avisa."
-							})
-						]
 					}),
 					impTab === "archivo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "imp-bloque",
@@ -51568,7 +51410,6 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 			item("🔎", "Buscar en la web", onAbrirBuscador),
 			item("🧲", "Torrent", onAbrirTorrent),
 			item("🌐", "Biblioteca Global", onAbrirCatalogo),
-			item("📚", "Libros gratis", onLibrosGratis),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "side-label",
 				children: "Comunidad"
@@ -51651,6 +51492,8 @@ function App() {
 	}, [settings]);
 	const [torrentAbierto, setTorrentAbierto] = (0, import_react.useState)(false);
 	const [catalogoAbierto, setCatalogoAbierto] = (0, import_react.useState)(false);
+	// v199: consulta inicial para «Buscar en la web» (la abre la barra de Lumen Store)
+	const [buscadorQ, setBuscadorQ] = (0, import_react.useState)("");
 	const [publicarOpen, setPublicarOpen] = (0, import_react.useState)(null);
 	const [lectorGlobal, setLectorGlobal] = (0, import_react.useState)(null);
 	const [qrPendiente, setQrPendiente] = (0, import_react.useState)(null);
@@ -52333,6 +52176,7 @@ const fresh = await checkAchievements();
 				}),
 				buscadorAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BuscadorPageLazy, {
 					toast,
+					qInicial: buscadorQ,
 					onSalir: () => setBuscadorAbierto(false)
 				}),
 				catalogoAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CatalogoLazy, {
@@ -52354,16 +52198,13 @@ const fresh = await checkAchievements();
 						setQrPendiente(null);
 						openBook(id);
 					},
+					// v199: la barra de búsqueda de la store manda la consulta a «Buscar en la web»
+					onBuscarWeb: (q) => {
+						setBuscadorQ(q || "");
+						setBuscadorAbierto(true);
+					},
 					onAbrirMisPublicaciones: () => setMisPubsAbierto(true),
 					onAbrirAds: () => setAdsAbierto(true)
-				}),
-				librosGratisAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LibrosGratisLazy, {
-					toast,
-					onSalir: () => setLibrosGratisAbierto(false),
-					onAbrirLibro: (id) => {
-						setLibrosGratisAbierto(false);
-						openBook(id);
-					}
 				}),
 				adsAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumenAdsLazy, {
 					toast,
@@ -52673,4 +52514,4 @@ async function subirAGoFile(file, nombre) {
 	}
 	throw new Error("Lumen Storage no respondió (" + (ultimoError || "sin red") + ")");
 }
-export { Sheet as _, usarPulsacionLarga as a, haptic$1 as c, hideNativeOverlay as d, isPremium as f, loadTombstones as g, showNativeOverlay as h, TEMAS_PERSONAJE as i, ambient_exports as l, onAdEvent as m, i18n_exports as n, ai_exports as o, monetize_exports as p, TEMAS as r, qrcodeLib_default as s, IDIOMAS_APP as t, AD_HEIGHT_DP as u, usarPantallaAtras as v, require_jsx_runtime as y, subirAGoFile as z };
+export { importarDesdeUrl as A, paginate as B, Sheet as _, usarPulsacionLarga as a, haptic$1 as c, hideNativeOverlay as d, isPremium as f, loadTombstones as g, showNativeOverlay as h, TEMAS_PERSONAJE as i, ambient_exports as l, onAdEvent as m, i18n_exports as n, ai_exports as o, monetize_exports as p, TEMAS as r, qrcodeLib_default as s, IDIOMAS_APP as t, AD_HEIGHT_DP as u, usarPantallaAtras as v, require_jsx_runtime as y, subirAGoFile as z };

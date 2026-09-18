@@ -1,6 +1,6 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
-import { h as getMeta, O as setMeta, r as allBooks } from "./db-Ii3ipPL7.js";
+import { A as importarDesdeUrl, B as paginate, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
+import { E as putPages, h as getMeta, k as uid, O as setMeta, r as allBooks, w as putBook } from "./db-Ii3ipPL7.js";
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
 //#region src/pages/libros-gratis.js
@@ -9,9 +9,10 @@ const OL = "https://openlibrary.org";
 const IA = "https://archive.org";
 const META_CAT = "librosGratis_catalogo";
 const META_GARD = "librosGratis_guardados"; // v180: guardados por categoría (tema)
-const FUENTES = ["gutendex", "openlibrary", "archive"];
-/** v145: 3 bibliotecas de libros gratis (dominio público y obras abiertas):
-*  1) Project Gutenberg (vía Gutendex), 2) Open Library, 3) Archive.org.
+const FUENTES = ["gutendex", "openlibrary", "archive", "wikisource-es", "wikisource-en"];
+/** v145 (v199: 5 bibliotecas): libros gratis (dominio público y obras abiertas):
+*  1) Project Gutenberg (vía Gutendex), 2) Open Library, 3) Archive.org,
+*  4) Wikisource español, 5) Wikisource inglés.
 *  Sin cuentas, sin IA: solo metadatos abiertos + descarga directa.
 *  Cada biblioteca carga por su cuenta: la primera aparece rápido y las
 *  demás se añaden en segundo plano mientras el usuario navega. */
@@ -117,21 +118,43 @@ function normalizarIA(d) {
 		cover: d.identifier ? `${IA}/services/img/${d.identifier}` : null
 	};
 }
+/** v199: Wikisource (es/en): obra del namespace principal. No tiene archivo
+*  directo descargable: al tocarla se elige el formato (EPUB/PDF) y el
+*  navegador busca el archivo (libro.soloBusqueda). */
+function normalizarWS(titulo, fuente) {
+	const host = fuente === "wikisource-en" ? "en.wikisource.org" : "es.wikisource.org";
+	const pref = fuente === "wikisource-en" ? "Book:" : "Libro:";
+	const limpio = String(titulo).replace(/^Libro:/, "").replace(/^Book:/, "").trim();
+	return {
+		id: (fuente === "wikisource-en" ? "wse" : "wss") + encodeURIComponent(limpio).slice(0, 80),
+		fuente,
+		title: limpio,
+		authors: [],
+		bookshelves: [],
+		downloads: 0,
+		epub: null,
+		txt: null,
+		ia: null,
+		url: `https://${host}/wiki/${encodeURIComponent(pref + limpio)}`,
+		cover: null,
+		soloBusqueda: true
+	};
+}
 function claveLibro(b) {
 	const limpia = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 	return limpia(b.title).slice(0, 40) + "|" + limpia((b.authors || [])[0]);
 }
 function nombreBase(libro) {
 	const safe = (libro.title || "libro").replace(/[^\w\sáéíóúñü-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase().slice(0, 50) || "libro";
-	const pref = libro.fuente === "openlibrary" ? "openlibrary" : libro.fuente === "archive" ? "archive" : "gutenberg";
+	const pref = libro.fuente === "openlibrary" ? "openlibrary" : libro.fuente === "archive" ? "archive" : libro.fuente && libro.fuente.startsWith("wikisource") ? "wikisource" : "gutenberg";
 	const seg = String(libro.id).replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || "libro";
 	return `${pref}-${seg}-${safe}`;
 }
 function nombreArchivo(libro, ext) {
 	return nombreBase(libro) + "." + ext;
 }
-/** Trae una página (32) de la biblioteca pedida. { books, mas } */
-async function fetchFuente(fuente, pagina) {
+/** Trae una página (32) de la biblioteca pedida. { books, mas, token } */
+async function fetchFuente(fuente, pagina, token) {
 	if (fuente === "gutendex") {
 		const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=32&page=${pagina}`, { signal: AbortSignal.timeout(45e3) });
 		if (!r.ok) throw new Error("Gutendex respondió " + r.status);
@@ -149,6 +172,22 @@ async function fetchFuente(fuente, pagina) {
 			total: j.numFound || 0
 		};
 	}
+	// v199: Wikisource (es/en) — obras del namespace principal, paginación por token
+	if (fuente === "wikisource-es" || fuente === "wikisource-en") {
+			const host = fuente === "wikisource-en" ? "en" : "es";
+		const params = new URLSearchParams({ action: "query", list: "allpages", apnamespace: "0", aplimit: "32", format: "json", origin: "*" });
+		if (token) params.set("apcontinue", token);
+		const r = await fetch(`https://${host}.wikisource.org/w/api.php?` + params.toString(), { signal: AbortSignal.timeout(45e3) });
+		if (!r.ok) throw new Error("Wikisource respondió " + r.status);
+		const j = await r.json();
+		const pages = (j.query || {}).allpages || [];
+		return {
+			books: pages.map((p) => normalizarWS(p.title, fuente)),
+			mas: !!(j.continue && j.continue.allpages),
+			total: 0,
+			token: j.continue ? j.continue.allpages : null
+		};
+	}
 	// archive.org
 	const q = encodeURIComponent('language:spanish AND mediatype:texts AND format:epub AND year:[* TO 1923]');
 	const r = await fetch(`${IA}/advancedsearch.php?q=${q}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=32&page=${pagina}&output=json`, { signal: AbortSignal.timeout(45e3) });
@@ -163,7 +202,7 @@ async function fetchFuente(fuente, pagina) {
 }
 /** v150: tamaño de la ventana de libros (botones de 100 en 100). */
 const VENTANA = 100;
-/** v150: busca en las 3 bibliotecas remotas (libros que aún no están
+/** v150 (v199: 5 bibliotecas): busca en las bibliotecas remotas (libros que aún no están
 *  cargados en Lumen). Devuelve hasta ~96 resultados normalizados. */
 async function buscarRemoto(texto) {
 	const q = encodeURIComponent(texto);
@@ -195,6 +234,19 @@ async function buscarRemoto(texto) {
 			if (!r.ok) throw new Error("Archive.org respondió " + r.status);
 			const j = await r.json();
 			return ((j.response || {}).docs || []).map(normalizarIA);
+		})(),
+		// v199: Wikisource es + en
+		(async () => {
+			const r = await fetch(`https://es.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=32&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(45e3) });
+			if (!r.ok) throw new Error("Wikisource ES respondió " + r.status);
+			const j = await r.json();
+			return (((j.query || {}).search) || []).map((x) => normalizarWS(x.title, "wikisource-es"));
+		})(),
+		(async () => {
+			const r = await fetch(`https://en.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=32&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(45e3) });
+			if (!r.ok) throw new Error("Wikisource EN respondió " + r.status);
+			const j = await r.json();
+			return (((j.query || {}).search) || []).map((x) => normalizarWS(x.title, "wikisource-en"));
 		})()
 	];
 	const res = await Promise.allSettled(tareas);
@@ -328,7 +380,7 @@ async function fetchConProgreso(url, onPct, timeoutMs = 4e4) {
 	onPct?.(100);
 	return new Blob(partes);
 }
-function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
+function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarWeb }) {
 	const enSeccion = modo === "seccion";
 	const [catalogo, setCatalogo] = (0, import_react.useState)(null);
 	const [fuentes, setFuentes] = (0, import_react.useState)(null);
@@ -355,6 +407,14 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 	const [guardNueva, setGuardNueva] = (0, import_react.useState)("");
 	// v148: vigilancia de importación tras descargar en un navegador
 	const [vigilando, setVigilando] = (0, import_react.useState)(null);
+	// v199: libros de bibliotecas «solo búsqueda» (Wikisource): al tocar se
+	// elige el formato (EPUB/PDF) y el navegador busca el archivo.
+	const [formatoBusqueda, setFormatoBusqueda] = (0, import_react.useState)(null);
+	// v199: extraer el texto de una página web desde la barra de búsqueda
+	const [urlAbierto, setUrlAbierto] = (0, import_react.useState)(false);
+	const [urlWeb, setUrlWeb] = (0, import_react.useState)("");
+	const [urlWebBusy, setUrlWebBusy] = (0, import_react.useState)(false);
+	const [urlPaso, setUrlPaso] = (0, import_react.useState)("");
 	const vigRef = (0, import_react.useRef)(null);
 	const catRef = (0, import_react.useRef)(null);
 	const misRef = (0, import_react.useRef)([]);
@@ -391,7 +451,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 			return true;
 		});
 		e.books = [...e.books, ...nuevos];
-		e.fuentes[fuente] = { page: pagina, mas: res.mas, ok: true };
+		e.fuentes[fuente] = { page: pagina, mas: res.mas, ok: true, token: res.token || null };
 		if (typeof res.total === "number" && res.total > 0) e.totales = { ...(e.totales || {}), [fuente]: res.total };
 		// v150: no dejar crecer la memoria: se conserva solo lo necesario
 		if (e.books.length > 1200) {
@@ -445,7 +505,9 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 					fuentes: {
 						gutendex: { page: 1, mas: f1.mas, ok: true },
 						openlibrary: { page: 0, mas: true, ok: false },
-						archive: { page: 0, mas: true, ok: false }
+						archive: { page: 0, mas: true, ok: false },
+						"wikisource-es": { page: 0, mas: true, ok: false },
+						"wikisource-en": { page: 0, mas: true, ok: false }
 					},
 					desde: 0,
 					totales: { gutendex: f1.total || 0 }
@@ -453,6 +515,8 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 				publicar();
 				setTimeout(() => cargarFondo("openlibrary"), 2e3);
 				setTimeout(() => cargarFondo("archive"), 6e3);
+				setTimeout(() => cargarFondo("wikisource-es"), 1e4);
+				setTimeout(() => cargarFondo("wikisource-en"), 14e3);
 			} catch (e) {
 				if (vivoRef.current) setError(e?.message || String(e));
 			} finally {
@@ -511,7 +575,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 		}
 		const conMas = FUENTES.filter((id) => e.fuentes[id] && e.fuentes[id].ok && e.fuentes[id].mas);
 		if (!conMas.length) {
-			toast?.("Ya no hay más libros en las 3 bibliotecas");
+			toast?.("Ya no hay más libros en las bibliotecas");
 			return;
 		}
 		setNavegando(true);
@@ -520,7 +584,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 			await conCierre(async () => {
 				const est = catRef.current;
 				if (!est) return;
-				const res = await Promise.all(conMas.map((id) => fetchFuente(id, est.fuentes[id].page + 1).catch(() => null)));
+				const res = await Promise.all(conMas.map((id) => fetchFuente(id, est.fuentes[id].page + 1, est.fuentes[id].token).catch(() => null)));
 				res.forEach((r, i) => {
 					const id = conMas[i];
 					if (!r) {
@@ -570,6 +634,65 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 	// v168: ¿existe el navegador integrado (puente de la app Android)? En la
 	// PWA/PC no hay, así que el flujo usa el navegador del dispositivo.
 	const navDisponible = () => typeof window !== "undefined" && !!(window.AndroidNav && typeof window.AndroidNav.abrir === "function");
+	// v199: el navegador busca el libro en el formato elegido (EPUB o PDF)
+	const buscarEnNavegador = (libro, fmt) => {
+		const autor = (libro.authors || [])[0] || "";
+		const q = '"' + (libro.title || "").trim() + '"' + (autor ? ' "' + autor.trim() + '"' : "") + " filetype:" + fmt;
+		setFormatoBusqueda(null);
+		try {
+			window.open("https://www.google.com/search?q=" + encodeURIComponent(q), "_blank", "noopener");
+		} catch {}
+		toast?.("🔎 Buscando «" + (libro.title || "").slice(0, 40) + "» en formato " + fmt.toUpperCase() + "…");
+	};
+	// v199: extrae el texto de una página web y lo importa como libro
+	const importarPagina = async () => {
+		const u = urlWeb.trim();
+		if (!u || urlWebBusy) return;
+		setUrlWebBusy(true);
+		setUrlPaso("Conectando…");
+		try {
+			const { titulo, texto } = await importarDesdeUrl(u, (pct, txt) => setUrlPaso(txt || pct + "%"));
+			const paginas = paginate(texto);
+			const id = uid();
+			const now = Date.now();
+			await putBook({
+				id,
+				title: titulo,
+				fileName: titulo + ".txt",
+				kind: "web",
+				sourceUrl: u,
+				size: texto.length,
+				pageCount: paginas.length,
+				lastPage: 0,
+				addedAt: now,
+				openedAt: now,
+				status: "ready",
+				hasOriginal: false,
+				ocrPages: [],
+				needsOcrPages: [],
+				percentRead: 0,
+				own: true
+			});
+			await putPages(paginas.map((t, i) => ({
+				bookId: id,
+				index: i,
+				text: t,
+				needsOcr: false,
+				ocrDone: false,
+				source: "web"
+			})));
+			setUrlWeb("");
+			setUrlAbierto(false);
+			toast?.("✓ «" + titulo.slice(0, 28) + "» importado desde la web");
+			onAbrirLibro?.(id);
+		} catch (e) {
+			toast?.(e?.message || "No se pudo importar esa página");
+		} finally {
+			setUrlWebBusy(false);
+			setUrlPaso("");
+		}
+	};
+
 	// v148: vigila la biblioteca: apenas aparezca el libro importado (por
 	// descarga en el navegador), lo detecta y lo abre solo.
 	const vigilarLibro = (libro) => {
@@ -768,6 +891,13 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 		const descargando = descarga && descarga.clave === String(libro.id);
 		const guard = esGuardado(libro);
 		const abrir = () => {
+			// v199: bibliotecas «solo búsqueda» (Wikisource): se elige el
+			// formato (EPUB/PDF) y el navegador busca el archivo.
+			if (libro.soloBusqueda) {
+				setMenuLibro(null);
+				setFormatoBusqueda(libro);
+				return;
+			}
 			if (yaListo) {
 				onAbrirLibro?.(ya.id);
 				return;
@@ -839,28 +969,48 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "lg-menu-tit",
 						children: (libro.title || "").slice(0, 48) || "Libro"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn",
-						onClick: () => {
-							setMenuLibro(null);
-							abrirConNavegador(libro, "lumen");
-						},
-						children: "🌐 Navegador de Lumen"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn",
-						onClick: () => {
-							setMenuLibro(null);
-							abrirConNavegador(libro, "dispositivo");
-						},
-						children: "📲 Navegador del dispositivo"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn",
-						onClick: () => {
-							setMenuLibro(null);
-							leerGratis(libro).catch(() => {});
-						},
-						children: "⚡ Descarga directa"
-					}), guard ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					}), libro.soloBusqueda ? [
+						// v199: bibliotecas «solo búsqueda»: el navegador busca el
+						// archivo en el formato que elija el usuario
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn primary",
+							onClick: () => {
+								setMenuLibro(null);
+								buscarEnNavegador(libro, "epub");
+							},
+							children: "📚 Buscar en el navegador (EPUB)"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								buscarEnNavegador(libro, "pdf");
+							},
+							children: "📄 Buscar en el navegador (PDF)"
+						})
+					] : [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								abrirConNavegador(libro, "lumen");
+							},
+							children: "🌐 Navegador de Lumen"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								abrirConNavegador(libro, "dispositivo");
+							},
+							children: "📲 Navegador del dispositivo"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn",
+							onClick: () => {
+								setMenuLibro(null);
+								leerGratis(libro).catch(() => {});
+							},
+							children: "⚡ Descarga directa"
+						})
+					], guard ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "btn",
 						onClick: () => quitarGuardado(libro),
 						children: "✔ Guardado en «" + guard.cat + "» — quitar"
@@ -952,11 +1102,45 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 		return out;
 	};
 
-	const cuerpo = [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-					className: "plain lg-busqueda",
-					placeholder: "Buscar aquí y en las 3 bibliotecas…",
-					value: q,
-					onChange: (e) => setQ(e.target.value)
+	const cuerpo = [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "lg-busq-fila",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+						className: "plain lg-busqueda",
+						placeholder: "Buscar aquí y en las 5 bibliotecas…",
+						value: q,
+						onChange: (e) => setQ(e.target.value)
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "lg-busq-extras",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "lg-busq-btn",
+							disabled: !q.trim(),
+							title: "Buscar en la web (Anna's Archive, Gutenberg, Archive y más)",
+							"aria-label": "Buscar en la web",
+							onClick: () => onBuscarWeb?.(q.trim()),
+							children: "🌐"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "lg-busq-btn" + (urlAbierto ? " on" : ""),
+							title: "Extraer el texto de una página web",
+							"aria-label": "Página web",
+							onClick: () => setUrlAbierto(!urlAbierto),
+							children: "🔗"
+						})]
+					})]
+				}), urlAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "lg-url-fila",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+						className: "plain lg-url-input",
+						placeholder: "https://ejemplo.com/articulo",
+						value: urlWeb,
+						inputMode: "url",
+						onChange: (e) => setUrlWeb(e.target.value),
+						onKeyDown: (e) => { if (e.key === "Enter") importarPagina(); }
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn lg-url-btn",
+						disabled: urlWebBusy || !urlWeb.trim(),
+						onClick: importarPagina,
+						children: urlWebBusy ? urlPaso || "…" : "Extraer"
+					})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "chips lg-temas",
 					children: TEMAS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -1007,11 +1191,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "section-title",
 						style: { margin: "16px 4px 4px" },
-						children: buscando ? "🌐 Buscando en las 3 bibliotecas…" : `🌐 En las bibliotecas · ${remoto ? remoto.length : 0} resultados`
+						children: buscando ? "🌐 Buscando en las 5 bibliotecas…" : `🌐 En las bibliotecas · ${remoto ? remoto.length : 0} resultados`
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "row-sub",
 						style: { margin: "0 4px 10px" },
-						children: "Resultados directos de Gutenberg, Open Library y Archive.org (aunque no estén en el catálogo)."
+						children: "Resultados directos de Gutenberg, Open Library, Archive.org y Wikisource (aunque no estén en el catálogo)."
 					}), buscando && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						style: { padding: "18px 4px" },
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
@@ -1044,7 +1228,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 							children: "‹ Anteriores 100"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "lg-pag-info",
-							children: `Mostrando ${(desde || 0) + 1}–${finVentana} · ≈ ${totalAprox || "?"} libros en las 3 bibliotecas`
+							children: `Mostrando ${(desde || 0) + 1}–${finVentana} · ≈ ${totalAprox || "?"} libros en las bibliotecas`
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "btn",
 							disabled: navegando || (!hayMas && finVentana >= (catalogo || []).length),
@@ -1058,7 +1242,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 						className: "spinner",
 						style: { display: "block", margin: "0 auto 12px" }
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: "Buscando libros gratis en 3 bibliotecas…" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { children: "Buscando libros gratis en 5 bibliotecas…" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						style: { marginTop: 8, fontSize: 13, opacity: .75 },
 						children: "La primera vez puede tardar unos minutos; después se guarda en caché y abre al instante."
 					})]
@@ -1083,7 +1267,9 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 									fuentes: {
 										gutendex: { page: 1, mas: f1.mas, ok: true },
 										openlibrary: { page: 0, mas: true, ok: false },
-										archive: { page: 0, mas: true, ok: false }
+										archive: { page: 0, mas: true, ok: false },
+										"wikisource-es": { page: 0, mas: true, ok: false },
+										"wikisource-en": { page: 0, mas: true, ok: false }
 									},
 									desde: 0,
 									totales: { gutendex: f1.total || 0 }
@@ -1107,7 +1293,36 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 							})
 						})]
 					})]
-				})];
+				}),
+				// v199: elegir formato (EPUB/PDF) para buscar el libro en el navegador
+				formatoBusqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "lg-menu-fondo",
+						onClick: () => setFormatoBusqueda(null),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "lg-menu",
+							onClick: (e) => e.stopPropagation(),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "lg-menu-tit",
+								children: "Buscar «" + (formatoBusqueda.title || "").slice(0, 48) + "» en el navegador"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-sub",
+								children: "Elige el formato a buscar: se abre tu navegador con la búsqueda lista para que descargues el archivo."
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn primary",
+								onClick: () => buscarEnNavegador(formatoBusqueda, "epub"),
+								children: "📚 Buscar en formato EPUB"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn",
+								onClick: () => buscarEnNavegador(formatoBusqueda, "pdf"),
+								children: "📄 Buscar en formato PDF"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn ghost",
+								onClick: () => setFormatoBusqueda(null),
+								children: "✕ Cerrar"
+							})]
+						})]
+					})
+				];
 	// v198: modo sección — embebido en Lumen Store: mismo contenido
 	// pero sin el marco de página ni la barra 100/100 propia (ese pie
 	// vive en la store y lo gobierna a través de onVentana).
@@ -1128,7 +1343,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
 					children: "‹"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "cg-title",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "📚 Libros gratis" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: `Gutenberg · Open Library · Archive.org${fuentes ? ` (${nBibliotecas}/3 cargadas)` : ""} · sin cuentas · sin IA` })]
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "📚 Libros gratis" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: `Gutenberg · Open Library · Archive.org${fuentes ? ` (${nBibliotecas}/5 cargadas)` : ""} · sin cuentas · sin IA` })]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					className: "cg-publicar",
 					onClick: refrescar,
