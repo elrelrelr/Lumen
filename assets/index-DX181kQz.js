@@ -50113,7 +50113,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								children: [s, "s"]
 							}, s))
 						})]
-					})
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
 						style: { margin: "2px 4px 8px" },
