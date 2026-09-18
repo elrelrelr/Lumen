@@ -21860,24 +21860,25 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 		im.src = url;
 	});
 	/** v149: detiene la grabación de audio (silencioso = sin tocar estado UI) */
-	const pararRec = (0, import_react.useCallback)((silencioso) => {
-		try {
-		if (recIvRef.current) {
-			clearInterval(recIvRef.current);
-			recIvRef.current = null;
-		}
-		if (recRef.current && recRef.current.state !== "inactive") recRef.current.stop();
-		if (recStreamRef.current) {
-			recStreamRef.current.getTracks().forEach((t) => {
-				try {
-					t.stop();
-				} catch {}
-			});
-			recStreamRef.current = null;
-		}
-		if (!silencioso) setRecAudio(false);
-		} catch {}
-	}, []);
+const pararRec = (0, import_react.useCallback)((silencioso) => {
+	try {
+	if (recIvRef.current) {
+		clearInterval(recIvRef.current);
+		recIvRef.current = null;
+	}
+	// v195 (#3): NO parar las pistas aquí: onstop hace el flush final y ya
+	// libera el micrófono. Pararlas antes podía dejar a onstop sin el
+	// último chunk (o sin que saliera) => «el audio no aparecía».
+	const rec = recRef.current;
+	if (rec && rec.state !== "inactive") {
+	setTimeout(() => {
+		if (rec.state === "recording" || rec.state === "paused") try { rec.stop(); } catch {}
+	}, 2000);
+	rec.stop();
+	}
+	if (!silencioso) setRecAudio(false);
+	} catch {}
+}, []);
 	/** v149: el micrófono graba un audio y lo envía como mensaje.
 	*  Si el dispositivo no soporta MediaRecorder, cae al dictado por voz. */
 	const alternarMic = (0, import_react.useCallback)(async () => {
@@ -36330,7 +36331,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v194"
+							children: "v195"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37772,6 +37773,59 @@ const toquesDev = (0, import_react.useRef)(0);
 								(0, import_jsx_runtime.jsx)(MusicaUsuarioGestion, {}),
 							]
 						}),
+						/* @__PURE__ */ /* v195 (#7): logros — reiniciar todos y elegir cuándo verlos */
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
+							icono: "🏆",
+							titulo: "Logros",
+							resumen: "Cuándo verlos mientras lees · reiniciar todos",
+							abierta: seccionAbierta === "logros",
+							onToggle: () => alternarSeccion("logros"),
+							children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									children: "¿Cuándo ver los logros?"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: "Por defecto, mientras lees (pestaña T)"
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+									className: "plain",
+									value: settings.logrosView || "leyendo",
+									onChange: async (e) => {
+										await setSettings({ logrosView: e.target.value });
+										haptic$1.tap();
+									},
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "leyendo", children: "Mientras leo (pestaña T)"}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", { value: "cierre", children: "Al cerrar el libro" })]
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									children: "Reiniciar todos los logros"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: `Desbloqueados: ${(game?.unlocked || []).length} de ${(game?.achievements || []).length} · tu nivel y XP no se tocan`
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn sm",
+									onClick: async () => {
+										if (!window.confirm("¿Reiniciar TODOS los logros? Volverás a empezar a desbloquearlos. Tu nivel y XP no se tocan.")) return;
+										try {
+											const g = await loadGame();
+											g.unlocked = [];
+											await saveGame(g);
+											await onStatsChange?.();
+											toast?.("🔄 Logros reiniciados");
+										} catch {
+											toast?.("No se pudieron reiniciar los logros");
+										}
+									},
+									children: "🔄 Reiniciar"
+								})]
+							})
+						]
+						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "📖",
 							titulo: "Lectura",
@@ -38180,7 +38234,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v194 · escritorio y móvil"
+					children: "Lumen Reader · v195 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42751,7 +42805,7 @@ function detectarCapsHeuristica(rows) {
 	}
 	return caps;
 }
-function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFarewell }) {
+function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFarewell, onOpenGuardados }) {
 	const [book, setBook] = (0, import_react.useState)(null);
 	const [page, setPage] = (0, import_react.useState)(0);
 	const [text, setText] = (0, import_react.useState)("");
@@ -42914,6 +42968,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [notaAmpliada, setNotaAmpliada] = (0, import_react.useState)(false);
 	const [notaEmojis, setNotaEmojis] = (0, import_react.useState)(false);
 	const [notaAdjunto, setNotaAdjunto] = (0, import_react.useState)(null);
+	// v195 (#3): audio REAL en notas (mismo flujo MediaRecorder que Guardados)
+	const [notaAudio, setNotaAudio] = (0, import_react.useState)(null);
+	const [recNota, setRecNota] = (0, import_react.useState)(false);
+	const [recNotaSeg, setRecNotaSeg] = (0, import_react.useState)(0);
+	const recNotaRef = (0, import_react.useRef)(null);
+	const recNotaStreamRef = (0, import_react.useRef)(null);
+	const recNotaIvRef = (0, import_react.useRef)(null);
 	const getSelFrec = () => {
 		try {
 			return JSON.parse(localStorage.getItem("lumen_sel_frec") || "{}");
@@ -43151,6 +43212,10 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const marcaRef = (0, import_react.useRef)(null);
 	const longPressT = (0, import_react.useRef)(null);
 	const voiceHold = (0, import_react.useRef)(null);
+	// v195 (#5): mantener presionado Nota / IA / Lectura en la barra inferior
+	const noteHold = (0, import_react.useRef)(null);
+	const aiHold = (0, import_react.useRef)(null);
+	const lectHold = (0, import_react.useRef)(null);
 	const [ocrFabIdle, setOcrFabIdle] = (0, import_react.useState)(false);
 	// v162: capítulos (auto + manuales) con salto directo a cada parte del libro
 	const [caps, setCaps] = (0, import_react.useState)([]);
@@ -43580,7 +43645,9 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		setFlag("music").catch(() => {});
 	}, [book?.musicOnOpen, book?.musicScene, book?.musicVolume, settings.musicScene, settings.musicVolume]);
 	(0, import_react.useEffect)(() => {
-		if (settings.musicOn) setVolume(settings.musicVolume ?? 1);
+		// v195 (#2): NO pisar el volumen del libro con el global mientras la
+		// música de la lectura está sonando: manda y persiste book.musicVolume.
+		if (settings.musicOn && !window.__lumenMusicaLectura) setVolume(settings.musicVolume ?? 1);
 	}, [settings.musicVolume, settings.musicOn]);
 	(0, import_react.useEffect)(() => () => {
 		try {
@@ -43971,6 +44038,78 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		toast
 	]);
 	(0, import_react.useEffect)(() => () => notaDictRef.current?.stop(), []);
+	// v195 (#3): el micrófono de Notas graba un audio REAL (MediaRecorder) y lo
+	// adjunta a la nota. El dictado por voz queda en el botón 🎙 de la píldora.
+	const alternarRecNota = (0, import_react.useCallback)(async () => {
+		if (recNota) {
+			try {
+				if (recNotaIvRef.current) { clearInterval(recNotaIvRef.current); recNotaIvRef.current = null; }
+				const rec = recNotaRef.current;
+				if (rec && rec.state !== "inactive") {
+					setTimeout(() => { if (rec.state === "recording" || rec.state === "paused") try { rec.stop(); } catch {} }, 2000);
+					rec.stop();
+				}
+			} catch {}
+			setRecNota(false);
+			return;
+		}
+		if (typeof MediaRecorder === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+			alternarDictadoNota();
+			return;
+		}
+		try {
+			const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			recNotaStreamRef.current = stream;
+			let mime = "";
+			try {
+				mime = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m)) || "";
+			} catch {}
+			const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+			const chunks = [];
+			rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+			rec.onstop = async () => {
+				setRecNota(false);
+				setRecNotaSeg(0);
+				if (recNotaIvRef.current) { clearInterval(recNotaIvRef.current); recNotaIvRef.current = null; }
+				if (recNotaStreamRef.current) {
+					recNotaStreamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} });
+					recNotaStreamRef.current = null;
+				}
+				const blob = new Blob(chunks, { type: rec.mimeType || "audio/webm" });
+				if (!blob.size) { toast?.("No se capturó audio, intenta de nuevo"); return; }
+				try {
+					const dataUrl = await new Promise((res, rej) => {
+						const fr = new FileReader();
+						fr.onload = () => res(fr.result);
+						fr.onerror = rej;
+						fr.readAsDataURL(blob);
+					});
+					setNotaAudio(dataUrl);
+					haptic$1.success();
+					toast?.("🎤 Audio listo · máx. 5 min · toca ➤ para guardar la nota");
+				} catch (e2) {
+					console.warn("[audio-nota]", e2);
+					toast?.("No se pudo preparar el audio");
+				}
+			};
+			rec.start(250);
+			recNotaRef.current = rec;
+			setRecNotaSeg(0);
+			recNotaIvRef.current = setInterval(() => {
+				setRecNotaSeg((v) => {
+					if (v + 1 >= 300) { try { rec.stop(); } catch {} return 300; }
+					return v + 1;
+				});
+			}, 1000);
+			setRecNota(true);
+			haptic$1.tap();
+		} catch (e) {
+			setRecNota(false);
+			if (recNotaStreamRef.current) recNotaStreamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} });
+			if (e && (e.name === "NotAllowedError" || e.name === "PermissionDeniedError")) toast?.("Da permiso de micrófono para grabar audio");
+			else toast?.("No se pudo iniciar la grabación");
+		}
+	}, [recNota, alternarDictadoNota, toast]);
 	/** Reduce la imagen adjunta para que no infle la base de datos. */
 	const adjuntarImagenNota = (file) => new Promise((res, rej) => {
 		const url = URL.createObjectURL(file);
@@ -44154,6 +44293,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} else speaker.toggle();
 	}, [
 		ttsState.playing,
+		ttsState.paused,
 		text,
 		textoVista,
 		selection,
@@ -46052,13 +46192,19 @@ const docPedir = (desde, hasta, centroArg) => {
 					fuente = img;
 				}
 				if (!fuente) continue;
-				const c = document.createElement("canvas");
-				c.width = fuente.width;
-				c.height = fuente.height;
-				const cx = c.getContext("2d");
-				if (filtro && filtro !== "none") cx.filter = filtro;
-				cx.drawImage(fuente, 0, 0);
-				const datos = c.toDataURL("image/png");
+					// v195 (#6): se guarda con el recorte (área de impresión) aplicada
+					const cw0 = fuente.width, ch0 = fuente.height;
+					const cX0 = Math.round((imgCrop.l || 0) / 100 * cw0);
+					const cY0 = Math.round((imgCrop.t || 0) / 100 * ch0);
+					const cW1 = Math.max(1, Math.round((1 - (imgCrop.l + imgCrop.r) / 100) * cw0) - cX0);
+					const cH1 = Math.max(1, Math.round((1 - (imgCrop.t + imgCrop.b) / 100) * ch0) - cY0);
+					const c = document.createElement("canvas");
+					c.width = cW1;
+					c.height = cH1;
+					const cx = c.getContext("2d");
+					if (filtro && filtro !== "none") cx.filter = filtro;
+					cx.drawImage(fuente, cX0, cY0, cW1, cH1, 0, 0, cW1, cH1);
+					const datos = c.toDataURL("image/png");
 				const nombre = `${(book.title || "pagina").replace(/[^\w\sáéíóúñ-]/gi, "").slice(0, 40).trim()}-p${p + 1}.png`;
 				const st = window.AndroidStore;
 				if (st?.guardarImagenEnDescargas) {
@@ -46073,7 +46219,7 @@ const docPedir = (desde, hasta, centroArg) => {
 				await new Promise((r) => setTimeout(r, 30));
 			}
 			toast?.(hechas ? `✓ ${hechas} imagen${hechas === 1 ? "" : "es"} en Descargas` : "No se pudo guardar ninguna página");
-			setHojaImg(false);
+				cerrarHojaImg();
 		} catch (e) {
 			toast?.("Error al guardar: " + (e?.message || e));
 		} finally {
@@ -46081,14 +46227,44 @@ const docPedir = (desde, hasta, centroArg) => {
 		}
 	}, [
 		page,
-		pageCount,
+	pageCount,
 		filtroImg,
 		invertir,
+		imgCrop,
 		canvasEl,
 		book,
 		pdfDoc,
 		toast
 	]);
+	// v195 (#6): «Colores de la página» arrastrable; al cerrar se borra el
+	// recorte (área de impresión) de las pestañas afectadas.
+	const [hojaDrag, setHojaDrag] = (0, import_react.useState)({ x: 0, y: 0 });
+	const hojaArrSt = (0, import_react.useRef)({ active: false, id: null, x0: 0, y0: 0, ox: 0, oy: 0 });
+	const cerrarHojaImg = (0, import_react.useCallback)(() => {
+		setHojaImg(false);
+		setImgCrop({ t: 0, r: 0, b: 0, l: 0 });
+		setHojaDrag({ x: 0, y: 0 });
+	}, []);
+	const hojaArrastraDown = (0, import_react.useCallback)((e) => {
+		if (e.target && e.target.closest && e.target.closest("input, button, select, textarea")) return;
+		hojaArrSt.current = { active: true, id: e.pointerId, x0: e.clientX, y0: e.clientY, ox: hojaDrag.x, oy: hojaDrag.y };
+		try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+	}, [hojaDrag.x, hojaDrag.y]);
+	const hojaArrastraMove = (0, import_react.useCallback)((e) => {
+		const s = hojaArrSt.current;
+		if (!s.active || s.id !== e.pointerId) return;
+		const r = window.innerWidth, h = window.innerHeight;
+		const nx = s.ox + (e.clientX - s.x0);
+		const ny = s.oy + (e.clientY - s.y0);
+		setHojaDrag({
+			x: Math.min(r * .6, Math.max(-r * .6, nx)),
+			y: Math.min(h * .6, Math.max(-h * .6, ny))
+		});
+	}, []);
+	const hojaArrastraUp = (0, import_react.useCallback)((e) => {
+		const s = hojaArrSt.current;
+		if (s.active && s.id === e.pointerId) s.active = false;
+	}, []);
 	const irArribaAbajo = (0, import_react.useCallback)(() => {
 		const el = document.querySelector(".rd-page");
 		if (!el) return;
@@ -46884,10 +47060,15 @@ const docPedir = (desde, hasta, centroArg) => {
 					}),
 					hojaImg && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "velo",
-						onClick: () => setHojaImg(false)
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "hoja-img",
-						children: [
+							onClick: cerrarHojaImg
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "hoja-img arrastrable",
+							style: { transform: `translate(calc(-50% + ${hojaDrag.x}px), calc(-50% + ${hojaDrag.y}px))` },
+							onPointerDown: hojaArrastraDown,
+							onPointerMove: hojaArrastraMove,
+							onPointerUp: hojaArrastraUp,
+							onPointerCancel: hojaArrastraUp,
+							children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "hoja-img-asa" }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "hoja-img-cab",
@@ -46896,8 +47077,8 @@ const docPedir = (desde, hasta, centroArg) => {
 									children: "Colores de la página"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "hoja-x",
-									"aria-label": "Cerrar",
-									onClick: () => setHojaImg(false),
+										"aria-label": "Cerrar",
+										onClick: cerrarHojaImg,
 									children: "✕"
 								})]
 							}),
@@ -46910,7 +47091,7 @@ const docPedir = (desde, hasta, centroArg) => {
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "hoja-img-tab" + (hojaTab === "recorte" ? " on" : ""),
 									onClick: () => setHojaTab("recorte"),
-									children: "✂ Recortar"
+									children: "🖨 Imprimir"
 								})]
 							}), hojaTab === "filtros" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -47017,13 +47198,13 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										min: 0,
 										max: 45,
 										value: imgCrop[k],
-										"aria-label": "Recorte " + nom,
+										"aria-label": "Margen de impresión " + nom,
 										onChange: (e) => setImgCrop((c) => ({ ...c, [k]: Number(e.target.value) }))
 									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: imgCrop[k] + "%" })]
 								}, k)).concat([/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn sm",
 									onClick: () => setImgCrop({ t: 0, r: 0, b: 0, l: 0 }),
-									children: "Quitar recorte"
+									children: "Quitar área de impresión"
 								})])
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -47040,7 +47221,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "hoja-img-nota",
-								children: "Las imágenes se guardan en Descargas con el filtro que tengas elegido."
+								children: "Las imágenes se guardan en Descargas con el filtro y el área de impresión que tengas elegidos."
 							})
 						]
 					})] }),
@@ -47332,7 +47513,22 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool",
-								onClick: () => openWithSelection("note"),
+								title: "Notas de la página · mantén pulsado para mensajes guardados",
+								onClick: () => {
+									if (noteHold.fired) { noteHold.fired = false; return; }
+									openWithSelection("note");
+								},
+								onPointerDown: () => {
+									clearTimeout(noteHold.current);
+									noteHold.current = setTimeout(() => {
+										noteHold.fired = true;
+										// v195 (#5): Nota + mantener = mensajes guardados
+										haptic$1.tap();
+										onOpenGuardados?.();
+									}, 1000);
+								},
+								onPointerUp: () => clearTimeout(noteHold.current),
+								onPointerLeave: () => clearTimeout(noteHold.current),
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
 									children: "📝"
@@ -47340,8 +47536,25 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool",
-								title: "IA del fragmento (resumir, explicar, traducir…)",
-								onClick: () => openWithSelection("ai"),
+								title: "IA del fragmento · mantén pulsado para enviar toda la página",
+								onClick: () => {
+									if (aiHold.fired) { aiHold.fired = false; return; }
+									openWithSelection("ai");
+								},
+								onPointerDown: () => {
+									clearTimeout(aiHold.current);
+									aiHold.current = setTimeout(() => {
+										aiHold.fired = true;
+										// v195 (#5): IA + mantener = IA de toda la página (sin selección)
+										haptic$1.tap();
+										setFrozenSel("");
+										setSelection("");
+										setSelPos(null);
+										setSheet("ai");
+									}, 1000);
+								},
+								onPointerUp: () => clearTimeout(aiHold.current),
+								onPointerLeave: () => clearTimeout(aiHold.current),
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
 									children: "✨"
@@ -47349,7 +47562,22 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool",
-								onClick: () => setSheet("settings"),
+								title: "Lectura · mantén pulsado para herramientas",
+								onClick: () => {
+									if (lectHold.fired) { lectHold.fired = false; return; }
+									setSheet("settings");
+								},
+								onPointerDown: () => {
+									clearTimeout(lectHold.current);
+									lectHold.current = setTimeout(() => {
+										lectHold.fired = true;
+										// v195 (#5): Lectura + mantener = herramientas
+										haptic$1.tap();
+										setSheet("more");
+									}, 1000);
+								},
+								onPointerUp: () => clearTimeout(lectHold.current),
+								onPointerLeave: () => clearTimeout(lectHold.current),
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconPalette, {
@@ -48380,8 +48608,13 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "note-text",
 										children: n.note
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "row-sub",
+											}), n.audio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", {
+												className: "note-audio",
+												src: n.audio,
+												controls: true,
+												preload: "metadata"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "row-sub",
 										children: [
 											"Página ",
 											(n.page ?? 0) + 1,
@@ -48468,10 +48701,23 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									className: "chat-adj-x",
 									onClick: () => setNotaAdjunto(null),
 									children: "✕"
-								})]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								ref: notaImgRef,
+										})]
+									}), notaAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "chat-adj chat-adj-audio",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											children: "🎤 Audio grabado"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", {
+											src: notaAudio,
+											preload: "metadata"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "chat-adj-x",
+											style: { position: "static" },
+											onClick: () => setNotaAudio(null),
+											children: "✕"
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										ref: notaImgRef,
 								type: "file",
 								accept: "image/*",
 								hidden: true,
@@ -48532,14 +48778,21 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "tg-ico chat-attach",
 											onClick: () => notaImgRef.current?.click(),
-											"aria-label": "Adjuntar imagen",
-											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconClip, {
-												width: 22,
-												height: 22
+												"aria-label": "Adjuntar imagen",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconClip, {
+													width: 22,
+													height: 22
+												})
+											}),
+											// v195 (#3): el dictado sigue disponible dentro de la píldora
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "tg-ico chat-attach",
+												onClick: alternarDictadoNota,
+												"aria-label": notaDictando ? "Detener dictado" : "Dictar nota",
+												children: notaDictando ? "⏹" : "🎙"
 											})
-										})
-									]
-								}), noteDraft.trim() || notaAdjunto || !hayDictado ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											]
+											}), noteDraft.trim() || notaAdjunto || notaAudio || !hayDictado ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "chat-send",
 									"aria-label": "Guardar nota",
 									onClick: async () => {
@@ -48551,14 +48804,16 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										const rec = await addNote({
 											bookId: book.id,
 											page,
-											note: noteDraft.trim(),
+											note: noteDraft.trim() || (notaAudio ? "🎤 Mensaje de audio" : ""),
 											text: (frozenSel || selection || "").slice(0, 400),
 											image: notaAdjunto || void 0,
+											audio: notaAudio || void 0,
 											bookTitle: book.title,
 											idioma: idiomaLibro?.code || idiomaLibro?.bcp || langStr(book?.lang, "es")
 										});
 										setNoteDraft("");
-										setNotaAdjunto(null);
+											setNotaAudio(null);
+											setNotaAdjunto(null);
 										setNotaEmojis(false);
 										haptic$1.success();
 										await reloadMarks();
@@ -48581,10 +48836,10 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										height: 19
 									})
 								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "chat-send mic" + (notaDictando ? " on" : ""),
-									onClick: alternarDictadoNota,
-									"aria-label": notaDictando ? "Detener dictado" : "Dictar nota",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
+									className: "chat-send mic" + (recNota ? " rec" : "") + (notaDictando ? " on" : ""),
+									onClick: alternarRecNota,
+									"aria-label": recNota ? "Detener y adjuntar audio" : "Grabar audio",
+									children: recNota ? (recNotaSeg >= 60 ? ((recNotaSeg / 60) | 0) + ":" + String(recNotaSeg % 60).padStart(2, "0") : recNotaSeg + "s") : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
 										width: 19,
 										height: 19
 									})
@@ -49708,7 +49963,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							children: "Colores de la página"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "row-sub",
-							children: "Brillo, contraste y recorte de las imágenes"
+							children: "Brillo, contraste y área de impresión"
 						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "btn sm",
 							style: { whiteSpace: "nowrap" },
@@ -51519,6 +51774,14 @@ function App() {
 	const [libKey, setLibKey] = (0, import_react.useState)(0);
 	const [game, setGame] = (0, import_react.useState)(null);
 	const [rewards, setRewards] = (0, import_react.useState)([]);
+	// v195 (#7): logros obtenidos durante la lectura, para el menú
+	// «al cerrar el libro» (opción elegida en Ajustes → Logros)
+	const [logrosCierre, setLogrosCierre] = (0, import_react.useState)([]);
+	const lecturaLogrosRef = (0, import_react.useRef)([]);
+	const routeRef = (0, import_react.useRef)(null);
+	const logrosViewRef = (0, import_react.useRef("leyendo"));
+	(0, import_react.useEffect)(() => { routeRef.current = route; }, [route]);
+	(0, import_react.useEffect)(() => { logrosViewRef.current = settings ? (settings.logrosView || "leyendo") : "leyendo"; }, [settings]);
 	/* v118: los avisos de logros/nivel/meta se cierran solos (4,2 s cada uno) y
 	   nunca bloquean la lectura (pointer-events: none + sin congelar .rd-surface). */
 	(0, import_react.useEffect)(() => {
@@ -51948,6 +52211,11 @@ function App() {
 		});
 	}, []);
 	const goLibrary = (0, import_react.useCallback)((pushHistory = true) => {
+		// v195 (#7): al cerrar el libro, mostrar los logros de esa lectura
+		if (routeRef.current?.view === "reader" && routeRef.current?.bookId && lecturaLogrosRef.current.length) {
+			setLogrosCierre([...lecturaLogrosRef.current]);
+			lecturaLogrosRef.current = [];
+		}
 		try {
 			speaker.stop();
 		} catch {}
@@ -52008,16 +52276,23 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 			});
 			setTimeout(() => setCelebrate(null), 3400);
 		}
-		const fresh = await checkAchievements();
-		if (fresh.length) {
-			haptic$1.achievement();
-			setRewards((r) => [...r, ...fresh.map((a) => ({
-				type: "achievement",
-				a
-			}))]);
-			await refreshProgress();
-		}
-	}, [refreshProgress, showXp]);
+const fresh = await checkAchievements();
+	if (fresh.length) {
+	// v195 (#7): con «Al cerrar el libro» no interrumpo la lectura:
+	// se acumulan y se muestran al salir en un menú pequeño.
+	if (logrosViewRef.current === "cierre" && routeRef.current?.view === "reader") {
+		lecturaLogrosRef.current = [...lecturaLogrosRef.current, ...fresh];
+		await refreshProgress();
+		return;
+	}
+	haptic$1.achievement();
+	setRewards((r) => [...r, ...fresh.map((a) => ({
+		type: "achievement",
+		a
+	}))]);
+	await refreshProgress();
+	}
+}, [refreshProgress, showXp]);
 	if (!settings) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "center-msg",
 		style: { height: "100vh" },
@@ -52063,8 +52338,14 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						onExit: () => goLibrary(true),
 						toast,
 						onPageRead,
-						onFarewell: (m) => m && toast(m)
-					}, route.bookId) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Library, {
+						onFarewell: (m) => m && toast(m),
+							// v195 (#5): Nota + mantener = mensajes guardados (volver a la
+							// biblioteca y abrir el chat ahí)
+							onOpenGuardados: () => {
+								if (route.view === "reader") goLibrary(true);
+								setSheetReq({ id: "chat", nonce: Date.now() });
+							}
+						}, route.bookId) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Library, {
 						refreshKey: libKey,
 						progress,
 						game,
@@ -52413,12 +52694,35 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 				// al handler del contenedor: había que esperar al auto-cierre.
 				// Ahora cierra (o avanza al siguiente logro) al toque.
 				onClick: (e) => { e.stopPropagation(); setRewards((r) => r.slice(1)); },
-				children: "Continuar"
-			})] })
+					children: "Continuar"
+				})] })
+				}),
+				// v195 (#7): menú pequeño con los logros de la lectura que acaba de cerrar
+				logrosCierre.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "logros-cierre-velo",
+					onClick: () => setLogrosCierre([]),
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "logros-cierre",
+						onClick: (e) => e.stopPropagation(),
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+							children: ["🏆 Logros de esta lectura (", logrosCierre.length, ")"]
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+							className: "logros-cierre-sub",
+							children: "Se muestran al cerrar el libro, como elegiste en Ajustes → Logros."
+						}), logrosCierre.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "logros-cierre-item",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ic", children: a.icon }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: a.name }), a.desc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: a.desc })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { children: "✓" })]
+						}, a.id)), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn primary",
+							style: { width: "100%", marginTop: 12 },
+							onClick: () => setLogrosCierre([]),
+							children: "Seguir"
+						})]
+					})]
 				})
-			]
-		})]
-	});
+				]
+				})]
+				});
 }
 //#endregion
 //#region src/main.jsx
