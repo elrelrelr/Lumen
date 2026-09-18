@@ -1,6 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./nostr-zC6Qsl2z.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js","./index-DX181kQz.js","./react-1WJTggxS.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css","./streaming-CGdx3ecV.js"])))=>i.map(i=>d[i]);
 import { t as require_react } from "./react-1WJTggxS.js";
-import { O as setMeta, h as getMeta } from "./db-Ii3ipPL7.js";
+import { O as setMeta, h as getMeta, E as putPages, k as uid, w as putBook } from "./db-Ii3ipPL7.js";
 var __vitePreload = (fn, deps) => {
 	try {
 		if (deps) for (const d of deps) {
@@ -14,7 +14,7 @@ var __vitePreload = (fn, deps) => {
 	} catch {}
 	return fn();
 };
-import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
+import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, A as importarDesdeUrl, B as paginate } from "./index-DX181kQz.js";
 import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados } from "./nostr-zC6Qsl2z.js";
 import { n as disponibilidad, t as descargarLumenPorGateway } from "./streaming-CGdx3ecV.js";
 import { c as libroDePublicado, l as listarPublicados } from "./publicados-63Om61aj.js";
@@ -357,7 +357,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
 	const [reportes, setReportes] = (0, import_react.useState)([]);
-	const [busqueda, setBusqueda] = (0, import_react.useState)("");
 	const [categoria, setCategoria] = (0, import_react.useState)("");
 	const [ocultarAdultos, setOcultarAdultos] = (0, import_react.useState)(true);
 	const [filtrosAbiertos, setFiltrosAbiertos] = (0, import_react.useState)(false);
@@ -381,6 +380,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	// gobierna desde el pie (cg-pie) con botones compactos.
 	const [LGComp, setLGComp] = (0, import_react.useState)(null);
 	const [lgVentana, setLgVentana] = (0, import_react.useState)(null);
+	// v200: la barra de búsqueda vive en la cabecera (navbar) de la store:
+	// una sola consulta busca TODO (catálogo Nostr + libros gratis y las 5 bibliotecas).
+	const [lgQ, setLgQ] = (0, import_react.useState)("");
+	const [lgUrlAbierto, setLgUrlAbierto] = (0, import_react.useState)(false);
+	const [lgUrlWeb, setLgUrlWeb] = (0, import_react.useState)("");
+	const [lgUrlBusy, setLgUrlBusy] = (0, import_react.useState)(false);
+	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
 		__vitePreload(() => import("./LibrosGratis-K7x2Mq4P.js").then((m) => {
@@ -458,6 +464,65 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			__vitePreload(() => import("./nostr-zC6Qsl2z.js").then((m) => m.cierre()), __vite__mapDeps([0,1,2]), import.meta.url);
 		};
 	}, [cargar]);
+	// v200: la store es UNA sola superficie: mientras está abierta se
+	// bloquea el scroll de la página (la barra vertical es la de cg-cuerpo;
+	// cabecera y pie quedan fijos).
+	(0, import_react.useEffect)(() => {
+		const prev = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		return () => {
+			document.body.style.overflow = prev;
+		};
+	}, []);
+	// v200: extraer el texto de una URL desde la barra de la cabecera
+	// (misma lógica que el antiguo «Página web» de Importar).
+	const importarPaginaWeb = async () => {
+		const u = lgUrlWeb.trim();
+		if (!u || lgUrlBusy) return;
+		setLgUrlBusy(true);
+		setLgUrlPaso("Conectando…");
+		try {
+			const { titulo, texto } = await importarDesdeUrl(u, (pct, txt) => setLgUrlPaso(txt || pct + "%"));
+			const paginas = paginate(texto);
+			const id = uid();
+			const now = Date.now();
+			await putBook({
+				id,
+				title: titulo,
+				fileName: titulo + ".txt",
+				kind: "web",
+				sourceUrl: u,
+				size: texto.length,
+				pageCount: paginas.length,
+				lastPage: 0,
+				addedAt: now,
+				openedAt: now,
+				status: "ready",
+				hasOriginal: false,
+				ocrPages: [],
+				needsOcrPages: [],
+				percentRead: 0,
+				own: true
+			});
+			await putPages(paginas.map((t, i2) => ({
+				bookId: id,
+				index: i2,
+				text: t,
+				needsOcr: false,
+				ocrDone: false,
+				source: "web"
+			})));
+			setLgUrlWeb("");
+			setLgUrlAbierto(false);
+			toast?.("✓ «" + titulo.slice(0, 28) + "» importado desde la web");
+			onAbrirLibroLocal?.(id);
+		} catch (e) {
+			toast?.(e?.message || "No se pudo importar esa página");
+		} finally {
+			setLgUrlBusy(false);
+			setLgUrlPaso("");
+		}
+	};
 	const reportar = async (libro, motivo) => {
 		if (!identidad) {
 			toast("Primero activa tu identidad (botón 👤 arriba)");
@@ -503,10 +568,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			toast?.("Enlace copiado");
 		} catch {}
 	};
-	const delRelay = buscarLibros(filtrarLibros(libros, { categoria }), busqueda).filter((b) => !ocultarAdultos || b.rating !== "adulto");
-	const miosFiltrados = buscarLibros(misLibros, busqueda).filter((b) => !categoria || b.categoria === categoria);
+	const delRelay = buscarLibros(filtrarLibros(libros, { categoria }), lgQ).filter((b) => !ocultarAdultos || b.rating !== "adulto");
+	const miosFiltrados = buscarLibros(misLibros, lgQ).filter((b) => !categoria || b.categoria === categoria);
 	const idsRelay = new Set(delRelay.map((b) => b.d));
-	const feedsFiltrados = buscarLibros(librosFeed, busqueda).filter((b) => !categoria || b.categoria === categoria).filter((b) => !ocultarAdultos || b.rating !== "adulto");
+	const feedsFiltrados = buscarLibros(librosFeed, lgQ).filter((b) => !categoria || b.categoria === categoria).filter((b) => !ocultarAdultos || b.rating !== "adulto");
 	const visibles = [
 		...miosFiltrados.filter((b) => !idsRelay.has(b.d) && !feedsFiltrados.some((f) => f.d === b.d)),
 		...feedsFiltrados,
@@ -529,15 +594,18 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
 						className: "cg-head",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "cg-back",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-head-row",
+								children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "cg-back",
 								onClick: () => onSalir?.(),
 								"aria-label": "Volver",
 								children: "‹"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-title",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: ["📚 ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Lumen Store" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-ico", children: "📚" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-txt", children: "Lumen Store" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-acciones",
@@ -569,7 +637,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 											haptic.tap();
 											onPublicar?.({ modo: "nuevo" });
 										},
-										children: "＋ Publicar"
+										children: ["＋ ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-pub-txt", children: "Publicar" })]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "cg-identidad",
@@ -582,9 +650,70 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									})
 								]
 							})
+							]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-busq",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-busq-campo",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												className: "plain cg-busq-input",
+												placeholder: "Buscar en la store y en las 5 bibliotecas…",
+												value: lgQ,
+												onChange: (e) => setLgQ(e.target.value)
+											}),
+											lgQ && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "cg-busq-x",
+												onClick: () => setLgQ(""),
+												"aria-label": "Limpiar búsqueda",
+												children: "✕"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "cg-busq-btn",
+										disabled: !lgQ.trim(),
+										title: "Buscar en la web (Anna's Archive, Gutenberg, Archive y más)",
+										"aria-label": "Buscar en la web",
+										onClick: () => onBuscarWeb?.(lgQ.trim()),
+										children: "🌐"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "cg-busq-btn" + (lgUrlAbierto ? " on" : ""),
+										title: "Extraer el texto de una página web",
+										"aria-label": "Página web",
+										onClick: () => setLgUrlAbierto(!lgUrlAbierto),
+										children: "🔗"
+									})
+								]
+							})
+						]
+					}),
+					lgUrlAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-url-fila",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "plain lg-url-input",
+								placeholder: "https://ejemplo.com/articulo",
+								value: lgUrlWeb,
+								inputMode: "url",
+								onChange: (e) => setLgUrlWeb(e.target.value),
+								onKeyDown: (e) => { if (e.key === "Enter") importarPaginaWeb(); }
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn lg-url-btn",
+								disabled: lgUrlBusy || !lgUrlWeb.trim(),
+								onClick: importarPaginaWeb,
+								children: lgUrlBusy ? lgUrlPaso || "…" : "Extraer"
+							})
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "cg-cuerpo",
+						children: (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "cg-filtros-bar",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							className: "cg-filtros-btn" + (filtrosAbiertos || !ocultarAdultos ? " on" : ""),
@@ -639,10 +768,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							children: c
 						}, c))]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "cg-cuerpo",
-						children: (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-							destacado && !busqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					destacado && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "cg-destacado",
 								onClick: () => {
 									haptic.tap();
@@ -678,7 +804,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									})
 								]
 							}),
-							populares.length > 1 && !busqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							populares.length > 1 && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🔥 Populares" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-fila",
@@ -706,9 +832,9 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}, libro.id))
 								})]
 							}),
-							(busqueda || categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							(lgQ.trim() || categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: busqueda ? `Resultados de «${busqueda}»` : categoria }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: lgQ.trim() ? `Resultados de «${lgQ.trim()}»` : categoria }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-grid",
 									children: visibles.map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro,
@@ -724,6 +850,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						buscador; la ventana 100/100 se controla desde cg-pie). */
 						LGComp ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LGComp, {
 							modo: "seccion",
+							busqueda: lgQ,
 							toast,
 							onAbrirLibro: (id) => {
 								onAbrirLibroLocal?.(id);

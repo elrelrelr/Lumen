@@ -22852,7 +22852,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 						}
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "tg-pill" + (ampliado ? " grande" : "") + (dictando ? " rec" : ""),
+						className: "tg-pill" + (dictando || recAudio ? " rec" : ""),
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								className: "tg-ico chat-attach",
@@ -22885,21 +22885,6 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "tg-ico tg-expand",
-								onClick: () => {
-									setAmpliado((v) => !v);
-									haptic$1.tap();
-								},
-								"aria-label": ampliado ? "Reducir" : "Ampliar",
-								children: ampliado ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconCollapse, {
-									width: 17,
-									height: 17
-								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconExpand, {
-									width: 17,
-									height: 17
-								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								className: "tg-ico chat-attach",
 								onClick: () => imgRef.current?.click(),
 								"aria-label": "Adjuntar imagen",
@@ -22907,23 +22892,26 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 									width: 22,
 									height: 22
 								})
+							}),
+							/* v201: el único botón de audio vive en la píldora */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "tg-ico chat-attach" + (recAudio || dictando ? " mic-on" : ""),
+								onClick: alternarMic,
+								"aria-label": recAudio ? "Detener y enviar audio" : dictando ? "Detener dictado" : "Grabar audio",
+								children: recAudio || dictando ? "⏹" : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
+									width: 20,
+									height: 20
+								})
 							})
 						]
 					}),
-					draft.trim() || adjunto || (!hayDictado$2 && !recAudio) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					/* v201: avión de enviar SIEMPRE visible (apagado sin contenido) */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "chat-send",
 						onClick: send,
 						"aria-label": "Enviar",
 						disabled: !draft.trim() && !adjunto,
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconSend, {
-							width: 19,
-							height: 19
-						})
-					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "chat-send mic" + (dictando ? " on" : "") + (recAudio ? " rec" : ""),
-						onClick: alternarMic,
-						"aria-label": recAudio ? "Detener y enviar audio" : dictando ? "Detener dictado" : "Grabar audio",
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
 							width: 19,
 							height: 19
 						})
@@ -36328,7 +36316,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v199"
+							children: "v201"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38231,7 +38219,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v199 · escritorio y móvil"
+					children: "Lumen Reader · v201 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -48650,7 +48638,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "nota-fila",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "tg-pill" + (notaAmpliada ? " grande" : "") + (notaDictando ? " rec" : ""),
+									className: "tg-pill" + (recNota || notaDictando ? " rec" : ""),
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "tg-ico chat-attach",
@@ -48663,7 +48651,10 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "tg-campo",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+											children: [recNota && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "rec-estado",
+												children: ["⏺ Grabando ", recNotaSeg, " s · toca el micrófono para enviar"]
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 												className: "note-input",
 												ref: notaAreaRef,
 												value: noteDraft,
@@ -48675,21 +48666,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 											})]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "tg-ico tg-expand",
-											onClick: () => {
-												setNotaAmpliada((v) => !v);
-												haptic$1.tap();
-											},
-											"aria-label": notaAmpliada ? "Reducir" : "Ampliar",
-											children: notaAmpliada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconCollapse, {
-												width: 17,
-												height: 17
-											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconExpand, {
-												width: 17,
-												height: 17
-											})
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "tg-ico chat-attach",
 											onClick: () => notaImgRef.current?.click(),
 												"aria-label": "Adjuntar imagen",
@@ -48698,17 +48674,24 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 													height: 22
 												})
 											}),
-											// v195 (#3): el dictado sigue disponible dentro de la píldora
+											// v201: un solo botón de audio en la píldora (grabar); sin
+											// MediaRecorder, alternarRecNota cae al dictado por voz.
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "tg-ico chat-attach",
-												onClick: alternarDictadoNota,
-												"aria-label": notaDictando ? "Detener dictado" : "Dictar nota",
-												children: notaDictando ? "⏹" : "🎙"
+												className: "tg-ico chat-attach" + (recNota || notaDictando ? " mic-on" : ""),
+												onClick: alternarRecNota,
+												"aria-label": recNota ? "Detener y adjuntar audio" : "Grabar audio",
+												children: recNota || notaDictando ? "⏹" : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
+													width: 20,
+													height: 20
+												})
 											})
 											]
-											}), noteDraft.trim() || notaAdjunto || notaAudio || !hayDictado ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											}),
+											/* v201: avión para guardar SIEMPRE visible (apagado sin contenido) */
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "chat-send",
 									"aria-label": "Guardar nota",
+										disabled: !noteDraft.trim() && !notaAdjunto && !notaAudio,
 									onClick: async () => {
 										if (notaDictando) {
 											notaDictRef.current?.stop();
@@ -48749,15 +48732,8 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										width: 19,
 										height: 19
 									})
-								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "chat-send mic" + (recNota ? " rec" : "") + (notaDictando ? " on" : ""),
-									onClick: alternarRecNota,
-									"aria-label": recNota ? "Detener y adjuntar audio" : "Grabar audio",
-									children: recNota ? (recNotaSeg >= 60 ? ((recNotaSeg / 60) | 0) + ":" + String(recNotaSeg % 60).padStart(2, "0") : recNotaSeg + "s") : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
-										width: 19,
-										height: 19
-									})
-								})]
+								})
+								]
 							})
 						]
 					})
@@ -51390,7 +51366,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v173" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v201" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

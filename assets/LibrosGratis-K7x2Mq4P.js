@@ -380,7 +380,7 @@ async function fetchConProgreso(url, onPct, timeoutMs = 4e4) {
 	onPct?.(100);
 	return new Blob(partes);
 }
-function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarWeb }) {
+function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarWeb, busqueda }) {
 	const enSeccion = modo === "seccion";
 	const [catalogo, setCatalogo] = (0, import_react.useState)(null);
 	const [fuentes, setFuentes] = (0, import_react.useState)(null);
@@ -420,6 +420,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 	const misRef = (0, import_react.useRef)([]);
 	const vivoRef = (0, import_react.useRef)(true);
 	const colaRef = (0, import_react.useRef)(Promise.resolve());
+	// v200: en modo sección la barra de búsqueda vive en la cabecera de la
+	// store: la consulta baja por prop y reutiliza el mismo debounce remoto.
+	(0, import_react.useEffect)(() => {
+		if (busqueda !== undefined) setQ(busqueda);
+	}, [busqueda]);
 	usarPantallaAtras(() => onSalir?.(), () => false, !enSeccion);
 	// Las mutaciones al catálogo pasan por una cola (sin carreras entre las
 	// cargas en segundo plano de las 3 bibliotecas).
@@ -1102,7 +1107,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 		return out;
 	};
 
-	const cuerpo = [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+	const cuerpo = [...(enSeccion ? [] : [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "lg-busq-fila",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						className: "plain lg-busqueda",
@@ -1141,7 +1146,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 						onClick: importarPagina,
 						children: urlWebBusy ? urlPaso || "…" : "Extraer"
 					})]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				}),]), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "chips lg-temas",
 					children: TEMAS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "chip" + (tema === t.id ? " on" : ""),
