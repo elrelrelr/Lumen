@@ -353,7 +353,7 @@ function textoLimpio(s) {
 	if (s == null) return "";
 	return String(s).replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>|<\/div>|<\/li>|<li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
 }
-function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPublicaciones, toast }) {
+function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, toast }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
 	const [reportes, setReportes] = (0, import_react.useState)([]);
@@ -376,6 +376,18 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPub
 	const [librosFeed, setLibrosFeed] = (0, import_react.useState)([]);
 	const [gestorFeeds, setGestorFeeds] = (0, import_react.useState)(false);
 	const [feedUrl, setFeedUrl] = (0, import_react.useState)("");
+	// v198: el catálogo de LIBROS GRATIS vive embebido aquí (sección):
+	// su buscador reemplaza al de la store y su ventana de 100/100 se
+	// gobierna desde el pie (cg-pie) con botones compactos.
+	const [LGComp, setLGComp] = (0, import_react.useState)(null);
+	const [lgVentana, setLgVentana] = (0, import_react.useState)(null);
+	(0, import_react.useEffect)(() => {
+		let vivo = true;
+		__vitePreload(() => import("./LibrosGratis-K7x2Mq4P.js").then((m) => {
+			if (vivo) setLGComp(() => m.L); // el componente va como updater para que React no lo invoque
+		}).catch(() => {}), void 0);
+		return () => { vivo = false; };
+	}, []);
 	const detalleRef = (0, import_react.useRef)(null);
 	detalleRef.current = detalle;
 	usarPantallaAtras(() => onSalir?.(), () => {
@@ -572,26 +584,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPub
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-buscar cg-buscar-lg",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "cg-buscar-ic",
-								children: "🔎"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								value: busqueda,
-								onChange: (e) => setBusqueda(e.target.value),
-								placeholder: "Buscar libros por título, autor o tema…",
-								autoComplete: "off"
-							}),
-							busqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "cg-buscar-x",
-								onClick: () => setBusqueda(""),
-								children: "✕"
-							})
-						]
-					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "cg-filtros-bar",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -649,7 +641,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPub
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "cg-cuerpo",
-						children: estado === "cargando" && libros.length === 0 && misLibros.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						children: [estado === "cargando" && libros.length === 0 && misLibros.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "center-msg",
 							style: { padding: 60 },
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
@@ -760,11 +752,42 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirAds, onAbrirMisPub
 									}, libro.id))
 								})]
 							})
-						] })
+						] }),
+						/* v198: sección embebida de LIBROS GRATIS (todo el catálogo con su
+						buscador; la ventana 100/100 se controla desde cg-pie). */
+						LGComp ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LGComp, {
+							modo: "seccion",
+							toast,
+							onAbrirLibro: (id) => {
+								onAbrirLibroLocal?.(id);
+							},
+							onVentana: setLgVentana
+						}) : null
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-pie",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						children: [lgVentana && lgVentana.listo ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-pag",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "cg-pag-btn",
+								disabled: lgVentana.desde === 0,
+								onClick: () => lgVentana.api.current.irAnteriores(),
+								title: "Anteriores 100",
+								"aria-label": "Anteriores 100",
+								children: "⏪"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "cg-pag-info",
+								children: [lgVentana.desde + 1, "–", lgVentana.fin, " · ≈ ", lgVentana.total || "?"]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "cg-pag-btn",
+								disabled: lgVentana.navegando || (!lgVentana.hayMas && lgVentana.fin >= lgVentana.nCat),
+								onClick: () => lgVentana.api.current.irSiguientes(),
+								title: "Siguientes 100",
+								"aria-label": "Siguientes 100",
+								children: lgVentana.navegando ? "…" : "⏩"
+							})]
+						}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							className: "cg-pie-relays",
 							onClick: () => setPanelRelays(true),
 							title: "Estado de los relays",

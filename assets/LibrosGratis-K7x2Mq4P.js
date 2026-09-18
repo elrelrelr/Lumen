@@ -328,7 +328,8 @@ async function fetchConProgreso(url, onPct, timeoutMs = 4e4) {
 	onPct?.(100);
 	return new Blob(partes);
 }
-function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
+function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana }) {
+	const enSeccion = modo === "seccion";
 	const [catalogo, setCatalogo] = (0, import_react.useState)(null);
 	const [fuentes, setFuentes] = (0, import_react.useState)(null);
 	const [cargando, setCargando] = (0, import_react.useState)(true);
@@ -359,7 +360,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 	const misRef = (0, import_react.useRef)([]);
 	const vivoRef = (0, import_react.useRef)(true);
 	const colaRef = (0, import_react.useRef)(Promise.resolve());
-	usarPantallaAtras(() => onSalir?.(), () => false);
+	usarPantallaAtras(() => onSalir?.(), () => false, !enSeccion);
 	// Las mutaciones al catálogo pasan por una cola (sin carreras entre las
 	// cargas en segundo plano de las 3 bibliotecas).
 	const conCierre = (fn) => {
@@ -708,6 +709,15 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 		return (libro.title || "").toLowerCase().includes(texto) || libro.authors.join(" ").toLowerCase().includes(texto);
 	});
 	const nBibliotecas = fuentes ? FUENTES.filter((id) => fuentes[id]?.ok).length : 0;
+	// v198: embebido en Lumen Store: reporta su ventana de 100/100 al padre
+	// para que el pie de la store (cg-pie) pinte la paginación compacta.
+	const lgApiRef = (0, import_react.useRef)(null);
+	lgApiRef.current = { irSiguientes, irAnteriores, refrescar };
+	const onVentanaRef = (0, import_react.useRef)(onVentana);
+	onVentanaRef.current = onVentana;
+	(0, import_react.useEffect)(() => {
+		onVentanaRef.current?.({ listo: !cargando && !!catalogo, desde: desde || 0, fin: finVentana, nCat: (catalogo || []).length, total: totalAprox, hayMas, navegando, api: lgApiRef });
+		}, [cargando, catalogo, desde, finVentana, totalAprox, hayMas, navegando]);
 	// v180: guardados (carpetas/categorías por tema)
 	const cargarGuardados = async () => {
 		try {
@@ -942,29 +952,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 		return out;
 	};
 
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "pb-scrim",
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "pb lg",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
-				className: "pb-head",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "cg-back",
-					onClick: () => onSalir?.(),
-					"aria-label": "Volver",
-					children: "‹"
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "cg-title",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "📚 Libros gratis" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: `Gutenberg · Open Library · Archive.org${fuentes ? ` (${nBibliotecas}/3 cargadas)` : ""} · sin cuentas · sin IA` })]
-				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "cg-publicar",
-					onClick: refrescar,
-					disabled: cargando,
-					children: "↻ Actualizar"
-				})]
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "mp-cuerpo",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+	const cuerpo = [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 					className: "plain lg-busqueda",
 					placeholder: "Buscar aquí y en las 3 bibliotecas…",
 					value: q,
@@ -1047,7 +1035,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "lg-filas",
 						children: filas(filtrados.slice(0, 60)) // v180: máximo 6 filas (60), la barra de 100 va después
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					}), !enSeccion && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "lg-pag",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "btn",
@@ -1119,7 +1107,37 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro }) {
 							})
 						})]
 					})]
+				})];
+	// v198: modo sección — embebido en Lumen Store: mismo contenido
+	// pero sin el marco de página ni la barra 100/100 propia (ese pie
+	// vive en la store y lo gobierna a través de onVentana).
+	if (enSeccion) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+		className: "lg-seccion",
+		children: cuerpo
+	});
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "pb-scrim",
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "pb lg",
+			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
+				className: "pb-head",
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "cg-back",
+					onClick: () => onSalir?.(),
+					"aria-label": "Volver",
+					children: "‹"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "cg-title",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "📚 Libros gratis" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: `Gutenberg · Open Library · Archive.org${fuentes ? ` (${nBibliotecas}/3 cargadas)` : ""} · sin cuentas · sin IA` })]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					className: "cg-publicar",
+					onClick: refrescar,
+					disabled: cargando,
+					children: "↻ Actualizar"
 				})]
+			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "mp-cuerpo",
+				children: cuerpo
 			})]
 		})]
 	});

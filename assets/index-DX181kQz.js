@@ -36336,7 +36336,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v197"
+							children: "v198"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38239,7 +38239,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v197 · escritorio y móvil"
+					children: "Lumen Reader · v198 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -52348,6 +52348,11 @@ const fresh = await checkAchievements();
 					},
 					onAbrirLibro: (libro) => {
 						setLectorGlobal(libro);
+					},
+					onAbrirLibroLocal: (id) => {
+						setCatalogoAbierto(false);
+						setQrPendiente(null);
+						openBook(id);
 					},
 					onAbrirMisPublicaciones: () => setMisPubsAbierto(true),
 					onAbrirAds: () => setAdsAbierto(true)

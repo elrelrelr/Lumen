@@ -9784,21 +9784,30 @@ html[data-fuente-app='antigua'] textarea {
   from { transform: translateY(24px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+/* v198: cabecera de Lumen Store más alta, con flex-wrap y en columna;
+   todo centrado (título y acciones) SALVO el botón de volver, que
+   se queda en su esquina. */
 .cg-head {
-  display: flex; align-items: center; gap: 10px;
-  padding: 14px 14px 10px;
+  position: relative;
+  display: flex; flex-wrap: wrap; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px;
+  min-height: 132px;
+  padding: 56px 16px 18px;
   border-bottom: 1px solid var(--line);
   background: var(--bg-soft);
+  text-align: center;
 }
 .cg-back {
+  position: absolute; top: 14px; left: 14px;
   background: var(--bg-elev); border: 1px solid var(--line);
   color: var(--fg); width: 36px; height: 36px; border-radius: 12px;
   font-size: 20px; line-height: 1; flex: none;
 }
-.cg-title { flex: 1; min-width: 0; }
-.cg-title h2 { margin: 0; font-size: 16px; }
-.cg-title small { color: var(--fg-mute); font-size: 11.5px; }
-.cg-acciones { display: flex; gap: 6px; align-items: center; }
+.cg-title { flex: none; width: 100%; min-width: 0; text-align: center; }
+.cg-title h2 { margin: 0; font-size: 18px; }
+.cg-title small { color: var(--fg-mute); font-size: 12px; }
+.cg-acciones { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: center; }
 .cg-identidad {
   background: var(--bg-elev); border: 1px solid var(--line);
   color: var(--fg); width: 36px; height: 36px; border-radius: 12px; font-size: 16px;
@@ -9881,11 +9890,20 @@ html[data-fuente-app='antigua'] textarea {
 }
 .cg-badge.cg-rev { color: var(--danger); border-color: rgba(248, 113, 113, 0.4); }
 .cg-pie {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
   gap: 8px; padding: 8px 12px;
   border-top: 1px solid var(--line);
   color: var(--fg-mute); font-size: 10.5px;
 }
+/* v198: paginación compacta 100/100 de libros gratis (con iconos) en el pie */
+.cg-pag { display: flex; align-items: center; gap: 6px; }
+.cg-pag-btn {
+  background: var(--bg-elev); border: 1px solid var(--line); color: var(--fg);
+  border-radius: 10px; padding: 6px 8px; font-size: 12px; line-height: 1;
+  min-width: 34px;
+}
+.cg-pag-btn:disabled { opacity: .4; }
+.cg-pag-info { font-size: 10px; color: var(--fg-mute); white-space: nowrap; }
 .cg-pie button {
   background: var(--bg-elev); border: 1px solid var(--line); color: var(--fg);
   border-radius: 10px; padding: 6px 10px; font-size: 11.5px;
@@ -11683,6 +11701,9 @@ mark.find-flash {
   margin: 2px 4px 10px;
   font-size: 15px;
 }
+/* v198: libros gratis embebidos en Lumen Store (sección sin marco) */
+.lg-seccion { display: flex; flex-direction: column; gap: 10px; margin: 12px 2px 6px; }
+.lg-seccion > .lg-busqueda { margin: 0 0 2px; }
 .lg-temas {
   margin: 0 4px 12px;
 }
