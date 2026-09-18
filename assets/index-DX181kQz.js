@@ -21707,7 +21707,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	const [selecTexto, setSelecTexto] = (0, import_react.useState)(null);
 	const [leyendoId, setLeyendoId] = (0, import_react.useState)(null);
 	const [citaTexto, setCitaTexto] = (0, import_react.useState)(null);
-	const endRef = (0, import_react.useRef)(null);
+	const bodyRef = (0, import_react.useRef)(null);
 	const imgRef = (0, import_react.useRef)(null);
 	const [adjunto, setAdjunto] = (0, import_react.useState)(null);
 	const [emojisAbierto, setEmojisAbierto] = (0, import_react.useState)(false);
@@ -21776,11 +21776,13 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 		return out;
 	}, [chatItems]);
 	(0, import_react.useEffect)(() => {
-		if (open && tab === "chat" && chatItems.length) requestAnimationFrame(() => endRef.current?.scrollIntoView({ block: "start" }));
+		// v203: la lista va de nueva a vieja (arriba = más reciente): abrir la
+		// pestaña chat deja la vista en el TOPE; ya no se arrastra al fondo
+		// cuando cambia el conteo (antes ocultaba los mensajes nuevos).
+		if (open && tab === "chat" && chatItems.length) requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
 	}, [
 		open,
-		tab,
-		chatItems.length
+		tab
 	]);
 	const filtered = (0, import_react.useMemo)(() => {
 		const term = q.trim().toLowerCase();
@@ -21943,6 +21945,8 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 						await reload();
 						saveFullBackup({ immediate: true }).catch(() => {});
 						toast?.("🎤 Audio enviado");
+						// v203: el audio nuevo queda ARRIBA: llevar la vista al tope.
+						requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
 					} catch (e2) {
 						console.warn("[audio-guardados]", e2);
 						toast?.("No se pudo guardar el audio");
@@ -22041,6 +22045,9 @@ const send = async () => {
 			await reload();
 			saveFullBackup({ immediate: true }).catch(() => {});
 			toast?.("✓ Mensaje enviado");
+			// v203: el mensaje nuevo queda ARRIBA (lista de nueva a vieja):
+			// llevar la vista al tope para que se vea en seguida.
+			requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
 		} catch (e) {
 			console.warn("[enviar-guardados]", e);
 			toast?.("No se pudo enviar el mensaje, intenta de nuevo");
@@ -22361,6 +22368,7 @@ const send = async () => {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "gd-body",
+				ref: bodyRef,
 				children: tab === "chat" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 					chatGroups.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "empty",
@@ -22613,7 +22621,6 @@ const send = async () => {
 							]
 						})]
 					}, g.key)),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref: endRef })
 				] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: filtered.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "empty",
 					style: { padding: "40px 10px" },
@@ -36347,7 +36354,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v202"
+							children: "v203"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38250,7 +38257,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v202 · escritorio y móvil"
+					children: "Lumen Reader · v203 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -48707,7 +48714,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 												ref: notaAreaRef,
 												value: noteDraft,
 												onChange: (e) => setNoteDraft(e.target.value),
-												placeholder: notaDictando ? "Escuchando…" : "Escribe tu nota…"
+												placeholder: notaDictando ? "Escuchando…" : "Escribe"
 											}), notaParcial && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 												className: "tg-parcial",
 												children: notaParcial
@@ -51419,7 +51426,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v202" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v203" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
