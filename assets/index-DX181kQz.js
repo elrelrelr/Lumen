@@ -35369,6 +35369,9 @@ const toquesDev = (0, import_react.useRef)(0);
 	const [urlCargando, setUrlCargando] = (0, import_react.useState)(false);
 	const [urlPaso, setUrlPaso] = (0, import_react.useState)("");
 	const [grupoNuevo, setGrupoNuevo] = (0, import_react.useState)("");
+	// v197: emoji y color se eligen ANTES de crear el grupo (botón inactivo sin los 3)
+	const [grupoIcono, setGrupoIcono] = (0, import_react.useState)(null);
+	const [grupoColor, setGrupoColor] = (0, import_react.useState)(null);
 	const [asignarLibro, setAsignarLibro] = (0, import_react.useState)(null);
 	const [coverAll, setCoverAll] = (0, import_react.useState)(null);
 	const [askUnlock, setAskUnlock] = (0, import_react.useState)(null);
@@ -36253,7 +36256,9 @@ const toquesDev = (0, import_react.useRef)(0);
 		const q = query.trim().toLowerCase();
 		let list = books.filter((b) => !b.secret || vaultOpen);
 		if (q) list = list.filter((b) => coincide(b.title, q) > 0 || coincide(b.fileName, q) > 0);
-		if (fmtOff.length) list = list.filter((b) => !fmtOff.includes(b.kind || "txt"));
+		// v197: en la vista de un grupo se ven TODOS sus libros (salvo ocultos);
+		// los filtros de formato no aplican porque el grupo manda.
+		if (fmtOff.length && !cat.startsWith("grupo:")) list = list.filter((b) => !fmtOff.includes(b.kind || "txt"));
 		if (cat.startsWith("grupo:")) {
 			const g = grupos.find((x) => x.id === cat.slice(6));
 			list = g ? list.filter((b) => (g.libros || []).includes(b.id)) : list;
@@ -36331,7 +36336,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v195"
+							children: "v197"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38234,7 +38239,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v195 · escritorio y móvil"
+					children: "Lumen Reader · v197 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -38835,13 +38840,39 @@ const toquesDev = (0, import_react.useRef)(0);
 						},
 						children: "Agrupa tus libros como quieras: Psicología, Tareas, Novela… Un libro puede estar en varios grupos a la vez."
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				/* v197: crear grupo pidiendo NOMBRE + EMOJI + COLOR antes de crear;
+				   el botón no crea nada hasta tener los tres. */
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "grupo-crear",
+					children: [				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row-sub",
+						style: { margin: "0 2px 4px", fontWeight: 650 },
+						children: "Nuevo grupo: elige el emoji y el color, y ponle nombre"
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "grupo-colores",
+						children: ICONOS_GRUPO.map((ic) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "grupo-ic" + (grupoIcono === ic ? " on" : ""),
+							onClick: () => setGrupoIcono(ic),
+							"aria-label": "Emoji " + ic,
+							children: ic
+						}, ic))
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "grupo-colores",
+						children: COLORES_GRUPO.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "grupo-col" + (grupoColor === c ? " on" : ""),
+							style: { background: c },
+							onClick: () => setGrupoColor(c),
+							"aria-label": "Color " + c,
+						}, c))
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
 							gap: 8,
-							marginBottom: 12
+							marginTop: 4
 						},
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+						children: [				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 							className: "plain",
 							style: {
 								flex: 1,
@@ -38852,27 +38883,36 @@ const toquesDev = (0, import_react.useRef)(0);
 							onChange: (e) => setGrupoNuevo(e.target.value),
 							onKeyDown: async (e) => {
 								if (e.key !== "Enter") return;
-								const r = await crearGrupo(grupoNuevo);
+								if (!grupoNuevo.trim() || !grupoIcono || !grupoColor) { toast?.("Elige el nombre, el emoji y el color"); return; }
+								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono });
 								if (r.ok) {
 									setGrupoNuevo("");
-									await recargarGrupos();
-									haptic$1.success();
-								} else toast?.(r.error === "repetido" ? "Ya existe ese grupo" : "Escribe un nombre");
-							}
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn primary",
-							onClick: async () => {
-								const r = await crearGrupo(grupoNuevo);
-								if (r.ok) {
-									setGrupoNuevo("");
+									setGrupoIcono(null);
+									setGrupoColor(null);
 									await recargarGrupos();
 									haptic$1.success();
 									toast?.("Categoría creada");
-								} else toast?.(r.error === "repetido" ? "Ya existe ese grupo" : "Escribe un nombre");
+								} else if (r.error === "repetido") toast?.("Ya existe ese grupo");
+							}
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn primary",
+							disabled: !(grupoNuevo.trim() && grupoIcono && grupoColor),
+							onClick: async () => {
+								if (!grupoNuevo.trim() || !grupoIcono || !grupoColor) { toast?.("Elige el nombre, el emoji y el color"); return; }
+								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono });
+								if (r.ok) {
+									setGrupoNuevo("");
+									setGrupoIcono(null);
+									setGrupoColor(null);
+									await recargarGrupos();
+									haptic$1.success();
+									toast?.("Categoría creada");
+								} else if (r.error === "repetido") toast?.("Ya existe ese grupo");
 							},
 							children: "Crear"
 						})]
-					}),
+					})]
+				}),
 					grupos.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "empty",
 						style: { padding: "24px 8px" },
@@ -39720,7 +39760,7 @@ const toquesDev = (0, import_react.useRef)(0);
 									children: "🗂"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "lm-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Categorías" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Meterlo en Psicología, Tareas, Novela…" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Categorías" }), /* v197: muestra las categorías a las que pertenece */ /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: (() => { const enGrupos = grupos.filter((g) => (g.libros || []).includes(longPress?.id)); return enGrupos.length ? "Está en: " + enGrupos.map((g) => g.icono + " " + g.nombre).join(" · ") : "Meterlo en Psicología, Tareas, Novela…"; })() })]
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -41312,7 +41352,7 @@ function AsistenteAcademico({ open, onClose, pages, onGoToPage, onExport, toast 
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 		open,
 		onClose,
-		full: true,
+		/* v197: sin full:true -> en PC queda como tarjeta compacta centrada */
 		title: "🎓 Asistente académico",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -43185,6 +43225,48 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [findCat, setFindCat] = (0, import_react.useState)("buscar");
 	const [pagTrad, setPagTrad] = (0, import_react.useState)(null);
 	const [tradModo, setTradModo] = (0, import_react.useState)("ambos");
+	// v197: mini-barra de traducción: compacta, con iconos y ARRASTRABLE (posición
+	// recordada en localStorage). «Solo original» ya NO cierra la traducción: solo
+	// el botón ✕ la quita (con confirmación).
+	const [tradPos, setTradPos] = (0, import_react.useState)(() => {
+		try {
+			const v = JSON.parse(localStorage.getItem("lumen_trad_pos") || "null");
+			return v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null;
+		} catch {
+			return null;
+		}
+	});
+	const tradDrag = (0, import_react.useRef)(null);
+	const arrastrarTrad = (0, import_react.useCallback)((e) => {
+		if (e.target.closest("button")) return;
+		const el = e.currentTarget;
+		const r = el.getBoundingClientRect();
+		tradDrag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height, pos: null };
+		try {
+			el.setPointerCapture(e.pointerId);
+		} catch {}
+	}, []);
+	const moverTrad = (0, import_react.useCallback)((e) => {
+		const d = tradDrag.current;
+		if (!d) return;
+		const el = e.currentTarget;
+		let x = e.clientX - d.dx,
+			y = e.clientY - d.dy;
+		x = Math.max(4, Math.min(x, window.innerWidth - d.w - 4));
+		y = Math.max(4, Math.min(y, window.innerHeight - d.h - 4));
+		el.style.left = x + "px";
+		el.style.top = y + "px";
+		d.pos = { x, y };
+	}, []);
+	const soltarTrad = (0, import_react.useCallback)(() => {
+		const d = tradDrag.current;
+		tradDrag.current = null;
+		if (!d || !d.pos) return;
+		try {
+			localStorage.setItem("lumen_trad_pos", JSON.stringify(d.pos));
+		} catch {}
+		setTradPos(d.pos);
+	}, []);
 	const [tradLote, setTradLote] = (0, import_react.useState)(null);
 	const cancelarTrad = (0, import_react.useRef)(false);
 	const enTraduccion = !!pagTrad && tradModo !== "orig";
@@ -46739,59 +46821,33 @@ const docPedir = (desde, hasta, centroArg) => {
 							}),
 							(() => {
 								const partes = adSlot === "bottom" && pageAd && !emptyPage && !ttsRange ? partirParaAnuncio(text) : null;
-								if (pagTrad && tradModo !== "orig") {
+								if (pagTrad) {
 									const parrafosO = (text || "").split(/\n\s*\n/);
 									const parrafosT = (pagTrad.texto || "").split(/\n\s*\n/);
 									const filas = Math.max(parrafosO.length, parrafosT.length);
 									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "trad-barra",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												style: {
-													display: "flex",
-													flexDirection: "column",
-													gap: 2
-												},
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-													className: "trad-eti",
-													children: [
-														"🌐 Traducción en vivo (",
-														IDIOMAS_TRADUCCION.find((i) => i.id === pagTrad.idioma)?.nombre || pagTrad.idioma,
-														")"
-													]
-												}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													style: {
-														fontSize: 11,
-														color: "var(--fg-dim)"
-													},
-													children: "Elige cómo ver la lectura:"
-												})]
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "trad-modos",
-												children: [[
-													[
-														"ambos",
-														"⚖️ Paralelo (Ambos)",
-														"Ver original y traducción enfrentados para comparar"
-													],
-													[
-														"trad",
-														"🌐 Solo Traducción",
-														"Leer únicamente el texto traducido"
-													],
-													[
-														"orig",
-														"📖 Solo Original",
-														"Leer únicamente el texto en su idioma original"
-													]
-												].map(([id, et, tip]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "trad-modo" + (tradModo === id ? " on" : ""),
+											/* v197: mini-barra de traducción: SOLO iconos, compacta y arrastrable.
+											   ⚖️ Paralelo · 🌐 Solo traducción · 📖 Solo original (no cierra nada) · ✕ Quitar. */
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "trad-minibar",
+												style: tradPos ? { left: tradPos.x + "px", top: tradPos.y + "px" } : void 0,
+												onPointerDown: arrastrarTrad,
+												onPointerMove: moverTrad,
+												onPointerUp: soltarTrad,
+												onPointerCancel: () => { tradDrag.current = null; },
+												children: [											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "trad-minibar-grip",
+													title: "Arrastrar",
+													children: "⠿"
+												}), [["ambos", "⚖️", "Paralelo: original y traducción"], ["trad", "🌐", "Solo la traducción"], ["orig", "📖", "Solo el original"]].map(([id, et, tip]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "trad-minibar-btn" + (tradModo === id ? " on" : ""),
 													title: tip,
 													onClick: () => setTradModo(id),
 													children: et
 												}, id)), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "trad-modo quitar",
-													title: "Quitar traducción y volver al original",
+													className: "trad-minibar-btn quitar",
+													title: "Quitar la traducción de esta página",
+													"aria-label": "Quitar traducción",
 													onClick: async () => {
 														if (!window.confirm("¿Quitar la traducción de esta página?")) return;
 														const t2 = { ...(await getBook(bookId))?.traducciones || {} };
@@ -46801,15 +46857,23 @@ const docPedir = (desde, hasta, centroArg) => {
 														setTradModo("ambos");
 														toast?.("Traducción quitada");
 													},
-													children: "✕ Quitar"
+													children: "✕"
 												})]
-											})]
-										}),
+											}),
 										tradModo === "trad" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "rd-text",
 											"data-fuente": settings.fontFamily,
 											style: fontStyle,
 											children: renderTextBody(pagTrad.texto || "")
+										}) : tradModo === "orig" ? /* v197: «Solo original» solo cambia la vista;
+										/* la traducción sigue ahí (se quita con ✕) */ (0, import_jsx_runtime.jsx)("div", {
+											className: "rd-text",
+											"data-fuente": settings.fontFamily,
+											style: fontStyle,
+											children: emptyPage ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("em", {
+												style: { opacity: .45 },
+												children: "Página sin texto extraíble."
+											}) : renderTextBody(text)
 										}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "trad-par",
 											style: fontStyle,
@@ -49864,50 +49928,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				onClose: closeSheet,
 				title: "Lectura",
 				children: [
-					/* v177 (#8): el texto seleccionable de Original es OPCIONAL (default OFF = más rápido). */
-					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "section-title",
-								style: { margin: "2px 4px 8px" },
-								children: "Velocidad"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Texto en Original" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Apagado: Original no monta el texto y carga mucho más rápido en PDFs largos. Encendido: puedes seleccionar y copiar texto." })
-									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, { on: !!settings.origTexto, onChange: (v) => setSettings({ origTexto: v }) })
-								]
-							})
-						]
-					}),
-					// v177 (#3): "Desplazamiento" vive en Lectura (antes estaba en Herramientas).
-					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "section-title",
-								style: { margin: "2px 4px 8px" },
-								children: "Desplazamiento"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Cómo te mueves" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Scroll, lateral, libro o fijo" })
-									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										className: "btn sm",
-										onClick: () => { haptic$1.tap(); setSheet("desp"); },
-										children: DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "Scroll"
-									})
-								]
-							})
-						]
-					}),
 					// v174 (P3): auto-scroll movido del cluster flotante a este panel (arriba).
 					//   Solo Texto y Original: en Imágenes el efecto no hace nada, así que se oculta.
 					mode !== "imagenes" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
@@ -49949,6 +49969,151 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							})
 						]
 					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "section-title",
+						style: { margin: "16px 4px 8px" },
+						children: "Texto"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Tamaño de letra"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "row-sub",
+							children: [settings.fontSize, "px"]
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "plain",
+							type: "range",
+							min: 14,
+							max: 40,
+							value: settings.fontSize,
+							max: 48,
+							onChange: (e) => setSettings({ fontSize: Number(e.target.value) })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Interlineado"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "plain",
+							type: "range",
+							min: 1.2,
+							max: 2.6,
+							step: .05,
+							value: settings.lineHeight,
+							onChange: (e) => setSettings({ lineHeight: Number(e.target.value) })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Márgenes"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "plain",
+							type: "range",
+							min: 8,
+							max: 54,
+							value: settings.margin,
+							onChange: (e) => setSettings({ margin: Number(e.target.value) })
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Tipografía"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+							className: "plain",
+							value: settings.fontFamily,
+							onChange: (e) => setSettings({ fontFamily: e.target.value }),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "serif",
+									children: "Serif"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "sans",
+									children: "Sans"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "dyslexic",
+									children: "Alta legibilidad"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "mono",
+									children: "Monoespaciada"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "lectura",
+									disabled: !conPremio,
+									children: conPremio ? "🎁 Lectura" : "🔒 Lectura"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "humanista",
+									disabled: !conPremio,
+									children: conPremio ? "🎁 Humanista" : "🔒 Humanista"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+									value: "maquina",
+									disabled: !conPremio,
+									children: conPremio ? "🎁 Máquina" : "🔒 Máquina"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("optgroup", {
+									label: esPremium ? "👑 Premium" : "🔒 Con Lumen Premium",
+									children: FUENTES_PREMIUM_EXTRA.map(([id, nombre, desc]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: id,
+										disabled: !esPremium,
+										title: desc,
+										children: esPremium ? nombre : `🔒 ${nombre}`
+									}, id))
+								})
+							]
+						})]
+					}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "row",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-label",
+								children: "Color de la letra"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-colores",
+								children: [["", "Automático", "linear-gradient(135deg, #9aa0aa, #565b66)"], ["#ffffff", "Blanco", "#ffffff"], ["#f1e3c3", "Crema", "#f1e3c3"], ["#e8b96b", "Ámbar", "#e8b96b"], ["#9fe6a0", "Verde", "#9fe6a0"], ["#9ec9ff", "Azul", "#9ec9ff"], ["#ffb3d9", "Rosa", "#ffb3d9"], ["#14161b", "Negro", "#14161b"]].map(([val, nom, col]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "letra-swatch" + ((settings.textColor || "") === val ? " on" : ""),
+									title: nom,
+									"aria-label": nom,
+									style: { background: col },
+									onClick: () => setSettings({ textColor: val })
+								}, val))
+							})]
+						}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Contar página tras"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-sub",
+							children: "Segundos en pantalla para sumar a la racha"
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+							className: "plain",
+							value: settings.countSeconds,
+							onChange: (e) => setSettings({ countSeconds: Number(e.target.value) }),
+							children: [
+								2,
+								4,
+								8,
+								15,
+								30
+							].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
+								value: s,
+								children: [s, "s"]
+							}, s))
+						})]
+					})
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
 						style: { margin: "2px 4px 8px" },
@@ -50301,151 +50466,50 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									})]
 								})]
 							}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "section-title",
-						style: { margin: "16px 4px 8px" },
-						children: "Texto"
+					// v177 (#3): "Desplazamiento" vive en Lectura (antes estaba en Herramientas).
+					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "2px 4px 8px" },
+								children: "Desplazamiento"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Cómo te mueves" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Scroll, lateral, libro o fijo" })
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										className: "btn sm",
+										onClick: () => { haptic$1.tap(); setSheet("desp"); },
+										children: DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "Scroll"
+									})
+								]
+							})
+						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tamaño de letra"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: [settings.fontSize, "px"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 14,
-							max: 40,
-							value: settings.fontSize,
-							max: 48,
-							onChange: (e) => setSettings({ fontSize: Number(e.target.value) })
-						})]
+					/* v177 (#8): el texto seleccionable de Original es OPCIONAL (default OFF = más rápido). */
+					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "2px 4px 8px" },
+								children: "Velocidad"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Texto en Original" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Apagado: Original no monta el texto y carga mucho más rápido en PDFs largos. Encendido: puedes seleccionar y copiar texto." })
+									] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, { on: !!settings.origTexto, onChange: (v) => setSettings({ origTexto: v }) })
+								]
+							})
+						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Interlineado"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 1.2,
-							max: 2.6,
-							step: .05,
-							value: settings.lineHeight,
-							onChange: (e) => setSettings({ lineHeight: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Márgenes"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 8,
-							max: 54,
-							value: settings.margin,
-							onChange: (e) => setSettings({ margin: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tipografía"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							className: "plain",
-							value: settings.fontFamily,
-							onChange: (e) => setSettings({ fontFamily: e.target.value }),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "serif",
-									children: "Serif"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "sans",
-									children: "Sans"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "dyslexic",
-									children: "Alta legibilidad"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "mono",
-									children: "Monoespaciada"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "lectura",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Lectura" : "🔒 Lectura"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "humanista",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Humanista" : "🔒 Humanista"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "maquina",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Máquina" : "🔒 Máquina"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("optgroup", {
-									label: esPremium ? "👑 Premium" : "🔒 Con Lumen Premium",
-									children: FUENTES_PREMIUM_EXTRA.map(([id, nombre, desc]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: id,
-										disabled: !esPremium,
-										title: desc,
-										children: esPremium ? nombre : `🔒 ${nombre}`
-									}, id))
-								})
-							]
-						})]
-					}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-label",
-								children: "Color de la letra"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "letra-colores",
-								children: [["", "Automático", "linear-gradient(135deg, #9aa0aa, #565b66)"], ["#ffffff", "Blanco", "#ffffff"], ["#f1e3c3", "Crema", "#f1e3c3"], ["#e8b96b", "Ámbar", "#e8b96b"], ["#9fe6a0", "Verde", "#9fe6a0"], ["#9ec9ff", "Azul", "#9ec9ff"], ["#ffb3d9", "Rosa", "#ffb3d9"], ["#14161b", "Negro", "#14161b"]].map(([val, nom, col]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-									className: "letra-swatch" + ((settings.textColor || "") === val ? " on" : ""),
-									title: nom,
-									"aria-label": nom,
-									style: { background: col },
-									onClick: () => setSettings({ textColor: val })
-								}, val))
-							})]
-						}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Contar página tras"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Segundos en pantalla para sumar a la racha"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-							value: settings.countSeconds,
-							onChange: (e) => setSettings({ countSeconds: Number(e.target.value) }),
-							children: [
-								2,
-								4,
-								8,
-								15,
-								30
-							].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
-								value: s,
-								children: [s, "s"]
-							}, s))
-						})]
-					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
@@ -50930,7 +50994,6 @@ function CanvasHost({ canvas }) {
 	});
 }
 function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page, idiomaDetectado, vozActiva, ttsPageVoz, onSyncVoz }) {
-	const [musTab, setMusTab] = (0, import_react.useState)("calma");
 	const plegarSecciones = (0, import_react.useCallback)((nodo) => {
 		if (!nodo) return;
 		try {
@@ -50964,16 +51027,6 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 	const [voices, setVoices] = (0, import_react.useState)([]);
 	const [auto, setAuto] = (0, import_react.useState)(autoRef.current !== false);
 	const [problem, setProblem] = (0, import_react.useState)(null);
-	// v148: estado real de la música (nombre + volumen + sonando). Se encuesta
-	// al motor: antes el texto se quedaba en «Lista» aunque la música sonara,
-	// o seguía poniendo «sonando» después de apagarla.
-	const [musNow, setMusNow] = (0, import_react.useState)(() => ({ playing: isPlaying(), id: currentScene() || "", vol: musicaVol() }));
-	(0, import_react.useEffect)(() => {
-		const f = () => setMusNow({ playing: isPlaying(), id: currentScene() || "", vol: musicaVol() });
-		f();
-		const id = setInterval(f, 700);
-		return () => clearInterval(id);
-	}, []);
 	(0, import_react.useEffect)(() => {
 		const load = () => {
 			setVoices(getVoices());
@@ -50998,7 +51051,7 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 				children: "🎧"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "aud-cab-txt",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Audio" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Voz, música y automatismos" })]
+				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Audio" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Voz y automatismos" })]
 			})]
 		}),
 		// v187 (#2): sincronizar el scroll con la página que está leyendo la voz
@@ -51153,164 +51206,6 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 				}
 			})]
 		}),
-		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-			className: "section-title",
-			style: { margin: "4px 4px 8px" },
-			children: "🎵 Música ambiente"
-		}),
-		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "row",
-			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "row-label",
-				children: "Sonido de fondo"
-			}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "row-sub",
-				children: "3 pistas grabadas y 20 que se generan en el propio teléfono"
-			})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-				on: !!settings.musicOn,
-				onChange: (v) => {
-					setSettings({ musicOn: v });
-					// v146: play() directo (gesto del usuario). Antes se tocaba un
-					// ref del Reader no visible aqui (ReferenceError) y la musica
-					// nunca arrancaba desde el switch.
-					if (v) {
-						try {
-							const rM3 = play(settings.musicScene || "lluvia", settings.musicVolume ?? 1);
-							if (rM3 && typeof rM3.then === "function") rM3.catch(() => {});
-							setFlag("music").catch(() => {});
-						} catch (e) {}
-					} else {
-						// v158: si suena la música de lectura (independiente), no se toca
-						if (!window.__lumenMusicaLectura) stop();
-					}
-				}
-			})]
-		}),
-		// v146: indica QUE esta sonando y a QUE VOLUMEN (y con un toque reanuda)
-		(0, import_jsx_runtime.jsx)("div", {
-			className: "mus-estado" + (musNow.playing ? " on" : ""),
-			role: "status",
-			onClick: () => {
-				if (settings.musicOn && !isPlaying()) {
-					try {
-						const rM4 = play(settings.musicScene || "lluvia", settings.musicVolume ?? 1);
-						if (rM4 && typeof rM4.then === "function") rM4.catch(() => {});
-						setFlag("music").catch(() => {});
-					} catch (e) {}
-				}
-			},
-			children: (() => {
-				const esc = SCENES.find((x) => x.id === (musNow.id || settings.musicScene || "lluvia"));
-				const vPct = Math.round((musNow.vol || 1) * 100);
-				return musNow.playing ? "\ud83c\udfb5 " + (esc && esc.icon ? esc.icon + " " : "") + (esc && esc.name ? esc.name : "Música") + " · volumen " + vPct + "%" : settings.musicOn ? "\ud83c\udfb5 Lista · toca para reanudar" : "\ud83c\udfb5 Apagada";
-			})()
-		}),
-		settings.musicOn && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mus-tabs",
-				children: [
-					["calma", "🌿 Calma"],
-					["zen", "🧘 Meditación"],
-					["suave", "☁️ Suave"],
-					["electro", "🎛️ Electrónica"],
-					["historias", "🎶 Canciones"]
-				].map(([id, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-					className: "mus-tab" + (musTab === id ? " on" : ""),
-					onClick: () => {
-						setMusTab(id);
-						haptic$1.tap();
-					},
-					children: et
-				}, id))
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "mus-grid " + musTab,
-				children: [SCENES.filter((sc) => (sc.tag || "calma") === musTab && (musTab === "historias" ? !!sc.soloHistorias : !sc.soloHistorias)).map((sc) => {
-					const activa = (settings.musicScene || "lluvia") === sc.id;
-					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-						className: "mus-card" + (activa ? " on" : ""),
-						onClick: () => {
-							setSettings({ musicScene: sc.id });
-							play(sc.id, settings.musicVolume ?? 1);
-							haptic$1.tap();
-						},
-						children: [
-							activa && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "mus-eq",
-								"aria-hidden": "true",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "mus-ico",
-								children: sc.icon
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "mus-nom",
-								children: sc.name
-							}),
-							sc.credito && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "mus-cred",
-								children: sc.credito
-							})
-						]
-					}, sc.id);
-				}), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "grid" })]
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-				className: "btn ghost mus-parar",
-				onClick: () => {
-					stop();
-					setSettings({ musicOn: false });
-					haptic$1.tap();
-				},
-				children: "⏹ Parar la música"
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "vol-row",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "vol-btn",
-						onClick: () => {
-							const v = Math.max(0, Math.round(((settings.musicVolume ?? 1) - .05) * 100) / 100);
-							setVolume(v);
-							setSettings({ musicVolume: v });
-						},
-						children: "−"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-						max: "1.5",
-						className: "vol-slider",
-						type: "range",
-						min: 0,
-						max: 1,
-						step: .01,
-						value: settings.musicVolume ?? 1,
-						onChange: (e) => {
-							const v = Number(e.target.value);
-							setVolume(v);
-							setSettings({ musicVolume: v });
-						}
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "vol-btn",
-						onClick: () => {
-							const v = Math.min(1.5, Math.round(((settings.musicVolume ?? 1) + .05) * 100) / 100);
-							setVolume(v);
-							setSettings({ musicVolume: v });
-						},
-						children: "＋"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-						className: "vol-val",
-						children: [Math.round((settings.musicVolume ?? 1) * 100), "%"]
-					})
-				]
-			})
-		] }),
 		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 			className: "section-title",
 			style: { margin: "18px 4px 8px" },
