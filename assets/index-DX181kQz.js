@@ -21749,7 +21749,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 		}))].filter((it) => {
 			if (!term) return true;
 			return (it.text || "").toLowerCase().includes(term) || (it.note || "").toLowerCase().includes(term) || titleOf(it.bookId).toLowerCase().includes(term);
-		}).sort((a, z) => (z.createdAt || 0) - (a.createdAt || 0));
+		}).sort((a, z) => (a.createdAt || 0) - (z.createdAt || 0)); // v204: viejos arriba, nuevos abajo (chat)
 	}, [
 		highs,
 		notes,
@@ -21776,13 +21776,16 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 		return out;
 	}, [chatItems]);
 	(0, import_react.useEffect)(() => {
-		// v203: la lista va de nueva a vieja (arriba = más reciente): abrir la
-		// pestaña chat deja la vista en el TOPE; ya no se arrastra al fondo
-		// cuando cambia el conteo (antes ocultaba los mensajes nuevos).
-		if (open && tab === "chat" && chatItems.length) requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
+		// v204: la lista va de VIEJA a NUEVA (arriba = viejo, abajo = nuevo),
+		// estilo chat: abrir la pestaña, volver a ella o recibir un mensaje
+		// nuevo lleva la vista al FINAL (lo más reciente). Al ser useEffect
+		// corre DESPUÉS del commit del DOM (sin carreras de rAF): el scroll
+		// siempre ve el mensaje nuevo ya renderizado.
+		if (open && tab === "chat" && chatItems.length) { const b = bodyRef.current; if (b) b.scrollTop = b.scrollHeight; }
 	}, [
 		open,
-		tab
+		tab,
+		chatItems.length
 	]);
 	const filtered = (0, import_react.useMemo)(() => {
 		const term = q.trim().toLowerCase();
@@ -21945,8 +21948,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 						await reload();
 						saveFullBackup({ immediate: true }).catch(() => {});
 						toast?.("🎤 Audio enviado");
-						// v203: el audio nuevo queda ARRIBA: llevar la vista al tope.
-						requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
+						// v204: el audio nuevo queda ABAJO; el efecto de scroll lleva la vista al final.
 					} catch (e2) {
 						console.warn("[audio-guardados]", e2);
 						toast?.("No se pudo guardar el audio");
@@ -22045,9 +22047,8 @@ const send = async () => {
 			await reload();
 			saveFullBackup({ immediate: true }).catch(() => {});
 			toast?.("✓ Mensaje enviado");
-			// v203: el mensaje nuevo queda ARRIBA (lista de nueva a vieja):
-			// llevar la vista al tope para que se vea en seguida.
-			requestAnimationFrame(() => { const b = bodyRef.current; if (b) b.scrollTop = 0; });
+			// v204: el mensaje nuevo queda ABAJO (lista de vieja a nueva); el
+			// efecto de scroll (al cambiar el conteo, tras el commit) lleva la vista al final.
 		} catch (e) {
 			console.warn("[enviar-guardados]", e);
 			toast?.("No se pudo enviar el mensaje, intenta de nuevo");
@@ -36354,7 +36355,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v203"
+							children: "v204"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38257,7 +38258,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v203 · escritorio y móvil"
+					children: "Lumen Reader · v204 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -51426,7 +51427,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v203" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v204" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
