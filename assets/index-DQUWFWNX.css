@@ -13384,3 +13384,218 @@ mark.find-flash {
   margin-left: auto;
   margin-right: auto;
 }
+
+/* ============ v207: Guardados a pantalla completa (PC y móvil) + bonito ============ */
+.sheet:has(.gd-body) {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: 100%;
+  margin: 0;
+  transform: none;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+.sheet:has(.gd-body) .sheet-body {
+  max-height: none;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+/* cabecera (tabs + búsqueda) siempre visible al hacer scroll */
+.sheet:has(.gd-body) .gd-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+/* En PC: columna legible centrada (estilo Telegram) */
+@media (min-width: 860px) {
+  .sheet:has(.gd-body) .gd-head {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .sheet:has(.gd-body) .gd-body {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .sheet:has(.gd-body) .gd-body .chat-msg {
+    max-width: 88%;
+  }
+  .sheet:has(.gd-body) .chat-sticky {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+}
+
+/* ============ v207: mensajes fijados (📌) ============ */
+.chat-day.pin-sep span {
+  color: var(--accent);
+  font-weight: 800;
+  letter-spacing: .3px;
+}
+.gd-action-pill.pin {
+  font-size: 14px;
+  line-height: 1;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.gd-action-pill.pin.on {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+/* ============ v207: grupos por tema — crear en desplegable, menú ⋮, color de letra, libros ============ */
+.grupo-crear-tg {
+  width: 100%;
+  margin: 0 0 10px;
+  text-align: left;
+}
+.grupo-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+.grupo-card.exp {
+  border-style: solid;
+}
+.grupo-nombre-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.grupo-nombre-wrap b {
+  font-size: 15px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.grupo-menu {
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  border-radius: 14px;
+  padding: 10px;
+  margin: 10px 0 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.grupo-menu input.plain {
+  width: 100%;
+}
+.grupo-menu-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+}
+.grupo-col.auto {
+  width: auto;
+  min-width: 44px;
+  padding: 0 10px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.grupo-libros {
+  border-top: 1px dashed var(--line);
+  margin-top: 10px;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.grupo-libro {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.grupo-libro-titulo {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ============ v207: tutorial — scroll a pantalla completa (respetando el pie) + Anterior en el pie ============ */
+.bien-fondo {
+  padding: 0;
+}
+.bien-scroll {
+  width: 100%;
+  margin: 0;
+}
+.bien-inner {
+  padding: 8px 22px 4px;
+}
+.bien-pie .bien-ant {
+  position: static;
+}
+
+/* ================= v208: Lumen Store ================= */
+/* Cabecera limpia (solo «＋ Publicar») + filtros con bibliotecas +
+   paginador sin «…» + lg-vigilando en iconos + portada con iniciales. */
+/* Filtros: filas de biblioteca (icono + nombre + switch) */
+.cg-filtro-panel {
+  flex-direction: column; align-items: stretch; justify-content: flex-start;
+  gap: 10px;
+}
+.cg-filtro-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cg-filtro-row > span { font-size: 12px; }
+.cg-filtro-grupo {
+  display: flex; flex-direction: column; gap: 7px;
+  border-top: 1px solid var(--line); padding-top: 9px;
+}
+.cg-filtro-tit { font-size: 12px; font-weight: 800; color: var(--fg); }
+.cg-filtro-sub { color: var(--fg-mute); font-size: 10.5px; line-height: 1.4; margin-top: -3px; }
+/* Paginador: nada se oculta; en carga el botón se anima (nunca «…»);
+   en pantallas pequeñas la barra va a su propia línea completa */
+.cg-pag { flex-wrap: wrap; justify-content: center; }
+.cg-pag-btn.busy { animation: cgPagBusy 1.1s ease-in-out infinite; border-color: var(--accent); }
+@keyframes cgPagBusy { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@media (max-width: 560px) {
+  .cg-pie { gap: 6px; row-gap: 5px; padding: 7px 8px; }
+  .cg-pag { width: 100%; order: -1; }
+  .cg-pag-info { font-size: 10px; }
+}
+/* «Crear libro»: accesos movidos desde la cabecera de la Store */
+.pb-extra { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+.pb-extra .btn { flex: 1; min-width: 110px; font-size: 12px; padding: 8px 10px; }
+/* lg-vigilando: solo iconos (compacto en pantallas pequeñas) */
+.lg-vigilando { gap: 6px; padding: 5px 6px; justify-content: flex-start; }
+.lg-vig-ic {
+  position: relative; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px; font-size: 17px; line-height: 1;
+  background: rgba(255, 179, 71, .16); border: 1px solid rgba(255, 179, 71, .4);
+  cursor: pointer;
+}
+.lg-vig-ojo { animation: vigPulse 1.5s ease-in-out infinite; }
+@keyframes vigPulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+/* Portada sin imagen: gradiente + iniciales (los resultados de búsqueda
+   siempre «ven» su portada) */
+.lg-cover.lg-falso { font-size: 0; background: linear-gradient(150deg, #8a7f6a, #4a4238); }
+.lg-cover.lg-falso span { color: rgba(255, 255, 255, .94); font-weight: 800; font-size: 18px; font-family: Georgia, serif; }
+.lg-mini-top .lg-cover.lg-falso span { font-size: 22px; }
+
+/* ============ v209: estados — la tarjeta st-content nunca al 100% del ancho ============ */
+/* En pantallas pequeñas (≤400px) .st-body pierde su padding lateral y la tarjeta
+   quedaba pegada a los bordes (100% del ancho). Ahora conserva margen lateral en
+   TODAS las pantallas (como ya pasaba en las grandes). */
+@media (max-width: 400px) {
+  .st-body > .st-content { width: calc(100% - 28px); max-width: 28rem; margin: 0 auto; }
+}

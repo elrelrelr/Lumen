@@ -12645,6 +12645,15 @@ var COLORES_GRUPO = [
 	"#fb923c",
 	"#38bdf8"
 ];
+var COLORES_TEXTO_GRUPO = [
+	"#ffffff",
+	"#111827",
+	"#fbbf24",
+	"#a5f3fc",
+	"#bbf7d0",
+	"#fbcfe8",
+	"#e9d5ff"
+];
 var ICONOS_GRUPO = [
 	"📚",
 	"🧠",
@@ -12688,7 +12697,7 @@ async function guardar(lista) {
 	return lista;
 }
 /** Crea un grupo y devuelve la lista actualizada. */
-async function crearGrupo(nombre, { color, icono } = {}) {
+async function crearGrupo(nombre, { color, icono, texto } = {}) {
 	const limpio = String(nombre || "").trim().slice(0, 40);
 	if (!limpio) return {
 		ok: false,
@@ -12704,6 +12713,7 @@ async function crearGrupo(nombre, { color, icono } = {}) {
 		nombre: limpio,
 		color: color || COLORES_GRUPO[lista.length % COLORES_GRUPO.length],
 		icono: icono || ICONOS_GRUPO[lista.length % ICONOS_GRUPO.length],
+		texto: texto || null,
 		libros: [],
 		creado: Date.now()
 	};
@@ -21721,7 +21731,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	const recRef = (0, import_react.useRef)(null);
 	const recStreamRef = (0, import_react.useRef)(null);
 	const recIvRef = (0, import_react.useRef)(null);
-	// v206: pausar/reanudar la grabación (el envío es SOLO con el avión)
+	// v207: pausar/reanudar la grabación (el envío es SOLO con el avión)
 	const [recPausado, setRecPausado] = (0, import_react.useState)(false);
 	const [recVista, setRecVista] = (0, import_react.useState)(null);
 	const recVistaRef = (0, import_react.useRef)(null);
@@ -21765,26 +21775,28 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	]);
 	const chatGroups = (0, import_react.useMemo)(() => {
 		const out = [];
+		// v207: fijados primero (el más actual arriba), luego el resto en orden de chat
+		const fijados = chatItems.filter((it) => it.pinned).sort((a, z) => (z.createdAt || 0) - (a.createdAt || 0));
+		const resto = chatItems.filter((it) => !it.pinned);
+		if (fijados.length) {
+			out.push({ sep: "📌 Fijados", key: "sepfij", pin: true });
+			for (const it of fijados) out.push({ it, key: "pin" + it.id, pin: true });
+			if (resto.length) out.push({ sep: "Resto de mensajes", key: "sepresto" });
+		}
 		let last = "";
-		for (const it of chatItems) {
+		for (const it of resto) {
 			const d = dayLabel(it.createdAt);
 			if (d !== last) {
-				out.push({
-					sep: d,
-					key: "sep" + it.id
-				});
+				out.push({ sep: d, key: "sep" + it.id });
 				last = d;
 			}
-			out.push({
-				it,
-				key: it.id
-			});
+			out.push({ it, key: it.id });
 		}
 		return out;
 	}, [chatItems]);
 	(0, import_react.useEffect)(() => {
 		// v204: lista de VIEJA a NUEVA (arriba = viejo, abajo = nuevo).
-		// v206: medido en Chromium: el scroller real de la hoja es .sheet-body
+		// v207: medido en Chromium: el scroller real de la hoja es .sheet-body
 		// (display block); .gd-body crece con su contenido y NUNCA desborda,
 		// así que ponerle scrollTop era un no-op. Se scrollea .sheet-body (el
 		// contenedor que de verdad desborda), con .gd-body de reserva para
@@ -21908,7 +21920,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 	/** v149: el micrófono graba un audio y lo envía como mensaje.
 	*  Si el dispositivo no soporta MediaRecorder, cae al dictado por voz. */
 	const alternarMic = (0, import_react.useCallback)(async () => {
-		// v206: con grabación pendiente, el micrófono PAUSA/REANUDA (ya no
+		// v207: con grabación pendiente, el micrófono PAUSA/REANUDA (ya no
 		// envía al tocar): el audio solo se envía con el avión, después de
 		// que el usuario revise la vista previa (o cancele con la ✕).
 		if (recAudio && !recPausado) {
@@ -21967,7 +21979,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 					if (recVistaRef.current) { try { URL.revokeObjectURL(recVistaRef.current); } catch {} recVistaRef.current = null; }
 					setRecVista(null);
 					if (recCancelarRef.current) {
-						// v206: cancelado desde la vista previa: se descarta, NO se envía
+						// v207: cancelado desde la vista previa: se descarta, NO se envía
 						recCancelarRef.current = false;
 						if (recIvRef.current) { clearInterval(recIvRef.current); recIvRef.current = null; }
 						if (recStreamRef.current) { recStreamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} }); recStreamRef.current = null; }
@@ -22249,6 +22261,18 @@ const send = async () => {
 		haptic$1.success();
 		toast?.("Guardado");
 	};
+	// v207: fijar/desfijar un mensaje → queda en la sección «📌 Fijados» al inicio del chat
+	const fijarMensaje = (0, import_react.useCallback)(async (it, on) => {
+		try {
+			if (it._type === "frase") await updateHighlight(it.id, { pinned: on });
+			else await updateNote(it.id, { pinned: on });
+			await reload();
+			haptic$1.tap();
+		} catch {
+			toast?.("No se pudo fijar el mensaje");
+		}
+	}, [reload]);
+
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 		open,
 		onClose,
@@ -22555,7 +22579,7 @@ const send = async () => {
 						]
 					}),
 					chatGroups.map((g) => g.sep ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "chat-day",
+						className: "chat-day" + (g.pin ? " pin-sep" : ""),
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: g.sep })
 					}, g.key) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(MensajeChat, {
 						it: g.it,
@@ -22629,6 +22653,16 @@ const send = async () => {
 												width: 15,
 												height: 15
 											}), " Abrir"]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "gd-action-pill pin" + (g.it.pinned ? " on" : ""),
+											onClick: async (e) => {
+												e.stopPropagation();
+												fijarMensaje(g.it, !g.it.pinned);
+											},
+											"aria-label": g.it.pinned ? "Desfijar mensaje" : "Fijar mensaje",
+											title: g.it.pinned ? "Desfijar" : "Fijar arriba",
+											children: "📌"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 											className: "gd-action-pill",
@@ -22935,7 +22969,7 @@ const send = async () => {
 							children: "✕"
 						})]
 					}),
-					// v206: vista previa del audio grabado (aparece en pausa; ✕ cancela)
+					// v207: vista previa del audio grabado (aparece en pausa; ✕ cancela)
 					recVista && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "chat-adj chat-vista",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", {
@@ -35471,6 +35505,11 @@ const toquesDev = (0, import_react.useRef)(0);
 	// v197: emoji y color se eligen ANTES de crear el grupo (botón inactivo sin los 3)
 	const [grupoIcono, setGrupoIcono] = (0, import_react.useState)(null);
 	const [grupoColor, setGrupoColor] = (0, import_react.useState)(null);
+	// v207: color de letra + crear en desplegable + menú ⋮ + expansión de libros
+	const [grupoTexto, setGrupoTexto] = (0, import_react.useState)(null);
+	const [grupoCreando, setGrupoCreando] = (0, import_react.useState)(false);
+	const [grupoMenu, setGrupoMenu] = (0, import_react.useState)(null);
+	const [grupoExp, setGrupoExp] = (0, import_react.useState)(() => new Set());
 	const [asignarLibro, setAsignarLibro] = (0, import_react.useState)(null);
 	const [coverAll, setCoverAll] = (0, import_react.useState)(null);
 	const [askUnlock, setAskUnlock] = (0, import_react.useState)(null);
@@ -36435,7 +36474,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v206"
+							children: "v209"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38338,7 +38377,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v206 · escritorio y móvil"
+					children: "Lumen Reader · v209 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -38791,7 +38830,16 @@ const toquesDev = (0, import_react.useRef)(0);
 					}),
 				/* v197: crear grupo pidiendo NOMBRE + EMOJI + COLOR antes de crear;
 				   el botón no crea nada hasta tener los tres. */
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				/* v207: «Crear nuevo grupo» en desplegable; al abrir, lo primero es crear y luego los grupos */
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					className: "btn grupo-crear-tg",
+					onClick: () => {
+						setGrupoCreando((v) => !v);
+						haptic$1.tap();
+					},
+					children: [grupoCreando ? "▴" : "▾", "  Crear nuevo grupo"]
+				}),
+				grupoCreando && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "grupo-crear",
 					children: [				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row-sub",
@@ -38815,6 +38863,27 @@ const toquesDev = (0, import_react.useRef)(0);
 							onClick: () => setGrupoColor(c),
 							"aria-label": "Color " + c,
 						}, c))
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "row-sub",
+					style: { margin: "8px 2px 4px", fontWeight: 650 },
+					children: "Color de letra del nombre"
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "grupo-colores",
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						className: "grupo-col auto" + (grupoTexto ? "" : " on"),
+						onClick: () => setGrupoTexto(null),
+						"aria-label": "Color de letra automático",
+						children: "auto"
+					}), COLORES_TEXTO_GRUPO.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						className: "grupo-col" + (grupoTexto === c ? " on" : ""),
+						style: { background: c },
+						onClick: () => setGrupoTexto(c),
+						"aria-label": "Letra " + c,
+						children: "A"
+					}, c))]
+				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
@@ -38833,11 +38902,13 @@ const toquesDev = (0, import_react.useRef)(0);
 							onKeyDown: async (e) => {
 								if (e.key !== "Enter") return;
 								if (!grupoNuevo.trim() || !grupoIcono || !grupoColor) { toast?.("Elige el nombre, el emoji y el color"); return; }
-								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono });
+								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono, texto: grupoTexto });
 								if (r.ok) {
 									setGrupoNuevo("");
 									setGrupoIcono(null);
 									setGrupoColor(null);
+									setGrupoTexto(null);
+									setGrupoCreando(false);
 									await recargarGrupos();
 									haptic$1.success();
 									toast?.("Categoría creada");
@@ -38848,11 +38919,13 @@ const toquesDev = (0, import_react.useRef)(0);
 							disabled: !(grupoNuevo.trim() && grupoIcono && grupoColor),
 							onClick: async () => {
 								if (!grupoNuevo.trim() || !grupoIcono || !grupoColor) { toast?.("Elige el nombre, el emoji y el color"); return; }
-								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono });
+								const r = await crearGrupo(grupoNuevo, { color: grupoColor, icono: grupoIcono, texto: grupoTexto });
 								if (r.ok) {
 									setGrupoNuevo("");
 									setGrupoIcono(null);
 									setGrupoColor(null);
+									setGrupoTexto(null);
+									setGrupoCreando(false);
 									await recargarGrupos();
 									haptic$1.success();
 									toast?.("Categoría creada");
@@ -38870,67 +38943,156 @@ const toquesDev = (0, import_react.useRef)(0);
 							children: "🗂"
 						}), "Aún no has creado grupos."]
 					}),
-					grupos.map((g) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "grupo-card",
+				grupoMenu && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+					className: "grupo-menu-bg",
+					onClick: () => setGrupoMenu(null)
+				}),
+				/* v207: card = nombre con color de letra + ⋮ (apariencia en menú) + toque = expandir libros */
+				grupos.map((g) => {
+					const exp = grupoExp.has(g.id);
+					const libros = g.libros || [];
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "grupo-card" + (exp ? " exp" : ""),
+						style: { background: g.color + "12", borderColor: g.color + "66" },
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "grupo-top",
+								onClick: () => {
+									setGrupoExp((s) => {
+										const n = new Set(s);
+										if (n.has(g.id)) n.delete(g.id);
+										else n.add(g.id);
+										return n;
+									});
+									haptic$1.tap();
+								},
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "grupo-ico",
-										style: {
-											background: g.color + "22",
-											color: g.color
-										},
+										style: { background: g.color + "22", color: g.color },
 										children: g.icono
 									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "grupo-nombre-wrap",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+												style: { color: g.texto || "var(--fg)" },
+												children: g.nombre
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "row-sub",
+												children: [libros.length, " libro", libros.length === 1 ? "" : "s", " · toca para ver"]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "chat-act",
+										onClick: (e) => {
+											e.stopPropagation();
+											setGrupoMenu(grupoMenu === g.id ? null : g.id);
+										},
+										"aria-label": "Opciones del grupo",
+										children: "⋮"
+									})
+								]
+							}),
+							grupoMenu === g.id && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "grupo-menu",
+								onClick: (e) => e.stopPropagation(),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { fontWeight: 650 }, children: "Emoji" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "grupo-colores",
+										children: ICONOS_GRUPO.slice(0, 20).map((ic) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "grupo-ic" + (g.icono === ic ? " on" : ""),
+											onClick: async () => setGrupos(await renombrarGrupo(g.id, { icono: ic })),
+											children: ic
+										}, ic))
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { fontWeight: 650 }, children: "Color de fondo" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "grupo-colores",
+										children: COLORES_GRUPO.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "grupo-col" + (g.color === c ? " on" : ""),
+											style: { background: c },
+											onClick: async () => setGrupos(await renombrarGrupo(g.id, { color: c }))
+										}, c))
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { fontWeight: 650 }, children: "Color de letra" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "grupo-colores",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "grupo-col auto" + (g.texto ? "" : " on"),
+											onClick: async () => setGrupos(await renombrarGrupo(g.id, { texto: null })),
+											children: "auto"
+										}), COLORES_TEXTO_GRUPO.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+											className: "grupo-col" + (g.texto === c ? " on" : ""),
+											style: { background: c },
+											onClick: async () => setGrupos(await renombrarGrupo(g.id, { texto: c })),
+											children: "A"
+										}, c))]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { fontWeight: 650 }, children: "Nombre" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 										className: "plain",
-										style: {
-											flex: 1,
-											minWidth: 0
-										},
 										value: g.nombre,
 										onChange: async (e) => {
 											setGrupos(await renombrarGrupo(g.id, { nombre: e.target.value }));
 										}
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "btn peligro",
+										style: { width: "100%" },
 										onClick: async () => {
 											setGrupos(await borrarGrupo(g.id));
+											setGrupoMenu(null);
 											if (cat === "grupo:" + g.id) setCat("todos");
 											haptic$1.tap();
 											toast?.("Categoría borrada");
 										},
-										"aria-label": "Borrar grupo",
-										children: "🗑"
+										children: "🗑 Borrar grupo"
 									})
 								]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "grupo-colores",
-								children: ICONOS_GRUPO.slice(0, 20).map((ic) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "grupo-ic" + (g.icono === ic ? " on" : ""),
-									onClick: async () => setGrupos(await renombrarGrupo(g.id, { icono: ic })),
-									children: ic
-								}, ic))
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "grupo-colores",
-								children: COLORES_GRUPO.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "grupo-col" + (g.color === c ? " on" : ""),
-									style: { background: c },
-									onClick: async () => setGrupos(await renombrarGrupo(g.id, { color: c }))
-								}, c))
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row-sub",
-								style: { marginTop: 6 },
-								children: [(g.libros || []).length, " libro(s)"]
+							exp && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "grupo-libros",
+								onClick: (e) => e.stopPropagation(),
+								children: [libros.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: "Aún no hay libros en este grupo (añádelos desde el menú del libro)."
+								}), libros.map((bid) => {
+									const bk = books.find((b) => b.id === bid);
+									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "grupo-libro",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "grupo-libro-titulo",
+												children: bk ? bk.title : "Libro eliminado"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "chat-act",
+												"aria-label": "Abrir libro",
+												title: "Abrir",
+												onClick: () => onOpen(bid),
+												children: "↗"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "chat-act",
+												"aria-label": "Quitar del grupo",
+												title: "Quitar",
+												onClick: async () => {
+													setGrupos(await alternarLibro(g.id, bid));
+													toast?.("Libro quitado del grupo");
+												},
+												children: "✕"
+											})
+										]
+									}, bid);
+								})]
 							})
 						]
-					}, g.id))
+					}, g.id);
+				})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
@@ -43056,7 +43218,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} catch {}
 	}, [page, settings]);
 	const [notes, setNotes] = (0, import_react.useState)([]);
-	// v206: búsqueda en la hoja de Notas
+	// v207: búsqueda en la hoja de Notas
 	const [notasQ, setNotasQ] = (0, import_react.useState)("");
 	const notasVis = (() => { const q = notasQ.trim().toLowerCase(); return q ? notes.filter((n) => (n.note || "").toLowerCase().includes(q)) : notes; })();
 	const [meanings, setMeanings] = (0, import_react.useState)({});
@@ -48635,7 +48797,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				onClose: closeSheet,
 				title: `📝 Notas · página ${page + 1}`,
 				children: [
-				/* v206: cabecera de notas: contadores + acceso a mensajes guardados */
+				/* v207: cabecera de notas: contadores + acceso a mensajes guardados */
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "notas-cab",
 					children: [
@@ -48650,7 +48812,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						})
 					]
 				}),
-				/* v206: búsqueda dentro de las notas del libro */
+				/* v207: búsqueda dentro de las notas del libro */
 				notes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "notas-busq",
 					children: ["🔎", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
@@ -51541,7 +51703,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v206" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v209" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -52374,6 +52536,12 @@ const fresh = await checkAchievements();
 						setCatalogoAbierto(true);
 						setMisPubsAbierto(true);
 					},
+						// v208: 💎 Lumen Ads y ⚙️ identidad/relays viven en «crear libro»
+						onAbrirAds: () => {
+							setPublicarOpen(null);
+							setAdsAbierto(true);
+						},
+						onAjustes: () => setPublicarOpen({ modo: "ajustes" }),
 					onPublicado: (ev) => {
 						setPublicarOpen(null);
 						setCatalogoAbierto(true);

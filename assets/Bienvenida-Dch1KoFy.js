@@ -232,7 +232,7 @@ function Bienvenida({ tipo, onCerrar, settings, setSettings }) {
 					className: "btn bien-ant",
 					onClick: retroceder,
 					disabled: i === 0,
-					children: "← Anterior"
+					children: "Anterior" // v207: sin flecha, vive en bien-pie
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					className: "btn primary bien-boton",
 					onClick: avanzar,

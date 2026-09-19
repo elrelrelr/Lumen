@@ -353,6 +353,15 @@ function textoLimpio(s) {
 	if (s == null) return "";
 	return String(s).replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>|<\/div>|<\/li>|<li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
 }
+/* v208: las 5 bibliotecas de «Libros gratis», activables/desactivables desde Filtros */
+const BIBLIOTECAS_INFO = [
+	["gutendex", "Gutenberg", "📚"],
+	["openlibrary", "Open Library", "📖"],
+	["archive", "Archive.org", "🏛️"],
+	["wikisource-es", "Wikisource (es)", "✒️"],
+	["wikisource-en", "Wikisource (en)", "🌐"]
+];
+const BIB_DEFECTO = { gutendex: true, openlibrary: true, archive: true, "wikisource-es": true, "wikisource-en": true };
 function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
@@ -373,8 +382,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [descargando, setDescargando] = (0, import_react.useState)(false);
 	const [feeds, setFeeds] = (0, import_react.useState)([]);
 	const [librosFeed, setLibrosFeed] = (0, import_react.useState)([]);
-	const [gestorFeeds, setGestorFeeds] = (0, import_react.useState)(false);
-	const [feedUrl, setFeedUrl] = (0, import_react.useState)("");
 	// v198: el catálogo de LIBROS GRATIS vive embebido aquí (sección):
 	// su buscador reemplaza al de la store y su ventana de 100/100 se
 	// gobierna desde el pie (cg-pie) con botones compactos.
@@ -387,6 +394,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [lgUrlWeb, setLgUrlWeb] = (0, import_react.useState)("");
 	const [lgUrlBusy, setLgUrlBusy] = (0, import_react.useState)(false);
 	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
+	// v208: bibliotecas activables/desactivables (persistidas en catalogo_filtros)
+	const [bibActivas, setBibActivas] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
 		__vitePreload(() => import("./LibrosGratis-K7x2Mq4P.js").then((m) => {
@@ -421,6 +430,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		try {
 			const pref = await getMeta("catalogo_filtros", null);
 			if (pref && typeof pref.ocultarAdultos === "boolean") setOcultarAdultos(pref.ocultarAdultos);
+			if (pref && pref.bibliotecas && typeof pref.bibliotecas === "object") setBibActivas({ ...BIB_DEFECTO, ...pref.bibliotecas });
 		} catch {}
 		const id = await identidadGuardada();
 		setIdentidad(id);
@@ -523,9 +533,15 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			setLgUrlPaso("");
 		}
 	};
+	// v208: activar/desactivar una biblioteca → catálogo y búsqueda se actualizan al momento
+	const alternarBib = (id) => {
+		const next = { ...BIB_DEFECTO, ...(bibActivas || {}), [id]: !(bibActivas ? bibActivas[id] !== false : true) };
+		setBibActivas(next);
+		try { setMeta({ id: "catalogo_filtros", ocultarAdultos, bibliotecas: next }); } catch {}
+	};
 	const reportar = async (libro, motivo) => {
 		if (!identidad) {
-			toast("Primero activa tu identidad (botón 👤 arriba)");
+			toast("Primero crea tu identidad: 📤 Publicar → «Crear identidad»");
 			return;
 		}
 		setPublicandoReporte(true);
@@ -578,6 +594,20 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		...delRelay
 	];
 	const recientes = [...visibles].sort((a, b) => b.createdAt - a.createdAt);
+	// v208: la sección de Libros Gratis se pinta ANTES que los resultados de la
+	// store cuando hay búsqueda (las bibliotecas primero, con sus portadas)
+	const lgSeccion = LGComp ? (0, import_jsx_runtime.jsx)(LGComp, {
+		modo: "seccion",
+		busqueda: lgQ,
+		toast,
+		onAbrirLibro: (id) => {
+			onAbrirLibroLocal?.(id);
+		},
+		onVentana: setLgVentana,
+		onBuscarWeb: onBuscarWeb,
+		bibliotecas: bibActivas
+	}) : null;
+	const buscandoStore = lgQ.trim().length >= 2;
 	const destacado = recientes[0];
 	const populares = [...visibles].map((b) => ({
 		b,
@@ -609,46 +639,14 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-acciones",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "cg-identidad",
-										onClick: () => {
-											haptic.tap();
-											onAbrirMisPublicaciones?.();
-										},
-										title: "Mis publicaciones: historial, estado, compartir",
-										children: "📦"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "cg-identidad",
-										onClick: () => onAbrirAds?.(),
-										title: "Lumen Ads: saldo, mercado y campañas",
-										children: "💎"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "cg-identidad",
-										onClick: () => onPublicar?.({ modo: "ajustes" }),
-										title: "Identidad, relays y tu IA",
-										children: identidad ? "👤" : "🆔"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "cg-publicar",
-										onClick: () => {
-											haptic.tap();
-											onPublicar?.({ modo: "nuevo" });
-										},
-										children: ["＋ ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-pub-txt", children: "Publicar" })]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "cg-identidad",
-										onClick: () => {
-											haptic.tap();
-											setGestorFeeds(true);
-										},
-										title: "Feeds: añade libros desde una URL (GitHub, etc.)",
-										children: "📡"
-									})
-								]
+								children: [/* v208: solo «＋ Publicar»: 📦// se movieron a «crear libro» y 📡 feeds se eliminó */ (0, import_jsx_runtime.jsx)("button", {
+									className: "cg-publicar",
+									onClick: () => {
+										haptic.tap();
+										onPublicar?.({ modo: "nuevo" });
+									},
+									children: ["＋ ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-pub-txt", children: "Publicar" })]
+								})]
 							})
 							]
 							}),
@@ -727,35 +725,43 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					}),
 					filtrosAbiertos && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-filtro cg-filtro-panel",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Restringir contenido para adultos" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "cg-switch" + (ocultarAdultos ? " on" : ""),
-							onClick: async () => {
-								const v = !ocultarAdultos;
-								setOcultarAdultos(v);
-								try {
-									await setMeta({
-										id: "catalogo_filtros",
-										ocultarAdultos: v
-									});
-								} catch {}
-							},
-							"aria-label": "Alternar filtro de contenido adulto",
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {})
-						})]
+						children: [
+							/* v208: fila adulto (igual que antes) */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-filtro-row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Restringir contenido para adultos" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "cg-switch" + (ocultarAdultos ? " on" : ""),
+									onClick: async () => {
+										const v = !ocultarAdultos;
+										setOcultarAdultos(v);
+										try {
+											await setMeta({
+												id: "catalogo_filtros",
+												ocultarAdultos: v
+											});
+										} catch {}
+									},
+									"aria-label": "Alternar filtro de contenido adulto",
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {})
+								})]
+							}),
+							/* v208: bibliotecas activables/desactivables; el catálogo y la
+							   búsqueda se actualizan al momento (prop bibliotecas → LibrosGratis) */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-filtro-grupo",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-filtro-tit", children: "📚 Bibliotecas" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { className: "cg-filtro-sub", children: "Actívalas o desactívalas: el catálogo y la búsqueda se actualizan al instante." }), BIBLIOTECAS_INFO.map(([id, nom, ic]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-filtro-row",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: [ic, " ", nom] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "cg-switch" + ((bibActivas ? bibActivas[id] !== false : true) ? " on" : ""),
+										onClick: () => alternarBib(id),
+										"aria-label": "Activar o desactivar " + nom,
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {})
+									})]
+								}, id))]
+							})
+						]
 					}),
-					!identidad && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-ident-banner",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Activa tu identidad (gratis, 1 toque)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Es tu firma en la red: sirve para publicar, reportar y ganar con anuncios." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn primary",
-							onClick: async () => {
-								const id = generarIdentidad();
-								await guardarIdentidad(id);
-								setIdentidad(id);
-								toast("Identidad creada: " + npubCorto(id.npub));
-							},
-							children: "Activar"
-						})]
-					}),
+					/* v208: el banner de identidad vive en «crear libro» (PublicarLibro) */
 					categorias.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-cats",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -818,7 +824,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}, libro.id))
 								})]
 							}),
-							todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							!buscandoStore && todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🆕 Recién publicados" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-fila",
@@ -832,7 +838,9 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}, libro.id))
 								})]
 							}),
-							(lgQ.trim() || categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							/* v208: lgSeccion SIEMPRE en la MISMA posicion del arbol (si se movia segun buscandoStore, React la remontaba y se perdian las cargas en vuelo); en busqueda queda antes que Resultados porque ese bloque va debajo */
+						lgSeccion,
+						(lgQ.trim() || categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: lgQ.trim() ? `Resultados de «${lgQ.trim()}»` : categoria }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-grid",
@@ -846,19 +854,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}, libro.id))
 								})]
 							}),
-						/* v198: sección embebida de LIBROS GRATIS (todo el catálogo con su
-						buscador; la ventana 100/100 se controla desde cg-pie). */
-						LGComp ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LGComp, {
-							modo: "seccion",
-							busqueda: lgQ,
-							toast,
-							onAbrirLibro: (id) => {
-								onAbrirLibroLocal?.(id);
-							},
-							onVentana: setLgVentana,
-							onBuscarWeb: onBuscarWeb
-						}) : null
-						]
+												]
 						})
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -876,12 +872,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 								className: "cg-pag-info",
 								children: [lgVentana.desde + 1, "–", lgVentana.fin, " · ≈ ", lgVentana.total || "?"]
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "cg-pag-btn",
+								className: "cg-pag-btn" + (lgVentana.navegando ? " busy" : ""),
+								/* v208: en carga el botón se anima pero NUNCA se oculta ni se troca por «…» */
 								disabled: lgVentana.navegando || (!lgVentana.hayMas && lgVentana.fin >= lgVentana.nCat),
 								onClick: () => lgVentana.api.current.irSiguientes(),
 								title: "Siguientes 100",
 								"aria-label": "Siguientes 100",
-								children: lgVentana.navegando ? "…" : "⏩"
+								children: "⏩"
 							})]
 						}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 							className: "cg-pie-relays",
@@ -1156,109 +1153,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				onClose: () => setQrAbierto(false),
 				title: "QR del libro",
 				children: detalle && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(QrLibro, { libro: detalle })
-			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
-				open: gestorFeeds,
-				onClose: () => setGestorFeeds(false),
-				title: "📡 Feeds de libros (centralizados)",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "row-sub",
-						style: {
-							marginBottom: 10,
-							lineHeight: 1.5
-						},
-						children: [
-							"Un ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "feed" }),
-							" es una URL (p. ej. en GitHub Pages) que publica libros en formato JSON. Lumen los añade al catálogo y los combina con los que llegan por relays y torrent. Perfecto para publicar tus libros sin depender solo de tu teléfono."
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							gap: 8,
-							marginBottom: 12
-						},
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							style: {
-								flex: 1,
-								minWidth: 0
-							},
-							value: feedUrl,
-							placeholder: "https://usuario.github.io/lumen/feed.json",
-							onChange: (e) => setFeedUrl(e.target.value)
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn primary",
-							disabled: !feedUrl.trim(),
-							onClick: async () => {
-								const r = await agregarFeed(feedUrl);
-								setFeedUrl("");
-								if (r.ok) {
-									setFeeds(await cargarFeeds());
-									toast?.("✓ Feed añadido: " + r.libros + " libro(s)");
-									cargar();
-								} else toast?.(r.error || "No se pudo añadir");
-							},
-							children: "Añadir"
-						})]
-					}),
-					feeds.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "empty",
-						style: { padding: "24px 8px" },
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "empty-emoji",
-							children: "📡"
-						}), "Todavía no hay feeds. Sube tu feed.json a GitHub Pages y pégalo aquí."]
-					}) : feeds.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "nube-url-item",
-						style: { marginBottom: 8 },
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: f.nombre }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-								className: "nube-url",
-								children: f.url
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-								f.libros,
-								" libro(s) · añadido ",
-								new Date(f.agregado).toLocaleDateString("es-CO")
-							] }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: {
-									display: "flex",
-									gap: 8,
-									marginTop: 8
-								},
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn sm",
-									style: { flex: 1 },
-									onClick: async () => {
-										await quitarFeed(f.url);
-										setFeeds(await cargarFeeds());
-										cargar();
-										toast?.("Feed quitado");
-									},
-									children: "Quitar"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn sm",
-									style: { flex: 1 },
-									onClick: () => {
-										cargar();
-										toast?.("Feed actualizado");
-									},
-									children: "↻ Actualizar"
-								})]
-							})
-						]
-					}, f.url)),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-						className: "row-sub",
-						style: { marginTop: 10 },
-						children: ["Formato esperado: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { children: "{ \"name\": \"...\", \"books\": [ { \"title\", \"author\", \"cover\", \"stream\", \"download\", \"magnet\", \"chapters\" } ] }" })]
-					})
-				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
 				open: panelRelays,

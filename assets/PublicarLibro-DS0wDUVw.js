@@ -74,7 +74,7 @@ function reducirImagen(file) {
 		fr.readAsDataURL(file);
 	});
 }
-function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, editar = null, libroInicial = null }) {
+function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, editar = null, libroInicial = null, onAbrirAds = null, onAjustes = null }) {
 	const [paso, setPaso] = (0, import_react.useState)(editar ? 2 : 1);
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [librosLocales, setLibrosLocales] = (0, import_react.useState)([]);
@@ -459,6 +459,24 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "pb-cuerpo",
 					children: [
+						/* v208: accesos movidos desde la cabecera de Lumen Store
+						   (📦/💎/⚙️): «crear libro» es ahora su casa */
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "pb-extra",
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn",
+								onClick: () => onVerMisPublicaciones?.(),
+								children: "📦 Mis publicaciones"
+							}), onAbrirAds ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn",
+								onClick: () => onAbrirAds?.(),
+								children: "💎 Lumen Ads"
+							}) : null, onAjustes ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn",
+								onClick: () => onAjustes?.(),
+								children: "⚙️ Identidad y relays"
+							}) : null]
+						}),
 						!identidad && paso < 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "cg-ident-banner",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Necesitas tu identidad" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Se genera en tu teléfono: nadie más tendrá tu clave." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
