@@ -21721,7 +21721,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	const recRef = (0, import_react.useRef)(null);
 	const recStreamRef = (0, import_react.useRef)(null);
 	const recIvRef = (0, import_react.useRef)(null);
-	// v205: pausar/reanudar la grabación (el envío es SOLO con el avión)
+	// v206: pausar/reanudar la grabación (el envío es SOLO con el avión)
 	const [recPausado, setRecPausado] = (0, import_react.useState)(false);
 	const [recVista, setRecVista] = (0, import_react.useState)(null);
 	const recVistaRef = (0, import_react.useRef)(null);
@@ -21784,7 +21784,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	}, [chatItems]);
 	(0, import_react.useEffect)(() => {
 		// v204: lista de VIEJA a NUEVA (arriba = viejo, abajo = nuevo).
-		// v205: medido en Chromium: el scroller real de la hoja es .sheet-body
+		// v206: medido en Chromium: el scroller real de la hoja es .sheet-body
 		// (display block); .gd-body crece con su contenido y NUNCA desborda,
 		// así que ponerle scrollTop era un no-op. Se scrollea .sheet-body (el
 		// contenedor que de verdad desborda), con .gd-body de reserva para
@@ -21908,7 +21908,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 	/** v149: el micrófono graba un audio y lo envía como mensaje.
 	*  Si el dispositivo no soporta MediaRecorder, cae al dictado por voz. */
 	const alternarMic = (0, import_react.useCallback)(async () => {
-		// v205: con grabación pendiente, el micrófono PAUSA/REANUDA (ya no
+		// v206: con grabación pendiente, el micrófono PAUSA/REANUDA (ya no
 		// envía al tocar): el audio solo se envía con el avión, después de
 		// que el usuario revise la vista previa (o cancele con la ✕).
 		if (recAudio && !recPausado) {
@@ -21967,7 +21967,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 					if (recVistaRef.current) { try { URL.revokeObjectURL(recVistaRef.current); } catch {} recVistaRef.current = null; }
 					setRecVista(null);
 					if (recCancelarRef.current) {
-						// v205: cancelado desde la vista previa: se descarta, NO se envía
+						// v206: cancelado desde la vista previa: se descarta, NO se envía
 						recCancelarRef.current = false;
 						if (recIvRef.current) { clearInterval(recIvRef.current); recIvRef.current = null; }
 						if (recStreamRef.current) { recStreamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} }); recStreamRef.current = null; }
@@ -22869,7 +22869,7 @@ const send = async () => {
 					]
 				})] }) })
 			}),
-			tab === "chat" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [emojisAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			tab === "chat" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "chat-sticky", children: [emojisAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "emoji-bar",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "fmt-row",
@@ -22935,7 +22935,7 @@ const send = async () => {
 							children: "✕"
 						})]
 					}),
-					// v205: vista previa del audio grabado (aparece en pausa; ✕ cancela)
+					// v206: vista previa del audio grabado (aparece en pausa; ✕ cancela)
 					recVista && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "chat-adj chat-vista",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", {
@@ -36435,7 +36435,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v205"
+							children: "v206"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38338,7 +38338,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v205 · escritorio y móvil"
+					children: "Lumen Reader · v206 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -43056,6 +43056,9 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} catch {}
 	}, [page, settings]);
 	const [notes, setNotes] = (0, import_react.useState)([]);
+	// v206: búsqueda en la hoja de Notas
+	const [notasQ, setNotasQ] = (0, import_react.useState)("");
+	const notasVis = (() => { const q = notasQ.trim().toLowerCase(); return q ? notes.filter((n) => (n.note || "").toLowerCase().includes(q)) : notes; })();
 	const [meanings, setMeanings] = (0, import_react.useState)({});
 	const [noteDraft, setNoteDraft] = (0, import_react.useState)("");
 	const [insights, setInsights] = (0, import_react.useState)(null);
@@ -48632,9 +48635,37 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				onClose: closeSheet,
 				title: `📝 Notas · página ${page + 1}`,
 				children: [
-					notes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				/* v206: cabecera de notas: contadores + acceso a mensajes guardados */
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "notas-cab",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "notas-cab-stats",
+							children: ["📝 ", notes.length, " nota", notes.length === 1 ? "" : "s", " en este libro · ", /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [notes.filter((n) => (n.page ?? 0) === page).length, " en la pág. ", page + 1] })]
+						}),
+						onOpenGuardados && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "notas-cab-btn",
+							onClick: () => { haptic$1.tap(); onOpenGuardados(); },
+							children: "💬 Ver guardados"
+						})
+					]
+				}),
+				/* v206: búsqueda dentro de las notas del libro */
+				notes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "notas-busq",
+					children: ["🔎", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+						type: "search",
+						placeholder: "Buscar en las notas…",
+						value: notasQ,
+						onChange: (e) => setNotasQ(e.target.value)
+					})]
+				}),
+					notasVis.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "notes-list",
-						children: notes.map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						children: notasVis.flatMap((n, ix) => [ (ix === 0 || (notasVis[ix - 1].page ?? 0) !== (n.page ?? 0)) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "notas-pg",
+							children: ["📄 Página ", (n.page ?? 0) + 1]
+						}, "pg" + n.id) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "note-item",
 							"data-nid": n.id,
 							children: [
@@ -48680,13 +48711,16 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									children: "🗑"
 								})
 							]
-						}, n.id))
+						}, n.id)])
 					}),
-					notes.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: { padding: "4px 0 10px" },
-						children: "Aún no hay notas en este libro."
-					}),
+				notasVis.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "notas-vacio",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "notas-vacio-ico", children: notasQ.trim() ? "🔍" : "📝" }),
+						notasQ.trim() ? "Ninguna nota coincide con «" + notasQ.trim() + "»." : "Aún no hay notas en este libro.",
+						notasQ.trim() ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "notas-vacio-sub", children: "Selecciona un texto en la página y toca «Notas» para citarlo, o escribe directamente abajo." })
+					]
+				}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "note-compose chat-compose",
 						children: [
@@ -51507,7 +51541,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v205" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v206" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
