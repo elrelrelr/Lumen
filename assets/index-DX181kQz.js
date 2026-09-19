@@ -21708,6 +21708,7 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	const [leyendoId, setLeyendoId] = (0, import_react.useState)(null);
 	const [citaTexto, setCitaTexto] = (0, import_react.useState)(null);
 	const bodyRef = (0, import_react.useRef)(null);
+	const endRef = (0, import_react.useRef)(null);
 	const imgRef = (0, import_react.useRef)(null);
 	const [adjunto, setAdjunto] = (0, import_react.useState)(null);
 	const [emojisAbierto, setEmojisAbierto] = (0, import_react.useState)(false);
@@ -21720,6 +21721,12 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 	const recRef = (0, import_react.useRef)(null);
 	const recStreamRef = (0, import_react.useRef)(null);
 	const recIvRef = (0, import_react.useRef)(null);
+	// v205: pausar/reanudar la grabación (el envío es SOLO con el avión)
+	const [recPausado, setRecPausado] = (0, import_react.useState)(false);
+	const [recVista, setRecVista] = (0, import_react.useState)(null);
+	const recVistaRef = (0, import_react.useRef)(null);
+	const recChunksRef = (0, import_react.useRef([]));
+	const recCancelarRef = (0, import_react.useRef)(false);
 	const [ampliado, setAmpliado] = (0, import_react.useState)(false);
 	const areaRef = (0, import_react.useRef)(null);
 	const reload = (0, import_react.useCallback)(async () => {
@@ -21776,12 +21783,20 @@ function Guardados({ open, onClose, toast, onOpenBook, initialTab }) {
 		return out;
 	}, [chatItems]);
 	(0, import_react.useEffect)(() => {
-		// v204: la lista va de VIEJA a NUEVA (arriba = viejo, abajo = nuevo),
-		// estilo chat: abrir la pestaña, volver a ella o recibir un mensaje
-		// nuevo lleva la vista al FINAL (lo más reciente). Al ser useEffect
-		// corre DESPUÉS del commit del DOM (sin carreras de rAF): el scroll
-		// siempre ve el mensaje nuevo ya renderizado.
-		if (open && tab === "chat" && chatItems.length) { const b = bodyRef.current; if (b) b.scrollTop = b.scrollHeight; }
+		// v204: lista de VIEJA a NUEVA (arriba = viejo, abajo = nuevo).
+		// v205: medido en Chromium: el scroller real de la hoja es .sheet-body
+		// (display block); .gd-body crece con su contenido y NUNCA desborda,
+		// así que ponerle scrollTop era un no-op. Se scrollea .sheet-body (el
+		// contenedor que de verdad desborda), con .gd-body de reserva para
+		// otros layouts. useEffect = post-commit: el mensaje nuevo ya está
+		// pintado cuando se mide (sin carreras de rAF).
+		if (open && tab === "chat" && chatItems.length) {
+			const fin2 = endRef.current;
+			const sc = fin2 && fin2.closest(".sheet-body");
+			if (sc) sc.scrollTop = sc.scrollHeight;
+			const b = bodyRef.current;
+			if (b) b.scrollTop = b.scrollHeight;
+		}
 	}, [
 		open,
 		tab,
@@ -21881,14 +21896,48 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 	}, 2000);
 	rec.stop();
 	}
-	if (!silencioso) setRecAudio(false);
+	if (!silencioso) {
+		setRecAudio(false);
+		setRecPausado(false);
+		setRecSeg(0);
+		if (recVistaRef.current) { try { URL.revokeObjectURL(recVistaRef.current); } catch {} recVistaRef.current = null; }
+		setRecVista(null);
+	}
 	} catch {}
 }, []);
 	/** v149: el micrófono graba un audio y lo envía como mensaje.
 	*  Si el dispositivo no soporta MediaRecorder, cae al dictado por voz. */
 	const alternarMic = (0, import_react.useCallback)(async () => {
-		if (recAudio) {
-			pararRec(true);
+		// v205: con grabación pendiente, el micrófono PAUSA/REANUDA (ya no
+		// envía al tocar): el audio solo se envía con el avión, después de
+		// que el usuario revise la vista previa (o cancele con la ✕).
+		if (recAudio && !recPausado) {
+			try { recRef.current?.pause(); } catch {}
+			setRecPausado(true);
+			if (recIvRef.current) { clearInterval(recIvRef.current); recIvRef.current = null; }
+			try {
+				const b = new Blob(recChunksRef.current, { type: recRef.current?.mimeType || "audio/webm" });
+				if (b.size) {
+					const u = URL.createObjectURL(b);
+					setRecVista(u);
+					recVistaRef.current = u;
+				}
+			} catch {}
+			haptic$1.tap();
+			return;
+		}
+		if (recAudio && recPausado) {
+			try { recRef.current?.resume(); } catch {}
+			setRecPausado(false);
+			if (recVistaRef.current) { try { URL.revokeObjectURL(recVistaRef.current); } catch {} recVistaRef.current = null; }
+			setRecVista(null);
+			recIvRef.current = setInterval(() => {
+				setRecSeg((v) => {
+					if (v + 1 >= 300) pararRec(true);
+					return Math.min(300, v + 1);
+				});
+			}, 1000);
+			haptic$1.tap();
 			return;
 		}
 		if (dictando) {
@@ -21907,12 +21956,24 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 				} catch {}
 				const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
 				const chunks = [];
+				recChunksRef.current = chunks;
 				rec.ondataavailable = (e) => {
 					if (e.data && e.data.size) chunks.push(e.data);
 				};
 				rec.onstop = async () => {
 					setRecAudio(false);
 					setRecSeg(0);
+					setRecPausado(false);
+					if (recVistaRef.current) { try { URL.revokeObjectURL(recVistaRef.current); } catch {} recVistaRef.current = null; }
+					setRecVista(null);
+					if (recCancelarRef.current) {
+						// v205: cancelado desde la vista previa: se descarta, NO se envía
+						recCancelarRef.current = false;
+						if (recIvRef.current) { clearInterval(recIvRef.current); recIvRef.current = null; }
+						if (recStreamRef.current) { recStreamRef.current.getTracks().forEach((t) => { try { t.stop(); } catch {} }); recStreamRef.current = null; }
+						toast?.("Grabación cancelada");
+						return;
+					}
 					if (recIvRef.current) {
 						clearInterval(recIvRef.current);
 						recIvRef.current = null;
@@ -21974,7 +22035,7 @@ const pararRec = (0, import_react.useCallback)((silencioso) => {
 		}
 		// Fallback: dictado por voz (dispositivos sin MediaRecorder)
 		alternarDictado();
-	}, [recAudio, dictando]);
+	}, [recAudio, dictando, recPausado]);
 	(0, import_react.useEffect)(() => () => {
 		try {
 			if (recIvRef.current) clearInterval(recIvRef.current);
@@ -22622,6 +22683,7 @@ const send = async () => {
 							]
 						})]
 					}, g.key)),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref: endRef })
 				] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_jsx_runtime.Fragment, { children: filtered.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "empty",
 					style: { padding: "40px 10px" },
@@ -22873,6 +22935,24 @@ const send = async () => {
 							children: "✕"
 						})]
 					}),
+					// v205: vista previa del audio grabado (aparece en pausa; ✕ cancela)
+					recVista && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "chat-adj chat-vista",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("audio", {
+							className: "chat-vista-audio",
+							src: recVista,
+							controls: true,
+							preload: "auto"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "chat-adj-x",
+							"aria-label": "Cancelar grabación",
+							onClick: () => {
+								recCancelarRef.current = true;
+								try { recRef.current?.stop(); } catch {}
+							},
+							children: "✕"
+						})]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 						ref: imgRef,
 						type: "file",
@@ -22905,13 +22985,13 @@ const send = async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "tg-campo",
 								children: [recAudio && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "rec-estado",
-								children: ["⏺ Grabando ", recSeg, " s · toca el micrófono para enviar"]
+								className: "rec-estado" + (recPausado ? " pausa" : ""),
+								children: recPausado ? ["⏸ Pausado ", recSeg, " s · toca el micrófono para continuar"] : ["⏺ Grabando ", recSeg, " s · toca el micrófono para pausar"]
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 									ref: areaRef,
 									value: draft,
 									onChange: (e) => setDraft(e.target.value),
-									placeholder: recAudio ? "Toca el micrófono para enviar el audio…" : dictando ? "Escuchando…" : "Escribe aquí…",
+									placeholder: recAudio ? (recPausado ? "Toca el micrófono para continuar grabando…" : "Toca el micrófono para pausar…") : dictando ? "Escuchando…" : "Escribe aquí…",
 									onKeyDown: (e) => {
 										if (e.key === "Enter" && !e.shiftKey && !ampliado) {
 											e.preventDefault();
@@ -22934,10 +23014,10 @@ const send = async () => {
 							}),
 							/* v201: el único botón de audio vive en la píldora */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "tg-ico chat-attach" + (recAudio || dictando ? " mic-on" : ""),
+								className: "tg-ico chat-attach" + (recAudio || dictando ? " mic-on" : "") + (recPausado ? " pausa" : ""),
 								onClick: alternarMic,
-								"aria-label": recAudio ? "Detener y enviar audio" : dictando ? "Detener dictado" : "Grabar audio",
-								children: recAudio || dictando ? "⏹" : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
+								"aria-label": recAudio ? (recPausado ? "Reanudar grabación" : "Pausar grabación") : dictando ? "Detener dictado" : "Grabar audio",
+								children: dictando ? "⏹" : recAudio ? (recPausado ? "▶" : "⏸") : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconMic, {
 									width: 20,
 									height: 20
 								})
@@ -36355,7 +36435,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v204"
+							children: "v205"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38258,7 +38338,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v204 · escritorio y móvil"
+					children: "Lumen Reader · v205 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -51427,7 +51507,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v204" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v205" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

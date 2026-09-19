@@ -13267,3 +13267,9 @@ mark.find-flash {
    botón «Abrir». Así se puede arrastrar el scroll sin entrar al libro por error. */
 .pin-body { cursor: default; }
 .gd-body .chat-msg .chat-text { cursor: default; }
+
+
+/* ============ v205: vista previa del audio grabado (pausa) ============ */
+.chat-vista { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px 10px; }
+.chat-vista-audio { flex: 1; min-width: 0; height: 36px; }
+.rec-estado.pausa { color: var(--warn, #e8b339); }
