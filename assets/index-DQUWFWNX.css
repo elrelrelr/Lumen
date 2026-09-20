@@ -13599,3 +13599,29 @@ mark.find-flash {
 @media (max-width: 400px) {
   .st-body > .st-content { width: calc(100% - 28px); max-width: 28rem; margin: 0 auto; }
 }
+
+/* ============ v210 (#1): composer de Guardados SIEMPRE abajo ============ */
+/* La hoja Guardados llena la pantalla (v207) pero .sheet-body era display:block:
+   con pocos mensajes el chat-sticky (barra de escribir/enviar) quedaba a mitad
+   de pantalla. Con flex-column, .gd-body (flex:1; min-height:0) estira el feed
+   hacia abajo y el compositor queda anclado al fondo; si hay muchos mensajes,
+   el feed scrollea dentro y la barra sigue abajo. */
+.sheet:has(.gd-body) .sheet-body { display: flex; flex-direction: column; }
+
+/* ============ v210 (#2): calificación — 5 estrellas ============ */
+.rate-stars { display: inline-flex; align-items: center; gap: 2px; }
+.rate-star { background: none; border: none; padding: 2px 3px; font-size: 22px; line-height: 1; color: var(--fg-dim); cursor: pointer; transition: transform .12s, color .12s; }
+.rate-star.on { color: #fbbf24; }
+.rate-star:active { transform: scale(1.3); }
+.rate-stars.big { display: flex; justify-content: center; }
+.rate-stars.big .rate-star { font-size: 36px; padding: 4px 5px; }
+/* fila de calificación dentro de «Opciones del libro» */
+.lm-rate { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 2px; }
+.lm-rate-lbl { font-size: 12px; color: var(--fg-dim); white-space: nowrap; }
+/* aviso de fin de libro (última página) */
+.fin-velo { position: fixed; inset: 0; z-index: 90; background: rgba(0, 0, 0, .55); display: flex; align-items: center; justify-content: center; padding: 20px; }
+.fin-card { background: var(--bg-elev); border: 1px solid var(--line); border-radius: 22px; padding: 24px 20px 18px; max-width: 340px; width: 100%; text-align: center; box-shadow: 0 30px 80px -30px rgba(0, 0, 0, .7); }
+.fin-emoji { font-size: 40px; }
+.fin-tit { font-size: 16px; font-weight: 700; margin-top: 6px; }
+.fin-sub { font-size: 13px; color: var(--fg-dim); margin: 6px 0 12px; }
+.fin-card .rate-stars.big { margin-bottom: 14px; }

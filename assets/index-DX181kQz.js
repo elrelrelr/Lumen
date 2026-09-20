@@ -36474,7 +36474,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v209"
+							children: "v210"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -36955,7 +36955,7 @@ const toquesDev = (0, import_react.useRef)(0);
 					pressTimer.current = setTimeout(() => {
 						haptic$1.tap();
 						__vitePreload(() => Promise.resolve().then(() => gestos_exports).then((m) => m.tragarSiguienteClic()), void 0, import.meta.url).catch(() => {});
-						setLongPress(b);
+						getBook(b.id).then((f) => setLongPress(f || b)).catch(() => setLongPress(b)); // v210: siempre el libro actual (rating incluido)
 					}, 550);
 				},
 				onPointerUp: () => clearTimeout(pressTimer.current),
@@ -36963,7 +36963,7 @@ const toquesDev = (0, import_react.useRef)(0);
 				onContextMenu: (e) => {
 					e.preventDefault();
 					__vitePreload(() => Promise.resolve().then(() => gestos_exports).then((m) => m.tragarSiguienteClic()), void 0, import.meta.url).catch(() => {});
-					setLongPress(b);
+					getBook(b.id).then((f) => setLongPress(f || b)).catch(() => setLongPress(b)); // v210: siempre el libro actual (rating incluido)
 				},
 				role: "button",
 				tabIndex: 0,
@@ -37043,7 +37043,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						className: "icon-btn",
 						onClick: (e) => {
 							e.stopPropagation();
-							setLongPress(b);
+							getBook(b.id).then((f) => setLongPress(f || b)).catch(() => setLongPress(b)); // v210: siempre el libro actual (rating incluido)
 						},
 						"aria-label": "Opciones",
 						children: busyId === b.id ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) : "⋮"
@@ -38377,7 +38377,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v209 · escritorio y móvil"
+					children: "Lumen Reader · v210 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -39634,7 +39634,35 @@ const toquesDev = (0, import_react.useRef)(0);
 							]
 						})]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							/* v210 (#2): calificación del libro — 5 estrellas (tocar la misma = quitar) */
+		(0, import_jsx_runtime.jsxs)("div", {
+			className: "lm-rate",
+			children: [
+				(0, import_jsx_runtime.jsx)("span", {
+					className: "lm-rate-lbl",
+					children: "Tu calificación"
+				}),
+				(0, import_jsx_runtime.jsxs)("div", {
+					className: "rate-stars",
+					children: [1, 2, 3, 4, 5].map((n) =>
+						(0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "rate-star" + ((longPress.rating || 0) >= n ? " on" : ""),
+							"aria-label": "Calificar con " + n + " estrellas",
+							onClick: async () => {
+								const nuevo = (longPress.rating || 0) === n ? 0 : n;
+								haptic$1.tap();
+								await patchBook(longPress.id, { rating: nuevo });
+								setLongPress({ ...longPress, rating: nuevo });
+								toast?.(nuevo ? `★ «${longPress.title || "libro"}» calificado con ${nuevo}/5` : "Calificación quitada");
+							},
+							children: "★"
+						}, String(n))
+					)
+				})
+			]
+		}),
+/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "lm-rapidas",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -43452,6 +43480,24 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	// cambiar el modo de desplazamiento (desp) o la vista (mode) se detiene el auto-scroll.
 	(0, import_react.useEffect)(() => { setAutoScrollOn(false); }, [desp, mode]);
 	const pageCount = book?.pageCount || 0;
+	/* v210 (#2): al terminar el libro (última página) aparecen las estrellas.
+	   Una sola vez por libro: se persiste ratePrompted al mostrar el aviso. */
+	const [finAviso, setFinAviso] = (0, import_react.useState)(false);
+	const finVistoRef = (0, import_react.useRef)(false);
+	(0, import_react.useEffect)(() => {
+		if (!book || !pageCount || pageCount < 2) return;
+		if (page !== pageCount - 1) return;
+		if (finVistoRef.current || book.ratePrompted) return;
+		finVistoRef.current = true;
+		setFinAviso(true);
+		if (!book.ratePrompted) {
+			// v210: encadenado en saveCadenas (misma fila que guardarProgresoInterno)
+			// para que la escritura del progreso no pise ratePrompted (read-modify-write)
+			const prev = saveCadenas.get(book.id) || Promise.resolve();
+			const run = prev.then(() => patchBook(book.id, { ratePrompted: true })).catch(() => {});
+			saveCadenas.set(book.id, run);
+		}
+	}, [book, page, pageCount]);
 	/* v180b: PC — rueda del ratón en el borde = misma barra "mantener 2s" */
 	(0, import_react.useEffect)(() => {
 		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
@@ -46815,6 +46861,58 @@ const docPedir = (desde, hasta, centroArg) => {
 		"data-letra": settings.textColor || "auto",
 		style: { "--papel": Math.round(papelA * 100) + "%", "--letra-user": settings.textColor || "auto" },
 		children: [
+			/* v210 (#2): fin de libro — calificación con 5 estrellas */
+			finAviso && book && (0, import_jsx_runtime.jsxs)("div", {
+				className: "fin-velo",
+				onClick: () => setFinAviso(false),
+				children: [
+					(0, import_jsx_runtime.jsxs)("div", {
+						className: "fin-card",
+						onClick: (e) => e.stopPropagation(),
+						children: [
+							(0, import_jsx_runtime.jsx)("div", {
+								className: "fin-emoji",
+								children: "🎉"
+							}),
+							(0, import_jsx_runtime.jsx)("div", {
+								className: "fin-tit",
+								children: `¡Terminaste «${book.title || "tu libro"}»!`
+							}),
+							(0, import_jsx_runtime.jsx)("div", {
+								className: "fin-sub",
+								children: (book.rating || 0) > 0 ? `Lo calificaste con ${book.rating}/5 · toca una estrella para cambiarlo` : "¿Cómo lo calificarías?"
+							}),
+							(0, import_jsx_runtime.jsxs)("div", {
+								className: "rate-stars big",
+								children: [1, 2, 3, 4, 5].map((n) =>
+									(0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "rate-star" + ((book.rating || 0) >= n ? " on" : ""),
+										"aria-label": "Calificar con " + n + " estrellas",
+										onClick: async () => {
+											const nuevo = (book.rating || 0) === n ? 0 : n;
+											haptic$1.tap();
+											await patchBook(book.id, { rating: nuevo });
+											setBook({ ...book, rating: nuevo });
+											if (nuevo) {
+												setFinAviso(false);
+												toast?.(`★ Calificado con ${nuevo}/5 · ¡enhorabuena!`);
+											}
+										},
+										children: "★"
+									}, String(n))
+								)
+							}),
+							(0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "btn ghost",
+								onClick: () => setFinAviso(false),
+								children: "Luego"
+							})
+						]
+					})
+				]
+			}),
 			// v170: se quitó la pastilla «Leyendo pág. N · volver» (.tts-volver):
 			// tapaba botones del auto-scroll. Su función (volver a la página que
 			// lee la voz) se fusionó en el botón 📍 del auto-scroll (onSync).
@@ -51703,7 +51801,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v209" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v210" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
