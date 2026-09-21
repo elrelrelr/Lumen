@@ -36474,7 +36474,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v212"
+							children: "v213"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38377,7 +38377,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v212 · escritorio y móvil"
+					children: "Lumen Reader · v213 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -45152,6 +45152,7 @@ const go = (0, import_react.useCallback)((delta) => {
 		if (!el) return;
 		clearTimeout(el._t);
 		el._t = setTimeout(() => {
+			if (Date.now() - origFlowLock.current < 450) return; // v213: no leer el scroll durante un flip
 			const idx = Math.round(el.scrollLeft / el.clientWidth);
 			const target = carouselPages[idx];
 			if (target && target.index !== page) setPage(target.index);
@@ -45504,28 +45505,79 @@ const docPedir = (desde, hasta, centroArg) => {
 		if (Date.now() - origFlowLock.current < 450) return;
 		clearTimeout(el._t);
 		el._t = setTimeout(() => {
+			if (Date.now() - origFlowLock.current < 450) return; // v213: no leer el scroll durante un flip
 			const arr = origArr();
 			const idx = Math.round(el.scrollLeft / el.clientWidth);
 			const target = arr[idx];
 			if (target !== undefined && target !== page) setPage(target);
 		}, 90);
 	};
-	/* v212: flip 3D sobre la página REAL (sin copia ni overlay): la página actual
-		// gira como una hoja (eje = borde izquierdo) y se atenúa hasta desaparecer;
-		// la nueva aparece debajo (rueda/botones) o entra con su propio giro
-		// (swipe o salto de slider). Una animación para avanzar, otra para retroceder. */
+	/* v213: giro de página 3D — levantas la página y la arrastras: sueltas ANTES
+		de la mitad → la página vuelve a su sitio (no cambia); pasas la mitad → la
+		página se voltea y avanza/retrocede. Auto (rueda/botones/slider): la página
+		actual se LEVANTA (punto de levantada visible ~52°) y se voltea mientras la
+		página nueva/anterior queda revelada debajo. Avanzar → voltea a la izquierda,
+		retroceder → a la derecha (animaciones distintas). */
 	const flipFromRef = (0, import_react.useRef)(null);
 	const flipPrevRef = (0, import_react.useRef)(page);
-	if (flipPrevRef.current !== page && mode === "imagenes" && carousel && book) {
+	const flipSkipRef = (0, import_react.useRef)(false);
+	const flipLockUntilRef = (0, import_react.useRef)(0);
+	const turnRef = (0, import_react.useRef)(null);
+	if (flipPrevRef.current !== page && mode === "imagenes" && desp === "libro" && book) {
 		const from = flipPrevRef.current;
-		flipFromRef.current = { dir: page > from ? "fwd" : "back", from, to: page, at: Date.now(), enDom: origArr().includes(from) };
+		if (!flipSkipRef.current)
+			flipFromRef.current = { dir: page > from ? "fwd" : "back", from, to: page, at: Date.now(), steps: Math.abs(page - from), enDom: origArr().includes(from) };
+		flipSkipRef.current = false;
 	}
 	flipPrevRef.current = page;
 	const [flipTick, setFlipTick] = (0, import_react.useState)(0);
 	(0, import_react.useEffect)(() => {
 		if (!flipFromRef.current) return;
-		const t = setTimeout(() => { flipFromRef.current = null; setFlipTick((x) => x + 1); }, 560);
+		const t = setTimeout(() => { flipFromRef.current = null; setFlipTick((x) => x + 1); }, 720);
 		return () => clearTimeout(t);
+	}, [page, flipTick]);
+	// v213: flip automático de un solo paso (rueda/botones/slider): mantener la
+	// página vieja centrada (el vecindario puede haberse re-indexado en el DOM),
+	// colocar la nueva DEBAJO (cubierta por la vieja) y girar la página vieja REAL
+	// con el «levantada» visible.
+	(0, import_react.useLayoutEffect)(() => {
+		const fa = flipFromRef.current;
+		if (!fa || fa.steps !== 1 || !fa.enDom) return;
+		const el = origCarouselRef.current;
+		if (!el) return;
+		const arr = origArr();
+		const fi = arr.indexOf(fa.from), ti = arr.indexOf(fa.to);
+		const fromEl = el.children[fi], toEl = el.children[ti];
+		if (!fromEl || !toEl) return;
+		origFlowLock.current = Date.now();
+		flipLockUntilRef.current = Date.now() + 700;
+		clearTimeout(el._t);
+		el.scrollLeft = fi * el.clientWidth;
+		toEl.style.transform = fa.dir === "fwd" ? `translateX(${-el.clientWidth}px)` : `translateX(${el.clientWidth}px)`;
+		toEl.style.zIndex = "1";
+		fromEl.style.zIndex = "5";
+		fromEl.classList.add(fa.dir === "fwd" ? "page-lift-fwd" : "page-lift-back");
+		const t = setTimeout(() => {
+			origFlowLock.current = Date.now();
+			clearTimeout(el._t);
+			el.scrollLeft = ti * el.clientWidth;
+			fromEl.classList.remove("page-lift-fwd", "page-lift-back");
+			fromEl.style.zIndex = "";
+			toEl.style.transform = "";
+			toEl.style.zIndex = "";
+			flipFromRef.current = null;
+		}, 640);
+		return () => {
+			clearTimeout(t);
+			origFlowLock.current = Date.now();
+			clearTimeout(el._t);
+			if (el.scrollLeft !== ti * el.clientWidth) el.scrollLeft = ti * el.clientWidth;
+			fromEl.classList.remove("page-lift-fwd", "page-lift-back");
+			fromEl.style.zIndex = "";
+			toEl.style.transform = "";
+			toEl.style.zIndex = "";
+			flipFromRef.current = null;
+		};
 	}, [page, flipTick]);
 	(0, import_react.useEffect)(() => {
 		if (mode !== "imagenes" || !carousel) return;
@@ -45535,24 +45587,16 @@ const docPedir = (desde, hasta, centroArg) => {
 			const arr = origArr();
 			const i0 = Math.max(0, arr.indexOf(page));
 			if (Math.abs(el.scrollLeft - i0 * el.clientWidth) > 4) {
-				// v212: si la página vieja sigue a la vista (rueda/botones), que gire y
-				// se atenúe primero; el salto a la nueva llega a mitad de giro.
-				const fa = flipFromRef.current;
-				// v212: diferir el salto SOLO si la página vieja sigue centrada a la
-				// vista (rueda/botones). Si el usuario ya scrolleó (swipe), re-centra
-				// de inmediato (sin cambio de posición visible) y la nueva entra animada.
-				const aunEnVieja = Math.abs(el.scrollLeft - fa.from * el.clientWidth) <= 4;
-				if (!force && fa && fa.to === page && fa.enDom && aunEnVieja && Date.now() - fa.at < 300) return;
+				// v213: durante un flip (auto o el «commit» del arrastre) el flip
+				// mismo hace el centrado → no tocar scrollLeft.
+				if (!force && Date.now() < flipLockUntilRef.current) return;
 				origFlowLock.current = Date.now();
 				el.scrollLeft = i0 * el.clientWidth;
 			}
 		};
 		centrarCarrusel();
-		const rC = requestAnimationFrame(() => centrarCarrusel()); // v212: sin arg (rAF pasa un timestamp)
+		const rC = requestAnimationFrame(() => centrarCarrusel());
 		const tC = setTimeout(() => centrarCarrusel(), 160);
-		let tFlip = 0;
-		const fa0 = flipFromRef.current;
-		if (fa0 && fa0.to === page && fa0.enDom) tFlip = setTimeout(() => centrarCarrusel(true), 280); // v212
 		let vivo = true;
 		(async () => {
 			for (const i of origArr()) {
@@ -45581,7 +45625,6 @@ const docPedir = (desde, hasta, centroArg) => {
 			vivo = false;
 			cancelAnimationFrame(rC);
 			clearTimeout(tC);
-			clearTimeout(tFlip);
 		};
 	}, [mode, carousel, page, pageCount]);
 	const origFlowLock = (0, import_react.useRef)(0);
@@ -47217,8 +47260,10 @@ const docPedir = (desde, hasta, centroArg) => {
 						style: docFx(),
 						ref: origCarouselRef,
 								onDragStart: (e) => e.preventDefault(),
+								onMouseDownCapture: (e) => { if (desp === "libro") e.preventDefault(); }, // v213: sin drag-scroll nativo del ratón
 								onMouseDown: (e) => {
 											if (e.button !== 0) return;
+											if (desp === "libro") return; // v213: en 📖 Libro el gesto de levantar la página manda
 											const el = e.currentTarget;
 											const x0 = e.clientX;
 											const s0 = el.scrollLeft;
@@ -47237,6 +47282,94 @@ const docPedir = (desde, hasta, centroArg) => {
 											window.addEventListener("mousemove", mm);
 											window.addEventListener("mouseup", mu);
 										},
+					onPointerDown: (e) => {
+						if (desp !== "libro" || !book) return;
+						if (e.pointerType === "mouse" && e.button !== 0) return;
+						turnRef.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dir: 0, prog: 0, on: false };
+					},
+					onPointerMove: (e) => {
+						const t = turnRef.current;
+						if (!t || t.id !== e.pointerId) return;
+						const dx = e.clientX - t.x0, dy = e.clientY - t.y0;
+						const el = e.currentTarget;
+						if (!t.on) {
+							if (Math.abs(dx) < 10 || Math.abs(dy) >= Math.abs(dx)) return;
+							const n0 = page + (dx < 0 ? 1 : -1);
+							if (n0 < 0 || n0 >= pageCount) return;
+							t.on = true;
+							t.dir = dx < 0 ? 1 : -1;
+						}
+						const W = el.clientWidth || 1;
+						t.prog = Math.min(Math.abs(dx) / W, 1);
+						origFlowLock.current = Date.now();
+						const arr = origArr();
+						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(page + t.dir)];
+						if (toEl) toEl.style.transform = t.dir === 1 ? `translateX(${-W}px)` : `translateX(${W}px)`;
+						if (fromEl) {
+							fromEl.style.zIndex = "5";
+							fromEl.style.transformOrigin = "left center";
+							fromEl.style.transition = "none";
+							fromEl.style.transform = `rotateY(${(-t.dir * t.prog * 150).toFixed(1)}deg)`;
+							fromEl.style.setProperty("--lift", String(Math.min(t.prog * 1.3, 1)));
+							fromEl.classList.add("turning");
+							if (t.dir === -1) fromEl.classList.add("turning-back");
+						}
+					},
+					onPointerUp: (e) => {
+						const t = turnRef.current;
+						if (!t || t.id !== e.pointerId) return;
+						turnRef.current = null;
+						const el = e.currentTarget;
+						if (!t.on) return;
+						const arr = origArr();
+						const to = page + t.dir;
+						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(to)];
+						const clear = () => {
+							if (fromEl) { fromEl.style.transform = ""; fromEl.style.transition = ""; fromEl.style.zIndex = ""; fromEl.style.transformOrigin = ""; fromEl.style.opacity = ""; fromEl.classList.remove("turning", "turning-back"); fromEl.style.removeProperty("--lift"); }
+							if (toEl) { toEl.style.transform = ""; toEl.style.transition = ""; }
+						};
+						if (t.prog >= .5) {
+							// v213: más de la mitad → la página se voltea: termina el
+							// giro con fade y se asienta en la nueva página.
+							flipSkipRef.current = true;
+							flipLockUntilRef.current = Date.now() + 400;
+							origFlowLock.current = Date.now();
+							try { haptic$1.page(); } catch (err) {}
+							if (fromEl) {
+								fromEl.style.transition = "transform 300ms cubic-bezier(.55,.06,.75,.5), opacity 240ms ease-in 60ms";
+								fromEl.style.transform = `rotateY(${(-t.dir * 185)}deg)`;
+								fromEl.style.opacity = "0";
+							}
+							setPage(to);
+							setTimeout(() => {
+								origFlowLock.current = Date.now();
+								clearTimeout(el._t);
+								el.scrollLeft = origArr().indexOf(to) * (el.clientWidth || 1);
+								clear();
+							}, 330);
+						} else {
+							// v213: antes de la mitad → la página vuelve a su sitio
+							// (no cambia de página).
+							if (fromEl) { fromEl.style.transition = "transform 280ms cubic-bezier(.25,.7,.35,1.04), opacity 280ms"; fromEl.style.transform = "rotateY(0deg)"; fromEl.style.opacity = "1"; }
+							if (toEl) { toEl.style.transition = "transform 280ms ease"; toEl.style.transform = ""; }
+							setTimeout(clear, 300);
+						}
+					},
+					onPointerCancel: (e) => {
+						const t = turnRef.current;
+						if (!t || t.id !== e.pointerId) return;
+						turnRef.current = null;
+						if (!t.on) return;
+						const el = e.currentTarget;
+						const arr = origArr();
+						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(page + t.dir)];
+						if (fromEl) { fromEl.style.transition = "transform 240ms ease"; fromEl.style.transform = "rotateY(0deg)"; }
+						if (toEl) { toEl.style.transition = "transform 240ms ease"; toEl.style.transform = ""; }
+						setTimeout(() => {
+							if (fromEl) { fromEl.style.transform = ""; fromEl.style.transition = ""; fromEl.style.zIndex = ""; fromEl.style.transformOrigin = ""; fromEl.style.opacity = ""; fromEl.classList.remove("turning", "turning-back"); fromEl.style.removeProperty("--lift"); }
+							if (toEl) { toEl.style.transform = ""; toEl.style.transition = ""; }
+						}, 260);
+					},
 						onScroll: onOrigCarouselScroll,
 						onWheel: (e) => {
 							const d = e.deltaX || e.deltaY;
@@ -47247,12 +47380,9 @@ const docPedir = (desde, hasta, centroArg) => {
 							go(d > 0 ? 1 : -1);
 						},
 						children: origArr().map((i) => {
-					const fa = flipFromRef.current; // v212: flip sobre la página real
+					const fa = flipFromRef.current; // v213: salto multi-página (slider): la nueva entra con su giro
 					let cls = "carousel-item";
-					if (fa) {
-						if (fa.enDom && i === fa.from) cls += fa.dir === "fwd" ? " page-flip-out-fwd" : " page-flip-out-back";
-						if (i === fa.to) cls += fa.dir === "fwd" ? " page-flip-in-fwd" : " page-flip-in-back";
-					}
+					if (fa && fa.steps !== 1 && i === fa.to) cls += fa.dir === "fwd" ? " page-flip-in-fwd" : " page-flip-in-back";
 					return (0, import_jsx_runtime.jsx)("div", {
 						className: cls,
 						children: origImgs[i] ? (0, import_jsx_runtime.jsx)("img", {
@@ -51838,7 +51968,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v212" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v213" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
