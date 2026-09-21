@@ -36474,7 +36474,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v210"
+							children: "v211"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38377,7 +38377,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v210 · escritorio y móvil"
+					children: "Lumen Reader · v211 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -45504,10 +45504,12 @@ const docPedir = (desde, hasta, centroArg) => {
 		if (Date.now() - origFlowLock.current < 450) return;
 		clearTimeout(el._t);
 		el._t = setTimeout(() => {
-			const arr = origArr();
-			const idx = Math.round(el.scrollLeft / el.clientWidth);
+			const wide = mode === "imagenes" && desp === "libro" && esAncho; // v211: 2 páginas a la vez
+			const arr = wide ? origArr().concat([pageCount]) : origArr();
+			const unit = wide ? el.clientWidth / 2 : el.clientWidth;
+			const idx = Math.round(el.scrollLeft / unit);
 			const target = arr[idx];
-			if (target !== undefined && target !== page) setPage(target);
+			if (target !== undefined && target !== page) setPage(Math.min(target, pageCount - 1));
 		}, 90);
 	};
 	(0, import_react.useEffect)(() => {
@@ -45517,9 +45519,10 @@ const docPedir = (desde, hasta, centroArg) => {
 			if (!el) return;
 			const arr = origArr();
 			const i0 = Math.max(0, arr.indexOf(page));
-			if (Math.abs(el.scrollLeft - i0 * el.clientWidth) > 4) {
+			const unit = mode === "imagenes" && desp === "libro" && esAncho ? el.clientWidth / 2 : el.clientWidth; // v211
+			if (Math.abs(el.scrollLeft - i0 * unit) > 4) {
 				origFlowLock.current = Date.now();
-				el.scrollLeft = i0 * el.clientWidth;
+				el.scrollLeft = i0 * unit;
 			}
 		};
 		centrarCarrusel();
@@ -45556,6 +45559,92 @@ const docPedir = (desde, hasta, centroArg) => {
 		};
 	}, [mode, carousel, page, pageCount]);
 	const origFlowLock = (0, import_react.useRef)(0);
+	// v211: flip 3D de página en Imágenes · 📖 Libro — 2 páginas a la vez en
+	// pantallas anchas (≥860px, como un libro abierto) y 1 en estrechas; la
+	// animación funciona con swipe, rueda, barra «mantener» y la slider rd-progress
+	// (rd-slider), tanto para avanzar como para retroceder.
+	const [esAncho, setEsAncho] = (0, import_react.useState)(() => typeof window !== "undefined" && window.innerWidth >= 860);
+	(0, import_react.useEffect)(() => {
+		const onRes = () => setEsAncho(window.innerWidth >= 860);
+		window.addEventListener("resize", onRes);
+		return () => window.removeEventListener("resize", onRes);
+	}, []);
+	const [flip, setFlip] = (0, import_react.useState)(null);
+	const [flipGo, setFlipGo] = (0, import_react.useState)(false);
+	const flipPageRef = (0, import_react.useRef)(null);
+	const flipTimerRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		if (!flip) { setFlipGo(false); return; }
+		setFlipGo(false);
+		let r2 = 0;
+		const r1 = requestAnimationFrame(() => { r2 = requestAnimationFrame(() => setFlipGo(true)); });
+		return () => { cancelAnimationFrame(r1); if (r2) cancelAnimationFrame(r2); };
+	}, [flip]);
+	(0, import_react.useEffect)(() => {
+		if (mode !== "imagenes" || desp !== "libro" || !carousel || !book) return;
+		const prev = flipPageRef.current;
+		if (prev === null || prev === page) { flipPageRef.current = page; return; }
+		flipPageRef.current = page;
+		origFlowLock.current = Date.now(); // el scroll del carrusel no cuenta como cambio mientras gira
+		clearTimeout(flipTimerRef.current);
+		setFlip({ dir: page > prev ? "fwd" : "back", from: prev, to: page });
+		flipTimerRef.current = setTimeout(() => setFlip(null), 620);
+	}, [page, mode, desp, carousel, book]);
+	(0, import_react.useEffect)(() => () => clearTimeout(flipTimerRef.current), []);
+	/* v211: qué se pinta en una cara del flip (página, portada de fin o vacía) */
+	const flipPinta = (i) => {
+		if (i === pageCount) {
+			return book.cover
+				? (0, import_jsx_runtime.jsx)("img", { src: book.cover, alt: "", className: "fin-img" })
+				: (0, import_jsx_runtime.jsxs)("div", { className: "fin-vacio", children: [(0, import_jsx_runtime.jsx)("span", { className: "fin-vacio-ico", children: "🏁" }), "Fin del libro"] });
+		}
+		const u = i >= 0 && i < pageCount ? origImgs[i] : null;
+		if (!u) return (0, import_jsx_runtime.jsx)("div", { className: "flip-vacia", children: i >= 0 ? (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) : "" });
+		return (0, import_jsx_runtime.jsx)("img", { src: u, alt: "", style: fxStyle() });
+	};
+	const flipOverlay = () => {
+		if (!flip || !book) return null;
+		const dir = flip.dir;
+		if (esAncho) {
+			// libro abierto: [izq, der]. Avanzar → la hoja derecha gira hacia la
+			// izquierda (eje = lomo). Retroceder → la hoja izquierda vuelve.
+			const baseL = dir === "fwd" ? flip.from : flip.to - 1;
+			const baseR = dir === "fwd" ? Math.min(flip.to + 1, pageCount) : flip.from + 1;
+			const leafSide = dir === "fwd" ? "right" : "left";
+			const leafFront = dir === "fwd" ? flip.from + 1 : flip.from;
+			const leafBack = flip.to;
+			return (0, import_jsx_runtime.jsxs)("div", {
+				className: "flip-overlay wide " + (dir === "fwd" ? "f" : "b"),
+				children: [
+					(0, import_jsx_runtime.jsx)("div", { className: "flip-half flip-half-l", children: flipPinta(baseL) }),
+					(0, import_jsx_runtime.jsx)("div", { className: "flip-half flip-half-r", children: flipPinta(baseR) }),
+					(0, import_jsx_runtime.jsxs)("div", {
+						className: "flip-leaf leaf-" + leafSide + (flipGo ? " go" : ""),
+						children: [
+							(0, import_jsx_runtime.jsx)("div", { className: "flip-face flip-face-front", children: flipPinta(leafFront) }),
+							(0, import_jsx_runtime.jsx)("div", { className: "flip-face flip-face-back", children: flipPinta(leafBack) })
+						]
+					}),
+					(0, import_jsx_runtime.jsx)("div", { className: "flip-shade " + (dir === "fwd" ? "shade-r" : "shade-l") })
+				]
+			});
+		}
+		// pantalla estrecha: 1 página; la hoja gira alrededor del borde izquierdo
+		return (0, import_jsx_runtime.jsxs)("div", {
+			className: "flip-overlay narrow " + (dir === "fwd" ? "f" : "b"),
+			children: [
+				(0, import_jsx_runtime.jsx)("div", { className: "flip-base", children: flipPinta(dir === "fwd" ? flip.to : flip.from) }),
+				(0, import_jsx_runtime.jsxs)("div", {
+					className: "flip-leaf leaf-full" + (flipGo ? " go" : ""),
+					children: [
+						(0, import_jsx_runtime.jsx)("div", { className: "flip-face flip-face-front", children: flipPinta(dir === "fwd" ? flip.from : flip.to) }),
+						(0, import_jsx_runtime.jsx)("div", { className: "flip-face flip-face-back" })
+					]
+				}),
+				(0, import_jsx_runtime.jsx)("div", { className: "flip-shade " + (dir === "fwd" ? "shade-r" : "shade-l") })
+			]
+		});
+	};
 	(0, import_react.useEffect)(() => {
 		if (mode !== "imagenes" || carousel) return;
 		const el = document.querySelector(".rd-canvas-wrap.orig-flow");
@@ -46936,6 +47025,7 @@ const docPedir = (desde, hasta, centroArg) => {
 				onTouchEnd,
 				onClick: onSurfaceClick,
 				children: [
+					flipOverlay(), // v211: flip 3D sobre el carrusel (Imágenes · 📖 Libro)
 					aplicarFondoDelTema && settings.fondoTemaEnLectura !== false && !fFondo && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "rd-fondo-global" + (mode === "original" || mode === "imagenes" ? " sobre-imagen" : ""),
 						"aria-hidden": "true",
@@ -47217,17 +47307,24 @@ const docPedir = (desde, hasta, centroArg) => {
 							origFlowLock.current = now;
 							go(d > 0 ? 1 : -1);
 						},
-						children: origArr().map((i) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "carousel-item",
-							children: origImgs[i] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-								src: origImgs[i],
-								alt: "",
-								style: fxStyle()
-							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "center-msg",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
-							})
-						}, i))
+						children: (desp === "libro" && esAncho ? origArr().concat([pageCount]) : origArr()).map((i) => i === pageCount
+					? /* v211: página «fin» al lado de la última (libro abierto) */ (0, import_jsx_runtime.jsx)("div", {
+						className: "carousel-item fin-item",
+						children: book.cover
+							? (0, import_jsx_runtime.jsx)("img", { src: book.cover, alt: "", className: "fin-img" })
+							: (0, import_jsx_runtime.jsxs)("div", { className: "fin-vacio", children: [(0, import_jsx_runtime.jsx)("span", { className: "fin-vacio-ico", children: "🏁" }), "Fin del libro"] })
+					}, "fin")
+					: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "carousel-item",
+						children: origImgs[i] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: origImgs[i],
+							alt: "",
+							style: fxStyle()
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "center-msg",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
+						})
+					}, i))
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ZoomPane, {
 						onTap: () => setChrome((c) => !c),
 						onSwipe: despSwipe ? (dir) => {
@@ -51801,7 +51898,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v210" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v211" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

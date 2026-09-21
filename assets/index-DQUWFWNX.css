@@ -13625,3 +13625,45 @@ mark.find-flash {
 .fin-tit { font-size: 16px; font-weight: 700; margin-top: 6px; }
 .fin-sub { font-size: 13px; color: var(--fg-dim); margin: 6px 0 12px; }
 .fin-card .rate-stars.big { margin-bottom: 14px; }
+
+/* ============ v211: flip 3D de página (Imágenes · 📖 Libro) ============ */
+/* Overlay sobre el carrusel: se pinta solo mientras dura el giro (≈520 ms).
+   Pantalla ancha (≥860px): libro abierto [izq, der] — la hoja gira alrededor
+   del lomo (centro). Pantalla estrecha: 1 página, la hoja gira sobre el borde
+   izquierdo. La sombra (flip-shade) oscurece la mitad que se está descubriendo. */
+.rd-surface .flip-overlay { position: absolute; inset: 0; z-index: 3; pointer-events: none; perspective: 2600px; }
+.flip-overlay .flip-half, .flip-overlay .flip-base { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; background: color-mix(in srgb, var(--reader-bg, #f6f1e4) var(--papel, 0%), transparent); }
+.flip-overlay .flip-half-l { right: 50%; }
+.flip-overlay .flip-half-r { left: 50%; }
+.flip-overlay img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.flip-leaf { position: absolute; top: 0; bottom: 0; width: 50%; transform-style: preserve-3d; transition: transform 520ms cubic-bezier(.3, .08, .22, 1); will-change: transform; }
+.flip-leaf.leaf-right { left: 50%; transform-origin: left center; }
+.flip-leaf.leaf-left { left: 0; transform-origin: right center; }
+.flip-leaf.leaf-full { left: 0; width: 100%; transform-origin: left center; }
+/* posición inicial por dirección (el .go la anima al destino) */
+.flip-overlay.b .flip-leaf.leaf-full { transform: rotateY(-180deg); }
+/* destinos */
+.flip-overlay.f .flip-leaf.leaf-right.go { transform: rotateY(-180deg); }
+.flip-overlay.b .flip-leaf.leaf-left.go { transform: rotateY(180deg); }
+.flip-overlay.f .flip-leaf.leaf-full.go { transform: rotateY(-180deg); }
+.flip-overlay.b .flip-leaf.leaf-full.go { transform: rotateY(0deg); }
+/* caras de la hoja */
+.flip-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px; background: #f7f2e5; }
+.flip-face img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.flip-face-back { transform: rotateY(180deg); background: linear-gradient(100deg, #e8e0cc, #f8f3e7 45%, #efe8d5); box-shadow: inset 16px 0 26px -16px rgba(60, 45, 20, .4); }
+/* sombra que recorre la mitad descubierta */
+.flip-shade { position: absolute; top: 0; bottom: 0; width: 50%; opacity: 0; }
+.flip-overlay.f .shade-r { left: 50%; background: linear-gradient(to right, rgba(40, 30, 12, .32), rgba(40, 30, 12, 0) 75%); animation: flipShade 520ms ease both; }
+.flip-overlay.b .shade-l { left: 0; background: linear-gradient(to left, rgba(40, 30, 12, .32), rgba(40, 30, 12, 0) 75%); animation: flipShade 520ms ease both; }
+.flip-overlay.narrow .flip-shade { left: 0; width: 100%; }
+@keyframes flipShade { 0% { opacity: 0; } 45% { opacity: 1; } 100% { opacity: 0; } }
+/* libro abierto: 2 páginas a la vez en pantallas anchas (Imágenes · 📖 Libro) */
+@media (min-width: 860px) {
+	.carousel.orig.desp-libro .carousel-item { flex: 0 0 50%; min-width: 50%; width: 50%; }
+}
+/* página «fin» al lado de la última (portada o vacía: «se acabó el libro») */
+.carousel.orig .fin-item { display: flex; align-items: center; justify-content: center; }
+.carousel.orig .fin-img { max-width: 92%; max-height: 92%; object-fit: contain; border-radius: 4px; box-shadow: 0 12px 32px -12px rgba(0, 0, 0, .45); }
+.fin-vacio { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; width: 92%; height: 92%; border: 1px dashed rgba(0, 0, 0, .18); border-radius: 6px; color: var(--fg-dim, #7a7264); font-size: 14px; }
+.fin-vacio-ico { font-size: 34px; }
+.flip-vacia { display: flex; align-items: center; justify-content: center; }
