@@ -11597,8 +11597,14 @@ body:has(.stories){overflow:hidden!important}
 /* v123: el zoom unificado también aplica a las imágenes (canvas de la página
    única de PDF; el resto ya usaba --doczoom vía .doc-flow). En el carrusel de
    Imágenes la imagen escala y el carrusel se vuelve desplazable. */
-.orig-flow > div > canvas { zoom: calc(var(--doczoom, 100) / 100); }
-.carousel.orig img { zoom: calc(var(--doczoom, 100) / 100); }
+/* v220: zoom unificado real en Imágenes (escalado GPU y pan táctil) */
+.orig-flow > div > canvas { zoom: 1 !important; }
+.carousel.orig .carousel-item img {
+  transform: scale(calc(var(--doczoom, 100) / 100));
+  transform-origin: center center;
+  transition: transform 0.18s ease-out;
+  zoom: 1 !important;
+}
 /* ============ v124: destello de 5 s sobre la palabra buscada ============ */
 mark.find-flash {
   background: rgba(255, 209, 102, 0.95);
@@ -11676,7 +11682,7 @@ mark.find-flash {
 /* ============ v133: zoom unificado en Imágenes (canvas/img viven más hondo: ZoomPane > div > CanvasHost > canvas | img) ============ */
 .orig-flow canvas,
 .orig-flow img {
-  zoom: calc(var(--doczoom, 100) / 100);
+  zoom: 1 !important;
 }
 
 /* v133: panel "Adjuntar archivo" (editor Crear libro) */
@@ -13778,3 +13784,8 @@ mark.find-flash {
 .reader .rd-scroll-fab { z-index: 60; }
 .reader .rd-zoom-fab .rd-zoom-btn, .reader .rd-zoom-fab .rd-zoom-pct { pointer-events: auto; }
 @media (max-width: 700px) { .reader .rd-scroll-fab { bottom: calc(var(--safe-b) + 132px); } }
+
+/* ============ v220 ============ */
+/* Zoom real en Imágenes: escalado visual reactivo con ScrollFab (＋/%/−) y pan 2D suave */
+.orig-flow canvas, .orig-flow img { zoom: 1 !important; }
+

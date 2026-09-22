@@ -19489,7 +19489,7 @@ var Dictation = class {
 };
 //#endregion
 //#region src/components/ZoomPane.jsx
-function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showControls = true, onSwipe, onTap, className = "", style }) {
+function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showControls = true, onSwipe, onTap, className = "", style, scale, onScaleChange, pageKey }) {
 	const wrapRef = (0, import_react.useRef)(null);
 	const [t, setT] = (0, import_react.useState)({
 		s: 1,
@@ -19540,6 +19540,21 @@ function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showC
 		x: 0,
 		y: 0
 	}), []);
+	// v220: sincronizar con escala externa (docZoom del ScrollFab / ＋/%/−)
+	(0, import_react.useEffect)(() => {
+		if (scale !== undefined && !Number.isNaN(scale)) {
+			setT((cur) => {
+				if (Math.abs(cur.s - scale) < 0.005) return cur;
+				const s = Math.min(maxScale, Math.max(minScale, scale));
+				if (s <= 1.01) return { s, x: 0, y: 0 };
+				const k = s / (cur.s || 1);
+				return clamp({ s, x: cur.x * k, y: cur.y * k });
+			});
+		}
+	}, [scale, clamp, maxScale, minScale]);
+	(0, import_react.useEffect)(() => {
+		setT((cur) => ({ s: cur.s, x: 0, y: 0 }));
+	}, [pageKey]);
 	const zoomBy = (0, import_react.useCallback)((delta) => {
 		setT((cur) => {
 			const el = wrapRef.current;
@@ -19619,6 +19634,7 @@ function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showC
 				x: nx,
 				y: ny
 			}));
+			onScaleChange?.(nextS);
 			e.preventDefault();
 			return;
 		}
@@ -19670,8 +19686,10 @@ function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showC
 			const now = Date.now();
 			if (now - s.lastTap < 300) {
 				s.lastTap = 0;
-				if (t.s > 1.05) reset();
-				else {
+				if (t.s > 1.05) {
+					reset();
+					onScaleChange?.(1);
+				} else {
 					const el = wrapRef.current.getBoundingClientRect();
 					const cx = e.clientX - el.left - el.width / 2;
 					const cy = e.clientY - el.top - el.height / 2;
@@ -19680,6 +19698,7 @@ function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showC
 						x: -cx * 1.6,
 						y: -cy * 1.6
 					}));
+					onScaleChange?.(2.6);
 				}
 			} else {
 				s.lastTap = now;
@@ -19707,7 +19726,7 @@ function ZoomPane({ children, maxScale = 6, minScale = .4, enabled = true, showC
 				style: {
 					transform: `translate3d(${t.x}px, ${t.y}px, 0) scale(${t.s})`,
 					transformOrigin: "center center",
-					transition: st.current.pointers.size ? "none" : "transform 0.18s ease-out",
+					transition: st.current.pointers.size || (t.s > 1.01 && st.current.moved) ? "none" : "transform 0.18s ease-out",
 					width: "100%",
 					height: "auto",
 					minHeight: "100%",
@@ -36617,7 +36636,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v219"
+							children: "v220"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38520,7 +38539,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v219 · escritorio y móvil"
+					children: "Lumen Reader · v220 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -47645,6 +47664,9 @@ const docPedir = (desde, hasta, centroArg) => {
 						enabled: true,
 						className: (invertir && filtroImg === "normal" ? "invertido" : "") + " orig-flow",
 						style: docFx(),
+						scale: docZoom / 100,
+						onScaleChange: (s) => setDocZoom(Math.max(50, Math.min(250, Math.round(s * 100)))),
+						pageKey: page,
 						children: renderingOriginal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "center-msg",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
@@ -52260,7 +52282,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v219" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v220" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
