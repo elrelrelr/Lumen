@@ -36336,21 +36336,41 @@ const toquesDev = (0, import_react.useRef)(0);
 			// v218 (#2): muchos PDF escaneados traen de 1.ª página el aviso de Google
 			// («This is a digital copy of a book…») o una hoja en blanco: la portada
 			// se toma de la primera página que NO sea eso (hasta 6 páginas).
-			const esAvisoOBlanco = async (n) => {
+			// v219 (#2): la hoja-aviso se reconoce por TEXTO (cuando lo hay) y por IMAGEN
+			// (los escaneos suelen traerla sin capa de texto o solo con la palabra «Google»).
+			const esAvisoTexto = async (n) => {
 				try {
-					const t = (await extractPageText(doc, n)).toLowerCase();
-					if (/digital copy of a book|google book search|preserved for generations|usage guidelines|copia digital de un libro|b(ú|u)squeda de libros de google/.test(t)) return true;
+					const t = (await extractPageText(doc, n)).toLowerCase().replace(/\s+/g, " ");
+					if (/digital copy of a book|google book search|preserved for generations|usage guidelines|copia digital de un libro|b(ú|u)squeda de libros de google|about google book|acerca de (la )?b(ú|u)squeda de libros|google books|books\.google\.com|carefully scanned by google|digitalizad[oa] por google|scanned by google/.test(t)) return true;
+					if (/^\W*google\W*$/.test(t.trim())) return true; // solo la palabra «Google» (logo con texto)
 					if (/gallica|biblioth(è|e)que nationale|numérisé|hathitrust|public domain, google-digitized/.test(t) && t.length < 1200) return true;
 					return false;
 				} catch { return false; }
 			};
-			const pagBlanca = (cv) => { try { const x2 = cv.getContext("2d"); const d = x2.getImageData(0, 0, cv.width, cv.height).data; let oscuros = 0; for (let i = 0; i < d.length; i += 16) if (d[i] + d[i + 1] + d[i + 2] < 540) oscuros++; return oscuros / (d.length / 16) < .004; } catch { return false; } };
+			const analizar = (cv) => {
+				try {
+					const x2 = cv.getContext("2d"); const W = cv.width, H = cv.height;
+					const d = x2.getImageData(0, 0, W, H).data;
+					const filas = new Array(H).fill(0); let oscuros = 0, total = 0;
+					for (let yy = 0; yy < H; yy += 2) for (let xx = 0; xx < W; xx += 2) { const i = (yy * W + xx) * 4; total++; if (d[i] + d[i + 1] + d[i + 2] < 420) { oscuros++; filas[yy]++; } }
+					const tinta = oscuros / total;
+					// líneas de texto: bandas de filas con tinta, de altura pequeña y separadas
+					let lineas = 0, dentro = false, alto = 0, altos = [];
+					for (let yy = 0; yy < H; yy += 2) { const con = filas[yy] > W * .01; if (con && !dentro) { dentro = true; alto = 0; } if (con) alto += 2; if (!con && dentro) { dentro = false; if (alto <= H * .03) lineas++; altos.push(alto); } }
+					const grandes = altos.filter((a) => a > H * .04).length; // títulos/imágenes grandes
+					return { tinta, lineas, grandes };
+				} catch { return { tinta: 1, lineas: 0, grandes: 0 }; }
+			};
+			const pagBlanca = (a) => a.tinta < .004;
+			// la hoja de Google: página casi vacía de imagen, ~12-40 líneas finas de texto corrido, sin bloques grandes
+			const pareceAvisoImg = (a) => a.lineas >= 10 && a.grandes <= 1 && a.tinta > .004 && a.tinta < .09;
 			let cv = null;
-			const total = Math.min(doc.numPages || 1, 6);
+			const total = Math.min(doc.numPages || 1, 8);
 			for (let n = 1; n <= total; n++) {
-				if (await esAvisoOBlanco(n)) continue;
+				if (await esAvisoTexto(n)) continue;
 				const cand = await renderPageToCanvas(doc, n, 420);
-				if (n < total && pagBlanca(cand)) continue;
+				const a = analizar(cand);
+				if (n < total && (pagBlanca(a) || (n <= 3 && pareceAvisoImg(a)))) continue;
 				cv = cand; break;
 			}
 			if (!cv) cv = await renderPageToCanvas(doc, 1, 420);
@@ -36597,7 +36617,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v218"
+							children: "v219"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38500,7 +38520,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v218 · escritorio y móvil"
+					children: "Lumen Reader · v219 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -42538,7 +42558,7 @@ var VEL_LABELS = [
 	"Veloz",
 	"Máx"
 ];
-function ScrollFab({ abajo, onTocar, mode, settings, setSettings, docZoom, setDocZoom }) {
+function ScrollFab({ abajo, onTocar, mode, settings, setSettings, docZoom, setDocZoom, sinNav = false }) {
 	// v174: el cluster flotante ahora es ZOOM (pila vertical +/%/−) + SUBIR/BAJAR.
 	// El auto-scroll (toggle + velocidad) se movió al panel «Lectura».
 	const z = mode === "text" ? {
@@ -42583,7 +42603,7 @@ function ScrollFab({ abajo, onTocar, mode, settings, setSettings, docZoom, setDo
 				onContextMenu: (e) => e.preventDefault(),
 				children: "－"
 			}),
-			(0, import_jsx_runtime.jsx)("button", {
+			sinNav ? null : (0, import_jsx_runtime.jsx)("button", {
 				className: "rd-scroll-nav",
 				"aria-label": abajo ? "Ir arriba" : "Ir abajo",
 				onClick: () => onTocar?.(),
@@ -46771,7 +46791,7 @@ const docPedir = (desde, hasta, centroArg) => {
 		if (s.active && s.id === e.pointerId) s.active = false;
 	}, []);
 	const irArribaAbajo = (0, import_react.useCallback)(() => {
-		const el = document.querySelector(".rd-page");
+		const el = document.querySelector(".rd-page") || document.querySelector(".doc-flow") || document.querySelector(".orig-flow"); // v219: también en Original
 		if (!el) return;
 		const abajo = el.scrollTop > el.clientHeight * .5;
 		fabActivo.current = Date.now(); // v177 (#9): el scroll programático no debe disparar el auto-volteo
@@ -47621,7 +47641,7 @@ const docPedir = (desde, hasta, centroArg) => {
 							origFlowLock.current = Date.now();
 							go(dir);
 						} : void 0,
-						showControls: true, // v218 (#1): botones de zoom de vuelta en Imágenes/Original
+						showControls: false,
 						enabled: true,
 						className: (invertir && filtroImg === "normal" ? "invertido" : "") + " orig-flow",
 						style: docFx(),
@@ -47916,6 +47936,17 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					// v170: se quitó el botón flotante «Invertir colores» (inv-fab):
 					// abría la MISMA hoja que el botón de la barra inferior. El icono
 					// IconInvert (más lindo) se pasó a ese otro botón (rb-fx).
+					// v219 (#1): el cluster de ZOOM (＋ / % / −, el mismo de Texto) también en Imágenes y Original
+					(mode === "imagenes" || mode === "original") && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ScrollFab, {
+						abajo: scrollAbajo,
+						onTocar: irArribaAbajo,
+						mode: mode,
+						settings: settings,
+						setSettings: setSettings,
+						docZoom: docZoom,
+						setDocZoom: setDocZoom,
+						sinNav: mode === "imagenes"
+					}),
 					mode === "imagenes" && canOcr && chrome && !renderingOriginal && settings.fabsLectura !== false && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "ocr-fab" + (ocrFabIdle ? " idle" : ""),
 						disabled: ocrBusy,
@@ -52229,7 +52260,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v218" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v219" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

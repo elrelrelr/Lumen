@@ -13767,8 +13767,14 @@ mark.find-flash {
 .reader .ocr-fab.idle, .reader .img-fab.idle { transform: translateX(-50%) !important; }
 .reader .ocr-fab:active, .reader .img-fab:active { transform: translateX(-50%) scale(.96) !important; }
 /* (#1) zoom en Imágenes/Original: columna a la derecha, por encima de la barra inferior y de los fabs */
-.reader .orig-flow .zoom-btns, .reader .zoom-btns { bottom: calc(var(--safe-b) + 132px); right: 12px; z-index: 26; }
+
 /* (#3b) Lumen Store: búsqueda oculta por defecto; lupa junto a «＋ Publicar» */
 .cg-lupa { padding: 8px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-soft, transparent); color: var(--fg); font-size: 16px; line-height: 1; cursor: pointer; }
 .cg-lupa.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 .cg-busq.oculta { display: none; }
+
+/* ============ v219 ============ */
+/* (#1) cluster de zoom (＋ / % / −) también en Imágenes y Original: columna derecha, encima de la barra inferior */
+.reader .rd-scroll-fab { z-index: 60; }
+.reader .rd-zoom-fab .rd-zoom-btn, .reader .rd-zoom-fab .rd-zoom-pct { pointer-events: auto; }
+@media (max-width: 700px) { .reader .rd-scroll-fab { bottom: calc(var(--safe-b) + 132px); } }
