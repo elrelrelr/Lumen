@@ -1,6 +1,6 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { A as importarDesdeUrl, B as paginate, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
-import { E as putPages, h as getMeta, k as uid, O as setMeta, r as allBooks, w as putBook } from "./db-Ii3ipPL7.js";
+import { E as putPages, h as getMeta, k as uid, O as setMeta, r as allBooks, w as putBook, S as patchBook } from "./db-Ii3ipPL7.js";
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
 //#region src/pages/libros-gratis.js
@@ -144,6 +144,130 @@ function normalizarWS(titulo, fuente) {
 		soloBusqueda: true
 	};
 }
+/* ==== v217: FICHA del libro (sinopsis, autor, valoración, similares) ==== */
+const META_RATINGS = "librosGratis_calificaciones"; // v217: mis estrellas por libro (clave = claveLibro)
+const fichaCache = /* @__PURE__ */ new Map();
+const limpiarTexto = (t) => String(t || "").replace(/\[\[([^\]|]+)(\|[^\]]+)?\]\]/g, "$1").replace(/\*\*?|__|\r/g, "").replace(/\s*\(\[source\]\[\d+\]\)/g, "").replace(/\[\d+\]:\s*\S+/g, "").replace(/-{3,}[\s\S]*$/, "").replace(/\n{3,}/g, "\n\n").trim();
+const jsonCon = async (url, ms = 12e3) => { const r = await fetch(url, { signal: AbortSignal.timeout(ms) }); if (!r.ok) throw new Error(url + " → " + r.status); return r.json(); };
+const tituloLimpio = (t) => String(t || "").replace(/\s*[:;(].*$/, "").replace(/^(Libro|Book):/, "").trim() || String(t || "");
+/** Open Library: obra, valoración, autor y similares (por tema o por autor). */
+async function fichaOL(libro) {
+	const out = {};
+	const titulo = tituloLimpio(libro.title);
+	const autor = (libro.authors || [])[0] || "";
+	let work = null;
+	if (libro.fuente === "openlibrary" && libro.url) {
+		const key = libro.url.replace(OL, "");
+		try { const d = await jsonCon(`${OL}/search.json?q=key:${encodeURIComponent(key)}&limit=1&fields=key,title,author_key,author_name,cover_i,first_publish_year,ratings_average,ratings_count,subject,number_of_pages_median`); work = (d.docs || [])[0] || null; } catch {}
+	}
+	if (!work) {
+		const p = new URLSearchParams({ title: titulo, limit: "3", fields: "key,title,author_key,author_name,cover_i,first_publish_year,ratings_average,ratings_count,subject,number_of_pages_median" });
+		if (autor) p.set("author", autor.split(",")[0]);
+		try { const d = await jsonCon(`${OL}/search.json?` + p.toString()); work = (d.docs || [])[0] || null; } catch {}
+		if (!work && autor) { try { const d = await jsonCon(`${OL}/search.json?q=${encodeURIComponent(titulo)}&limit=1&fields=key,title,author_key,author_name,cover_i,first_publish_year,ratings_average,ratings_count,subject,number_of_pages_median`); work = (d.docs || [])[0] || null; } catch {} }
+	}
+	if (!work) return out;
+	out.olKey = work.key;
+	out.anio = work.first_publish_year || null;
+	out.paginas = work.number_of_pages_median || null;
+	out.temas = (work.subject || []).filter((t) => t.length < 40).slice(0, 8);
+	if (work.ratings_count) out.comunidad = { media: Math.round(work.ratings_average * 10) / 10, n: work.ratings_count };
+	if (!libro.cover && work.cover_i) out.cover = `https://covers.openlibrary.org/b/id/${work.cover_i}-L.jpg`;
+	const autorKey = (work.author_key || [])[0];
+	out.autorNombre = (work.author_name || [])[0] || autor;
+	const tareas = [];
+	tareas.push(jsonCon(`${OL}${work.key}.json`).then((w) => {
+		const d = w.description; const txt = typeof d === "string" ? d : d && d.value;
+		if (txt) out.sinopsisOL = limpiarTexto(txt);
+	}).catch(() => {}));
+	if (autorKey) tareas.push(jsonCon(`${OL}/authors/${autorKey}.json`).then((a) => {
+		const b = a.bio; const txt = typeof b === "string" ? b : b && b.value;
+		out.autor = { key: autorKey, nombre: a.name || out.autorNombre, bio: txt ? limpiarTexto(txt) : null, nac: a.birth_date || null, def: a.death_date || null, foto: a.photos && a.photos.length && a.photos[0] > 0 ? `https://covers.openlibrary.org/a/id/${a.photos[0]}-M.jpg` : `https://covers.openlibrary.org/a/olid/${autorKey}-M.jpg` };
+	}).catch(() => {}));
+	// similares: otras obras del mismo autor con texto libre + obras del tema principal
+	const norm = (b) => ({ id: "ol" + String(b.key || "").replace("/works/", ""), fuente: "openlibrary", title: b.title, authors: b.author_name || (b.authors || []).map((a) => a.name) || [], bookshelves: [], downloads: b.edition_count || 0, epub: null, txt: null, ia: (Array.isArray(b.ia) ? b.ia[0] : b.ia) || null, url: `${OL}${b.key}`, cover: b.cover_i ? `https://covers.openlibrary.org/b/id/${b.cover_i}-M.jpg` : b.cover_id ? `https://covers.openlibrary.org/b/id/${b.cover_id}-M.jpg` : null });
+	if (autorKey) tareas.push(jsonCon(`${OL}/search.json?author_key=${autorKey}&limit=12&fields=key,title,author_name,cover_i,ia,has_fulltext,edition_count&sort=editions`).then((d) => {
+		out.delAutor = (d.docs || []).filter((b) => b.key !== work.key && b.title).map(norm).filter((b, i, arr) => arr.findIndex((x) => claveLibro(x) === claveLibro(b)) === i).slice(0, 10);
+	}).catch(() => {}));
+	const temaSim = (work.subject || []).find((t) => /fiction|novel|poetry|drama|history|philosophy|science|adventure|romance|mystery|fantasy|classic|literature/i.test(t) && !/in fiction|translations|readers|textbooks|study/i.test(t)) || (work.subject || [])[0];
+	if (temaSim) tareas.push(jsonCon(`${OL}/subjects/${encodeURIComponent(temaSim.toLowerCase().replace(/\s+/g, "_").replace(/,/g, ""))}.json?limit=14`).then((d) => {
+		out.similares = (d.works || []).filter((w) => w.key !== work.key).map((w) => norm({ key: w.key, title: w.title, authors: w.authors, cover_id: w.cover_id, ia: w.ia, edition_count: w.edition_count })).slice(0, 12);
+		out.temaSimilares = temaSim;
+	}).catch(() => {}));
+	await Promise.all(tareas);
+	return out;
+}
+/** Wikipedia (es): resumen en español del libro y del autor (cuando existe artículo). */
+async function fichaWiki(libro, autorNombre) {
+	const out = {};
+	const buscar = async (q) => {
+		const p = new URLSearchParams({ action: "query", generator: "search", gsrsearch: q, gsrlimit: "1", prop: "extracts|pageimages|description", exintro: "1", explaintext: "1", exsentences: "6", piprop: "thumbnail", pithumbsize: "400", format: "json", origin: "*" });
+		const j = await jsonCon("https://es.wikipedia.org/w/api.php?" + p.toString());
+		const pg = Object.values((j.query || {}).pages || {})[0];
+		if (!pg || !pg.extract) return null;
+		return { titulo: pg.title, texto: limpiarTexto(pg.extract), desc: pg.description || "", foto: pg.thumbnail && pg.thumbnail.source || null, url: "https://es.wikipedia.org/wiki/" + encodeURIComponent(pg.title.replace(/ /g, "_")) };
+	};
+	const titulo = tituloLimpio(libro.title);
+	const autor = autorNombre || (libro.authors || [])[0] || "";
+	const simp = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2 && !["the", "los", "las", "del", "der", "die", "das", "and", "por", "con", "para", "una", "uno"].includes(w));
+	const pareceElLibro = (r) => {
+		if (!r) return false;
+		const pt = simp(r.titulo); const tt = simp(titulo);
+		const comun = tt.filter((w) => pt.includes(w)).length;
+		if (!tt.length || comun < Math.min(2, tt.length)) return false; // el artículo debe compartir el título
+		if (autor && simp(autor).length && simp(r.titulo).join(" ") === simp(autor.split(",").reverse().join(" ")).join(" ")) return false; // es el artículo del AUTOR
+		return /(novela|libro|obra|poema|poemario|cuento|ensayo|tratado|drama|comedia|tragedia|relato|colecci|publicad|escrit)/i.test(r.texto + " " + r.desc) && !/^(escritor|novelista|poeta|dramaturg|autor|filósof|historiador)/i.test(r.desc);
+	};
+	const [lib, aut] = await Promise.all([
+		buscar(`${titulo} ${autor ? autor.split(",")[0] : ""} libro`).then((r) => pareceElLibro(r) ? r : null).catch(() => null),
+		autor ? buscar(`${autor.split(",").reverse().join(" ").trim()} escritor`).then((r) => r && /(escritor|novelista|poeta|dramaturg|autor|ensayista|filósof|historiador|periodista|literat)/i.test(r.texto + " " + r.desc) ? r : null).catch(() => null) : null
+	]);
+	if (lib) out.sinopsisWiki = lib;
+	if (aut) out.autorWiki = aut;
+	return out;
+}
+/** Google Books (sin clave): respaldo de sinopsis y valoración (cuota compartida: puede fallar). */
+async function fichaGB(libro) {
+	const titulo = tituloLimpio(libro.title);
+	const autor = (libro.authors || [])[0] || "";
+	const q = `intitle:${JSON.stringify(titulo)}` + (autor ? `+inauthor:${JSON.stringify(autor.split(",")[0])}` : "");
+	const j = await jsonCon(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(q)}&langRestrict=es&maxResults=3&printType=books`, 9e3);
+	const items = j.items || [];
+	const v = (items.find((i) => i.volumeInfo && i.volumeInfo.description) || items[0] || {}).volumeInfo;
+	if (!v) return {};
+	const out = {};
+	if (v.description) out.sinopsisGB = limpiarTexto(v.description.replace(/<[^>]+>/g, " "));
+	if (v.ratingsCount) out.comunidadGB = { media: v.averageRating, n: v.ratingsCount };
+	if (v.categories) out.temasGB = v.categories.slice(0, 4);
+	if (v.pageCount) out.paginasGB = v.pageCount;
+	return out;
+}
+/** Trae toda la ficha; cada bloque llega por separado (onParte) para pintar sin esperar al resto. */
+async function cargarFicha(libro, onParte) {
+	const k = claveLibro(libro);
+	if (fichaCache.has(k)) { onParte(fichaCache.get(k)); return fichaCache.get(k); }
+	const acc = { libro };
+	const emitir = (p) => { Object.assign(acc, p); onParte({ ...acc }); };
+	const ol = fichaOL(libro).then((p) => { emitir(p); return p; }).catch(() => ({}));
+	const wiki = ol.then((p) => fichaWiki(libro, p.autorNombre)).then(emitir).catch(() => {});
+	await Promise.all([ol, wiki]);
+	if (!acc.sinopsisOL && !acc.sinopsisWiki) { try { emitir(await fichaGB(libro)); } catch {} }
+	if (!acc.comunidad && !acc.comunidadGB && acc.sinopsisOL) { try { emitir(await fichaGB(libro)); } catch {} }
+	acc.listo = true;
+	emitir({});
+	fichaCache.set(k, acc);
+	return acc;
+}
+const Estrellas = ({ valor, onCambiar, grande }) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	className: "rate-stars" + (grande ? " big" : ""),
+	children: [1, 2, 3, 4, 5].map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+		type: "button",
+		className: "rate-star" + ((valor || 0) >= n ? " on" : ""),
+		"aria-label": "Calificar con " + n + " estrellas",
+		onClick: (e) => { e.stopPropagation(); onCambiar((valor || 0) === n ? 0 : n); },
+		children: "★"
+	}, n))
+});
 function claveLibro(b) {
 	const limpia = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 	return limpia(b.title).slice(0, 40) + "|" + limpia((b.authors || [])[0]);
@@ -459,6 +583,37 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 	const [formatoBusqueda, setFormatoBusqueda] = (0, import_react.useState)(null);
 	// v209: descarga directa completada → panel de guardado (carpeta/categoría + dispositivo)
 	const [descargaOk, setDescargaOk] = (0, import_react.useState)(null);
+	// v217: ficha del libro (sinopsis, autor, estrellas, similares) + mis calificaciones
+	const [ficha, setFicha] = (0, import_react.useState)(null);
+	const [fichaPila, setFichaPila] = (0, import_react.useState)([]);
+	const [misRatings, setMisRatings] = (0, import_react.useState)({});
+	const fichaRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => { getMeta(META_RATINGS, null).then((c) => { if (c && c.mapa) setMisRatings(c.mapa); }).catch(() => {}); }, []);
+	const abrirFicha = (libro, apilar) => {
+		haptic?.tap?.();
+		setMenuLibro(null);
+		const anterior = fichaRef.current ? fichaRef.current.libro : null; // capturar ANTES de reasignar la ref
+		if (apilar && anterior) setFichaPila((p) => [...p, anterior]);
+		else setFichaPila([]);
+		const f = { libro, datos: { libro } };
+		fichaRef.current = f;
+		setFicha(f);
+		cargarFicha(libro, (datos) => { if (fichaRef.current && claveLibro(fichaRef.current.libro) === claveLibro(libro)) { fichaRef.current = { libro, datos }; setFicha(fichaRef.current); } }).catch(() => {});
+	};
+	const cerrarFicha = () => { fichaRef.current = null; setFicha(null); setFichaPila([]); };
+	const volverFicha = () => { const p = fichaPila.slice(); const ant = p.pop(); setFichaPila(p); if (ant) { const f = { libro: ant, datos: fichaCache.get(claveLibro(ant)) || { libro: ant } }; fichaRef.current = f; setFicha(f); cargarFicha(ant, (datos) => { if (fichaRef.current && claveLibro(fichaRef.current.libro) === claveLibro(ant)) { fichaRef.current = { libro: ant, datos }; setFicha(fichaRef.current); } }).catch(() => {}); } else cerrarFicha(); };
+	const calificar = (libro, n) => {
+		const k = claveLibro(libro);
+		const mapa = { ...misRatings };
+		if (n) mapa[k] = n; else delete mapa[k];
+		setMisRatings(mapa);
+		try { setMeta({ id: META_RATINGS, mapa, at: Date.now() }); } catch {}
+		// si ya está en mi biblioteca, es la misma calificación de «Opciones del libro»
+		const ya = enMiBib(libro);
+		if (ya) { patchBook(ya.id, { rating: n }).catch(() => {}); setMisLibros((l) => l.map((b) => b.id === ya.id ? { ...b, rating: n } : b)); }
+		toast?.(n ? "★ Calificado con " + n + (n === 1 ? " estrella" : " estrellas") : "Calificación quitada");
+	};
+	usarPantallaAtras(() => { if (fichaPila.length) volverFicha(); else cerrarFicha(); }, () => !ficha, !!ficha);
 	// v199: extraer el texto de una página web desde la barra de búsqueda
 	const [urlAbierto, setUrlAbierto] = (0, import_react.useState)(false);
 	const [urlWeb, setUrlWeb] = (0, import_react.useState)("");
@@ -979,6 +1134,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 			setMisLibros(misRef.current);
 			// v209: éxito → panel con las opciones de guardado (no abre solo)
 			setDescargaOk({ libro, file, nombre, id: nuevo.id });
+			{ const r = misRatings[claveLibro(libro)]; if (r) patchBook(nuevo.id, { rating: r }).catch(() => {}); } // v217
 		} catch (e) {
 			// v209: la directa falló → el enlace en el navegador (sin CORS) y
 			// Lumen se queda oyendo la descarga (vigilando) con «Elegir archivo»
@@ -1056,12 +1212,14 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 		for (const t of TEMAS) if (t.id !== "all" && !ops.includes(t.label)) ops.push(t.label);
 		return ops.slice(0, 10);
 	};
+	const leerAhoraRef = (0, import_react.useRef)({});
 	const tarjetas = (lista) => lista.map((libro) => {
 		const ya = enMiBib(libro);
 		const yaListo = !!(ya && ya.status === "ready");
 		const descargando = descarga && descarga.clave === String(libro.id);
 		const guard = esGuardado(libro);
-		const abrir = () => {
+		const abrir = () => abrirFicha(libro, false); // v217: tocar un libro abre su FICHA
+		const leerAhora = () => {
 			// v199: bibliotecas «solo búsqueda» (Wikisource): se elige el
 			// formato (EPUB/PDF) y el navegador busca el archivo.
 			if (libro.soloBusqueda) {
@@ -1086,6 +1244,8 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 				setMenuLibro(String(libro.id));
 			}
 		};
+		leerAhoraRef.current[String(libro.id)] = leerAhora;
+		const miR = misRatings[claveLibro(libro)] || 0;
 		return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "lg-mini" + (yaListo ? " lg-ya" : ""),
 			children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -1136,7 +1296,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 				children: (libro.authors || [])[0] || "Autor desconocido"
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "lg-meta",
-				children: [(libro.bookshelves || [])[0]?.replace("Category: ", "") || "Dominio público", " · ", libro.downloads ? (libro.downloads >= 1e6 ? "⬇" + Math.round(libro.downloads / 1e6) + " M" : "⬇" + Math.round(libro.downloads / 1e3) + " mil") : "⬇ 0"]
+				children: [miR ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lg-mi-r", children: "★".repeat(miR) + " · " }) : null, (libro.bookshelves || [])[0]?.replace("Category: ", "") || "Dominio público", " · ", libro.downloads ? (libro.downloads >= 1e6 ? "⬇" + Math.round(libro.downloads / 1e6) + " M" : "⬇" + Math.round(libro.downloads / 1e3) + " mil") : "⬇ 0"]
 			}), menuLibro === String(libro.id) && !descarga && !yaListo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "lg-menu-fondo",
 				onClick: () => setMenuLibro(null),
@@ -1477,6 +1637,78 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 						})]
 					})]
 				}),
+				// v217: FICHA del libro
+				ficha && (() => {
+					const libro = ficha.libro; const d = ficha.datos || {};
+					const ya = enMiBib(libro); const yaListo = !!(ya && ya.status === "ready");
+					const descargando = descarga && descarga.clave === String(libro.id);
+					const miR = misRatings[claveLibro(libro)] || 0;
+					const autorNombre = (d.autor && d.autor.nombre) || d.autorNombre || (libro.authors || [])[0] || "Autor desconocido";
+					const sinopsis = d.sinopsisWiki ? d.sinopsisWiki.texto : d.sinopsisOL || d.sinopsisGB || null;
+					const fuenteSin = d.sinopsisWiki ? "Wikipedia" : d.sinopsisOL ? "Open Library" : d.sinopsisGB ? "Google Books" : null;
+					const bio = (d.autorWiki && d.autorWiki.texto) || (d.autor && d.autor.bio) || null;
+					const fotoAutor = (d.autorWiki && d.autorWiki.foto) || (d.autor && d.autor.foto) || null;
+					const com = d.comunidad || d.comunidadGB || null;
+					const temas = [...(d.temas || []), ...(d.temasGB || [])].filter((t, i, a) => a.indexOf(t) === i).slice(0, 8);
+					const cover = libro.cover || d.cover || null;
+					const hv = tonoDe(libro.title);
+					const guard = esGuardado(libro);
+					const leer = () => { const fn = leerAhoraRef.current[String(libro.id)]; setFicha(null); fichaRef.current = null; if (fn) fn(); else if (libro.epub || libro.txt || libro.ia) leerGratis(libro).catch(() => {}); else if (libro.soloBusqueda) setFormatoBusqueda(libro); else abrirConNavegador(libro, navDisponible() ? "lumen" : "dispositivo"); };
+					const miniFila = (lista, tit, vacio) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "fx-bloque",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-h", children: tit }), lista && lista.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "fx-fila",
+							children: lista.map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "fx-mini",
+								title: b.title,
+								onClick: () => abrirFicha(b, true),
+								children: [b.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: b.cover, alt: "", loading: "lazy", draggable: false }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-mini-falso", style: { background: `linear-gradient(150deg, hsl(${tonoDe(b.title)} 55% 42%), hsl(${(tonoDe(b.title) + 45) % 360} 50% 22%))` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: inicialesDe(b.title) }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "fx-mini-t", children: b.title }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "fx-mini-a", children: (b.authors || [])[0] || "" })]
+							}, claveLibro(b)))
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub fx-vacio", children: d.listo ? vacio : "Buscando…" })]
+					});
+					// recomendados para ti: del catálogo cargado, con etiquetas parecidas (sin IA), distintos del libro y de los similares
+					const recs = (recomendados || paraTi(catalogo || [], misRef.current) || []).filter((b) => claveLibro(b) !== claveLibro(libro)).slice(0, 12);
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "lg-menu-fondo fx-fondo",
+						onClick: cerrarFicha,
+						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "fx",
+							role: "dialog",
+							"aria-label": "Ficha del libro",
+							onClick: (e) => e.stopPropagation(),
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "fx-top",
+								children: [fichaPila.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "fx-x", "aria-label": "Volver", onClick: volverFicha, children: "‹" }) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "fx-top-t", children: BIB_INFO[libro.fuente] || "Lumen Store" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "fx-x", "aria-label": "Cerrar", onClick: cerrarFicha, children: "✕" })]
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "fx-body",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "fx-cab",
+									children: [cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "fx-cover", src: cover, alt: "", draggable: false }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-cover fx-falso", style: { background: `linear-gradient(150deg, hsl(${hv} 55% 42%), hsl(${(hv + 45) % 360} 50% 22%))` }, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: inicialesDe(libro.title) }) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "fx-datos",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { className: "fx-tit", children: libro.title }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-aut", children: autorNombre }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-sub", children: [d.anio ? String(d.anio) : null, d.paginas || d.paginasGB ? (d.paginas || d.paginasGB) + " págs." : null, libro.downloads ? "⬇ " + (libro.downloads >= 1e6 ? Math.round(libro.downloads / 1e6) + " M" : Math.round(libro.downloads / 1e3) + " mil") : null, (libro.bookshelves || [])[0]?.replace("Category: ", "")].filter(Boolean).join(" · ") || "Dominio público" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "fx-rating",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-rating-l", children: miR ? "Tu calificación" : "Califícalo" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: miR, onCambiar: (n) => calificar(libro, n) }), com ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "fx-com", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "★ " + com.media.toFixed(1) }), " · ", com.n, " ", com.n === 1 ? "lector" : "lectores", " en ", d.comunidad ? "Open Library" : "Google Books"] }) : d.listo ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-com", children: "Sin valoraciones de la comunidad aún" }) : null]
+										})]
+									})]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "fx-acciones",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn primary fx-leer", disabled: !!descargando, onClick: leer, children: yaListo ? "📖 Abrir libro" : descargando ? "⏳ Descargando " + (descarga.pct || 0) + "%" : libro.soloBusqueda ? "🔎 Buscar el archivo" : "⚡ Leer ahora" }), guard ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn", onClick: () => quitarGuardado(libro), children: "✔ En «" + guard.cat + "»" }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn", onClick: () => { setGuardCat(String(libro.id)); }, children: "🔖 Guardar" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn", "aria-label": "Más opciones", onClick: () => { setMenuLibro(String(libro.id)); }, children: "⋯" })]
+								}), temas.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "chips fx-temas", children: temas.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "chip", children: t }, t)) }) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "fx-bloque",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-h", children: "Sinopsis" }), sinopsis ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "fx-texto", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: sinopsis.length > 900 && !ficha.masSin ? sinopsis.slice(0, 900).replace(/\s+\S*$/, "") + "…" : sinopsis }), sinopsis.length > 900 && !ficha.masSin ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "fx-mas", onClick: () => setFicha({ ...ficha, masSin: true }), children: "Leer más" }) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-fuente", children: "Fuente: " + fuenteSin + (d.sinopsisWiki ? " · " : "") + (d.sinopsisWiki ? "" : "") })] }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub fx-vacio", children: d.listo ? "No encontramos una sinopsis para esta obra en Open Library, Wikipedia ni Google Books." : "Buscando la sinopsis…" })]
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "fx-bloque",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-h", children: "Sobre el autor" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "fx-autor",
+										children: [fotoAutor ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { className: "fx-foto", src: fotoAutor, alt: "", draggable: false, onError: (e) => { e.currentTarget.style.display = "none"; } }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-foto fx-falso", children: inicialesDe(autorNombre) }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: autorNombre }), d.autor && (d.autor.nac || d.autor.def) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "fx-fechas", children: [d.autor.nac, d.autor.def].filter(Boolean).join(" – ") }) : null, bio ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "fx-texto", children: bio.length > 600 && !ficha.masBio ? bio.slice(0, 600).replace(/\s+\S*$/, "") + "…" : bio }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub fx-vacio", children: d.listo ? "Sin biografía disponible." : "Buscando…" }), bio && bio.length > 600 && !ficha.masBio ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "fx-mas", onClick: () => setFicha({ ...ficha, masBio: true }), children: "Leer más" }) : null]
+										})]
+									})]
+								}), miniFila(d.delAutor, "Más de " + autorNombre.split(",")[0], "No encontramos más obras de este autor."), miniFila(d.similares, "Libros similares" + (d.temaSimilares ? " · " + d.temaSimilares : ""), "No encontramos libros similares."), recs.length ? miniFila(recs, "✨ Recomendados para ti", "") : null]
+							})]
+						})
+					});
+				})(),
 				// v199: elegir formato (EPUB/PDF) para buscar el libro en el navegador
 				formatoBusqueda && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "lg-menu-fondo",
