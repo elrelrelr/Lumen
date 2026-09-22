@@ -12442,8 +12442,10 @@ async function setFlag(key, value = true) {
 	await saveGame(g);
 	return g;
 }
-/** Revisa logros nuevos; devuelve los recién desbloqueados. */
-async function checkAchievements() {
+/** Revisa logros nuevos; devuelve los recién desbloqueados.
+v214 (#3): `silent` = sin sonido (modo «logros al cerrar»: durante la
+lectura no se interrumpe; el suena UNA sola vez al cerrar el libro). */
+async function checkAchievements(silent = false) {
 	const [stats, g] = await Promise.all([loadStats(), loadGame()]);
 	const ctx = {
 		...stats,
@@ -12473,7 +12475,7 @@ async function checkAchievements() {
 		g.unlocked = [...unlocked];
 		await saveGame(g);
 		await addXp(fresh.length * 30, "logros");
-		__vitePreload(() => import("./sonidos-By6nBBuC.js").then((s) => s.sonidoLogro()), __vite__mapDeps([8,2,1,7]), import.meta.url).catch(() => {});
+		if (!silent) __vitePreload(() => import("./sonidos-By6nBBuC.js").then((s) => s.sonidoLogro()), __vite__mapDeps([8,2,1,7]), import.meta.url).catch(() => {});
 	}
 	return fresh;
 }
@@ -24546,7 +24548,8 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 			}));
 			if (!_achRevisado) {
 				_achRevisado = true;
-				checkAchievements().then((fresh) => {
+				// v214 (#3): la pestaña solo actualiza la lista (sin sonido)
+				checkAchievements(true).then((fresh) => {
 					if (fresh && fresh.length) setLogros((l) => l.map((x) => fresh.some((f) => f.id === x.id) ? {
 						...x,
 						hecho: true
@@ -29065,6 +29068,9 @@ var Speaker = class {
 		try {
 			speechSynthesis.cancel();
 		} catch {}
+		// v214 (#4): si el motor quedó «paused» (pausa real + cancel), el speak
+		// nuevo se quedaría mudo; con la cola ya vacía, resume() sólo limpia el flag.
+		try { if (speechSynthesis.paused) speechSynthesis.resume(); } catch {}
 		const u = new SpeechSynthesisUtterance(sentence);
 		u.rate = this.rate;
 		u.pitch = this.pitch;
@@ -29152,6 +29158,31 @@ var Speaker = class {
 				speechSynthesis.resume();
 			}
 		}, 9e3);
+	}
+	/** v214 (#4): cambia la voz. Si está sonando, PAUSA YA (corta la frase en
+	curso con la voz vieja); al reanudar se relee la frase actual con la nueva.
+	La pausa real del motor guarda la frase con la voz vieja, así que se
+	descarta (cancel + resume del flag) para que resume() re-emita. */
+	setVoice(name) {
+		this.voiceName = name || "";
+		if (!this.playing && !this.paused) return;
+		const b = bridge();
+		if (this.playing && !this.paused) this.pause();
+		if (b) {
+			try { b.stop(); } catch {}
+			this._nativeQueue = false;
+			return;
+		}
+		if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+		const limpiar = () => {
+			if (!this.paused) return;
+			if (this._current) try { this._current.onend = null; this._current.onerror = null; } catch {}
+			try { speechSynthesis.cancel(); } catch {}
+			try { if (speechSynthesis.paused) speechSynthesis.resume(); } catch {}
+			this._realPause = false;
+		};
+		limpiar();
+		setTimeout(limpiar, 220); // tras el timer de 150 ms de pause()
 	}
 	pause() {
 		this.paused = true;
@@ -31726,25 +31757,95 @@ async function getOcrWorker(langs = CORE_LANGS) {
 	});
 	return workerPromise;
 }
+/** v214 (#2): pre-proceso antes del OCR — gris + contraste (percentiles 2/98)
++ escala (sube <1400px hasta ~1600; baja imágenes gigantes a ≤2600px) +
+inversión si la página es oscura. Mejora la detección en fotos y escaneados
+y reduce los «No se detectó texto». */
+async function prepOcrImage(image) {
+	try {
+		let src = image;
+		if (typeof image === "string") {
+			const img = new Image();
+			await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = image; });
+			src = img;
+		} else if (typeof Blob !== "undefined" && image instanceof Blob) {
+			const url = URL.createObjectURL(image);
+			const img = new Image();
+			await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+			URL.revokeObjectURL(url);
+			src = img;
+		} else if (typeof HTMLCanvasElement !== "undefined" && !(image instanceof HTMLCanvasElement)) return image;
+		const sw = src.naturalWidth || src.width || 0, sh = src.naturalHeight || src.height || 0;
+		if (!sw || !sh) return image;
+		let esc = sw < 1400 ? Math.min(2, 1600 / sw) : 1;
+		const maxDim = 2600;
+		if (Math.max(sw, sh) > maxDim) esc = Math.min(esc, maxDim / Math.max(sw, sh));
+		const c = document.createElement("canvas");
+		c.width = Math.max(1, Math.round(sw * esc)); c.height = Math.max(1, Math.round(sh * esc));
+		const g = c.getContext("2d");
+		try { g.imageSmoothingQuality = "high"; } catch {}
+		g.drawImage(src, 0, 0, c.width, c.height);
+		const id = g.getImageData(0, 0, c.width, c.height);
+		const d = id.data;
+		const hist = new Uint32Array(256);
+		const npx = d.length / 4;
+		let sum = 0;
+		for (let i = 0; i < d.length; i += 4) {
+			const l = (d[i] * 299 + d[i + 1] * 587 + d[i + 2] * 114) / 1000 | 0;
+			d[i] = d[i + 1] = d[i + 2] = l;
+			hist[l]++; sum += l;
+		}
+		let lo = 0, hi = 255, acc = 0;
+		const target = npx * 0.02;
+		for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= target) { lo = v; break; } }
+		acc = 0;
+		for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= target) { hi = v; break; } }
+		const span = Math.max(16, hi - lo);
+		const inv = sum / npx < 100;
+		for (let i = 0; i < d.length; i += 4) {
+			let l = (d[i] - lo) * (255 / span);
+			l = Math.max(0, Math.min(255, l));
+			if (inv) l = 255 - l;
+			d[i] = d[i + 1] = d[i + 2] = l | 0;
+		}
+		g.putImageData(id, 0, 0);
+		return c;
+	} catch (e) {
+		console.warn("[ocr] pre-proceso falló, se usa la imagen original:", e?.message || e);
+		return image;
+	}
+}
 /** Reconoce una imagen (canvas/blob/dataURL/File). Reintenta con worker nuevo. */
 async function ocrRecognize(image, { langs = CORE_LANGS, onProgress } = {}) {
 	jobs++;
 	lastOcrJob = Date.now();
+	// v214 (#2): pre-proceso (gris + contraste + escala) antes de reconocer
+	const prepared = typeof image === "string" || (typeof Blob !== "undefined" && image instanceof Blob) || (typeof HTMLCanvasElement !== "undefined" && image instanceof HTMLCanvasElement) ? await prepOcrImage(image) : image;
 	for (let attempt = 0; attempt < 2; attempt++) try {
 		const w = await getOcrWorker(langs);
 		if (onProgress) onProgress(.05);
-		const { data } = await w.recognize(image);
+		const { data } = await w.recognize(prepared);
 		if (onProgress) onProgress(1);
 		const txt = (data?.text || "").trim();
-		if (txt.replace(/\s/g, "").length < 12 && attempt === 0) try {
-			await w.setParameters({ tessedit_pageseg_mode: "6" });
-			const { data: d2 } = await w.recognize(image);
-			await w.setParameters({ tessedit_pageseg_mode: "3" });
-			const t2 = (d2?.text || "").trim();
-			if (t2.replace(/\s/g, "").length > txt.replace(/\s/g, "").length) return t2;
-		} catch {}
+		if (txt.replace(/\s/g, "").length < 12 && attempt === 0) {
+			try {
+				await w.setParameters({ tessedit_pageseg_mode: "6" });
+				const { data: d2 } = await w.recognize(prepared);
+				await w.setParameters({ tessedit_pageseg_mode: "3" });
+				const t2 = (d2?.text || "").trim();
+				if (t2.replace(/\s/g, "").length > txt.replace(/\s/g, "").length) return t2;
+			} catch {}
+			// v214 (#2): texto disperso/poco (escaneados con poco texto) → PSM 11
+			try {
+				await w.setParameters({ tessedit_pageseg_mode: "11" });
+				const { data: d3 } = await w.recognize(prepared);
+				await w.setParameters({ tessedit_pageseg_mode: "3" });
+				const t3 = (d3?.text || "").trim();
+				if (t3.replace(/\s/g, "").length > txt.replace(/\s/g, "").length) return t3;
+			} catch {}
+		}
 		if (!txt && typeof window !== "undefined" && window.AndroidOCR && typeof window.AndroidOCR.recognize === "function") try {
-			const b64 = typeof image === "string" ? image : image instanceof HTMLCanvasElement ? image.toDataURL("image/jpeg", .85) : "";
+			const b64 = typeof prepared === "string" ? prepared : prepared instanceof HTMLCanvasElement ? prepared.toDataURL("image/jpeg", .85) : "";
 			if (b64) {
 				const nat = window.AndroidOCR.recognize(b64);
 				if (nat && nat.trim().length > 5) return nat.trim();
@@ -36474,7 +36575,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v213"
+							children: "v215"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38377,7 +38478,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v213 · escritorio y móvil"
+					children: "Lumen Reader · v215 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -44478,6 +44579,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		// página desde el principio» (o solo la selección activa), por lo que
 		// «reanudar» parecía no funcionar.
 		if (!ttsState.playing && !ttsState.paused && speaker.queue.length > 0 && (speaker.i || 0) < speaker.queue.length && ttsPageRef.current === page) {
+			// v214 (#4): aplicar la voz elegida antes de reanudar (pudo cambiar)
+			try { speaker.voiceName = settings.ttsVoice || settings.ttsVoiceAuto || ""; } catch {}
 			try { speaker.play(); } catch {}
 			toast?.("▶️ Reanudando la lectura donde iba");
 			return;
@@ -44485,7 +44588,16 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		if (ttsState.playing || ttsState.paused) {
 			// v176 (#4): la pausa del botón Voz afecta SOLO a la voz (la música de
 			// fondo sigue sonando; se para al salir del libro o en los menús).
-			try { if (ttsState.paused) speaker.resume(); else speaker.pause(); } catch {}
+			// v214 (#4): si la voz cambió mientras estaba en pausa, REANUDAR sigue
+			// con la nueva voz (re-cola desde la frase actual); resume() seguiría
+			// con la vieja (ya cargada en el motor).
+			try {
+				const vozAhora = settings.ttsVoice || settings.ttsVoiceAuto || "";
+				if (ttsState.paused) {
+					if (speaker.voiceName !== vozAhora) speaker.setVoice(vozAhora);
+					speaker.resume();
+				} else speaker.pause();
+			} catch {}
 			toast?.(ttsState.paused ? "▶️ Reanudando la lectura donde iba" : "⏸ Voz en pausa · la música de fondo sigue sonando");
 			return;
 		}
@@ -45502,6 +45614,7 @@ const docPedir = (desde, hasta, centroArg) => {
 	const onOrigCarouselScroll = () => {
 		const el = origCarouselRef.current;
 		if (!el) return;
+		if (desp === "libro") return; // v215: en 📖 Libro el scroll es siempre programático (el estado manda; ver useLayoutEffect del giro)
 		if (Date.now() - origFlowLock.current < 450) return;
 		clearTimeout(el._t);
 		el._t = setTimeout(() => {
@@ -45518,16 +45631,38 @@ const docPedir = (desde, hasta, centroArg) => {
 		actual se LEVANTA (punto de levantada visible ~52°) y se voltea mientras la
 		página nueva/anterior queda revelada debajo. Avanzar → voltea a la izquierda,
 		retroceder → a la derecha (animaciones distintas). */
+	/* v215: giro de página ROBUSTO. Diagnóstico (sondeo Playwright): (1) el
+	   «commit» del arrastre calculaba el scroll final con el origArr() de la
+	   render vieja → tras soltar quedaba a la vista la página equivocada (todas
+	   menos la primera) y el siguiente gesto giraba una página fuera de pantalla
+	   («la animación inversa no funciona»); (2) un cambio de página en pleno giro
+	   (teclas, rueda a los 500-640 ms) perdía su animación porque la limpieza
+	   del efecto anterior borraba la ref recién calculada; (3) la nueva quedaba
+	   «en blanco» un instante tras el commit.
+	   Diseño: el estado (page) manda. El carrusel se centra SIEMPRE en la página
+	   del estado en un useLayoutEffect (antes de pintar), los elementos se
+	   localizan por su número (data-pg) y nunca por índice del array, y para el
+	   giro automático la página vieja (sigue en el DOM porque es vecina) se trae
+	   ENCIMA de la visible con translateX(--sh) y se levanta/voltea/desvanece;
+	   al terminar se limpian sus estilos y vuelve a su hueco fuera de la vista.
+	   Un cambio en pleno giro termina el anterior al instante y anima el nuevo. */
 	const flipFromRef = (0, import_react.useRef)(null);
 	const flipPrevRef = (0, import_react.useRef)(page);
-	const flipSkipRef = (0, import_react.useRef)(false);
-	const flipLockUntilRef = (0, import_react.useRef)(0);
+	const flipSkipRef = (0, import_react.useRef)(null); // página cuyo cambio ya lo animó el arrastre (no re-animar)
+	const flipLockUntilRef = (0, import_react.useRef)(0); // hay un giro/commit en curso hasta esta hora (gate de la rueda)
+	const flipFinishRef = (0, import_react.useRef)(null); // termina el giro automático en curso al instante
+	const flipPendingClearRef = (0, import_react.useRef)([]); // hojas con estilos inline del commit del arrastre (se limpian al centrar)
 	const turnRef = (0, import_react.useRef)(null);
+	const turnEndRef = (0, import_react.useRef)(null); // (flush) => cancela/termina el arrastre o commit en curso
+	const flipWheelAtRef = (0, import_react.useRef)(0); // última rueda atendida (gate propio: un arrastre no bloquea la rueda)
+	const pgEl = (el, n) => { if (!el) return null; for (const c of el.children) if (c.dataset && c.dataset.pg === String(n)) return c; return null; };
+	const slotX = (el, c) => Array.prototype.indexOf.call(el.children, c) * (el.clientWidth || 1);
+	const limpiarHoja = (n) => { if (!n) return; n.style.transform = ""; n.style.transition = ""; n.style.zIndex = ""; n.style.transformOrigin = ""; n.style.opacity = ""; n.style.removeProperty("--lift"); n.style.removeProperty("--sh"); n.classList.remove("turning", "turning-back"); };
 	if (flipPrevRef.current !== page && mode === "imagenes" && desp === "libro" && book) {
 		const from = flipPrevRef.current;
-		if (!flipSkipRef.current)
-			flipFromRef.current = { dir: page > from ? "fwd" : "back", from, to: page, at: Date.now(), steps: Math.abs(page - from), enDom: origArr().includes(from) };
-		flipSkipRef.current = false;
+		if (flipSkipRef.current !== page)
+			flipFromRef.current = { dir: page > from ? "fwd" : "back", from, to: page, at: Date.now(), steps: Math.abs(page - from), started: false };
+		flipSkipRef.current = null;
 	}
 	flipPrevRef.current = page;
 	const [flipTick, setFlipTick] = (0, import_react.useState)(0);
@@ -45536,49 +45671,50 @@ const docPedir = (desde, hasta, centroArg) => {
 		const t = setTimeout(() => { flipFromRef.current = null; setFlipTick((x) => x + 1); }, 720);
 		return () => clearTimeout(t);
 	}, [page, flipTick]);
-	// v213: flip automático de un solo paso (rueda/botones/slider): mantener la
-	// página vieja centrada (el vecindario puede haberse re-indexado en el DOM),
-	// colocar la nueva DEBAJO (cubierta por la vieja) y girar la página vieja REAL
-	// con el «levantada» visible.
+	const flipLayoutPageRef = (0, import_react.useRef)(page);
 	(0, import_react.useLayoutEffect)(() => {
-		const fa = flipFromRef.current;
-		if (!fa || fa.steps !== 1 || !fa.enDom) return;
+		if (mode !== "imagenes" || desp !== "libro" || !book) return;
 		const el = origCarouselRef.current;
 		if (!el) return;
-		const arr = origArr();
-		const fi = arr.indexOf(fa.from), ti = arr.indexOf(fa.to);
-		const fromEl = el.children[fi], toEl = el.children[ti];
-		if (!fromEl || !toEl) return;
-		origFlowLock.current = Date.now();
+		const cambioPagina = flipLayoutPageRef.current !== page;
+		flipLayoutPageRef.current = page;
+		// v215: CUALQUIER cambio de página (rueda, teclas, slider, TTS…) anula un
+		// arrastre o commit pendiente: manda el estado, nunca un temporizador viejo.
+		if (cambioPagina && turnEndRef.current) turnEndRef.current(false);
+		const centrar = () => {
+			const c = pgEl(el, page);
+			if (!c) return;
+			const x = slotX(el, c);
+			if (Math.abs(el.scrollLeft - x) > 1) el.scrollLeft = x;
+		};
+		centrar(); // la página del estado, a la vista ANTES de pintar
+		for (const n of flipPendingClearRef.current) limpiarHoja(n); // restos del commit del arrastre
+		flipPendingClearRef.current = [];
+		window.addEventListener("resize", centrar);
+		const fa = flipFromRef.current;
+		if (!fa || fa.steps !== 1 || fa.started || Date.now() - fa.at > 400) return () => window.removeEventListener("resize", centrar);
+		fa.started = true;
+		const fromEl = pgEl(el, fa.from), toEl = pgEl(el, fa.to);
+		if (!fromEl || !toEl || fromEl === toEl) return () => window.removeEventListener("resize", centrar);
 		flipLockUntilRef.current = Date.now() + 700;
-		clearTimeout(el._t);
-		el.scrollLeft = fi * el.clientWidth;
-		toEl.style.transform = fa.dir === "fwd" ? `translateX(${-el.clientWidth}px)` : `translateX(${el.clientWidth}px)`;
-		toEl.style.zIndex = "1";
+		fromEl.style.setProperty("--sh", (slotX(el, toEl) - slotX(el, fromEl)) + "px"); // la vieja, encima de la visible
 		fromEl.style.zIndex = "5";
 		fromEl.classList.add(fa.dir === "fwd" ? "page-lift-fwd" : "page-lift-back");
-		const t = setTimeout(() => {
-			origFlowLock.current = Date.now();
-			clearTimeout(el._t);
-			el.scrollLeft = ti * el.clientWidth;
-			fromEl.classList.remove("page-lift-fwd", "page-lift-back");
-			fromEl.style.zIndex = "";
-			toEl.style.transform = "";
-			toEl.style.zIndex = "";
-			flipFromRef.current = null;
-		}, 640);
-		return () => {
+		let done = false;
+		const finish = () => {
+			if (done) return;
+			done = true;
 			clearTimeout(t);
-			origFlowLock.current = Date.now();
-			clearTimeout(el._t);
-			if (el.scrollLeft !== ti * el.clientWidth) el.scrollLeft = ti * el.clientWidth;
+			if (flipFinishRef.current === finish) flipFinishRef.current = null;
 			fromEl.classList.remove("page-lift-fwd", "page-lift-back");
 			fromEl.style.zIndex = "";
-			toEl.style.transform = "";
-			toEl.style.zIndex = "";
-			flipFromRef.current = null;
+			fromEl.style.removeProperty("--sh");
+			flipLockUntilRef.current = 0;
 		};
-	}, [page, flipTick]);
+		const t = setTimeout(finish, 640);
+		flipFinishRef.current = finish;
+		return () => { finish(); window.removeEventListener("resize", centrar); };
+	}, [page, flipTick, mode, desp, pageCount, carousel, !!book]);
 	(0, import_react.useEffect)(() => {
 		if (mode !== "imagenes" || !carousel) return;
 		const el = origCarouselRef.current;
@@ -45594,12 +45730,16 @@ const docPedir = (desde, hasta, centroArg) => {
 				el.scrollLeft = i0 * el.clientWidth;
 			}
 		};
-		centrarCarrusel();
-		const rC = requestAnimationFrame(() => centrarCarrusel());
-		const tC = setTimeout(() => centrarCarrusel(), 160);
+		const enLibro = desp === "libro"; // v215: en 📖 Libro centra el useLayoutEffect del giro (antes de pintar)
+		if (!enLibro) centrarCarrusel();
+		const rC = enLibro ? 0 : requestAnimationFrame(() => centrarCarrusel());
+		const tC = enLibro ? 0 : setTimeout(() => centrarCarrusel(), 160);
 		let vivo = true;
 		(async () => {
-			for (const i of origArr()) {
+			// v215: la actual PRIMERO (antes se pintaba la anterior antes que la visible)
+			// y ±2 precargadas para que un giro no revele un spinner.
+			const orden = [page, page + 1, page - 1, page + 2, page - 2].filter((i) => i >= 0 && i < pageCount);
+			for (const i of orden) {
 				if (origImgs[i]) continue;
 				try {
 					let url = null;
@@ -45626,7 +45766,7 @@ const docPedir = (desde, hasta, centroArg) => {
 			cancelAnimationFrame(rC);
 			clearTimeout(tC);
 		};
-	}, [mode, carousel, page, pageCount]);
+	}, [mode, carousel, page, pageCount, desp]);
 	const origFlowLock = (0, import_react.useRef)(0);
 	(0, import_react.useEffect)(() => {
 		if (mode !== "imagenes" || carousel) return;
@@ -46966,10 +47106,9 @@ const docPedir = (desde, hasta, centroArg) => {
 											haptic$1.tap();
 											await patchBook(book.id, { rating: nuevo });
 											setBook({ ...book, rating: nuevo });
-											if (nuevo) {
-												setFinAviso(false);
-												toast?.(`★ Calificado con ${nuevo}/5 · ¡enhorabuena!`);
-											}
+											// v214 (#5): calificar NO cierra el menú: puede ajustar las
+											// estrellas; el aviso se cierra con «Luego», el velo o al volver.
+											if (nuevo) toast?.(`★ Calificado con ${nuevo}/5 · ¡enhorabuena!`);
 										},
 										children: "★"
 									}, String(n))
@@ -47116,11 +47255,7 @@ const docPedir = (desde, hasta, centroArg) => {
 									setDocZoom: setDocZoom
 							}),
 							emptyPage && canOcr && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "ocr-banner",
-								style: {
-									marginLeft: settings.margin,
-									marginRight: settings.margin
-								},
+								className: "ocr-banner", // v214 (#1): centrada en pantallas grandes (margin auto, sin margen inline)
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Sin texto embebido (página escaneada)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn sm primary",
 									disabled: ocrBusy,
@@ -47285,7 +47420,9 @@ const docPedir = (desde, hasta, centroArg) => {
 					onPointerDown: (e) => {
 						if (desp !== "libro" || !book) return;
 						if (e.pointerType === "mouse" && e.button !== 0) return;
-						turnRef.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dir: 0, prog: 0, on: false };
+						if (turnRef.current && turnRef.current.on) return; // v215: otro dedo ya lleva la página
+						if (turnEndRef.current) turnEndRef.current(true); // v215: un commit/retorno anterior se completa YA (no se pierde)
+						turnRef.current = { id: e.pointerId, x0: e.clientX, y0: e.clientY, dir: 0, prog: 0, on: false, from: null, to: null };
 					},
 					onPointerMove: (e) => {
 						const t = turnRef.current;
@@ -47296,15 +47433,19 @@ const docPedir = (desde, hasta, centroArg) => {
 							if (Math.abs(dx) < 10 || Math.abs(dy) >= Math.abs(dx)) return;
 							const n0 = page + (dx < 0 ? 1 : -1);
 							if (n0 < 0 || n0 >= pageCount) return;
+							if (flipFinishRef.current) flipFinishRef.current(); // v215: agarrar la página en pleno giro → el giro termina al instante
 							t.on = true;
 							t.dir = dx < 0 ? 1 : -1;
+							t.from = pgEl(el, page); // v215: por número de página (data-pg), nunca por índice
+							t.to = pgEl(el, n0);
+							try { el.setPointerCapture(e.pointerId); } catch (err) {}
+							if (t.to) { t.to.style.transition = "none"; t.to.style.transform = `translateX(${slotX(el, t.from || t.to) - slotX(el, t.to)}px)`; }
+							turnEndRef.current = () => { turnRef.current = null; turnEndRef.current = null; limpiarHoja(t.from); limpiarHoja(t.to); };
 						}
 						const W = el.clientWidth || 1;
-						t.prog = Math.min(Math.abs(dx) / W, 1);
+						t.prog = Math.min(Math.max(-t.dir * dx, 0) / W, 1); // v215: volver con el dedo baja la página (no la sube más)
 						origFlowLock.current = Date.now();
-						const arr = origArr();
-						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(page + t.dir)];
-						if (toEl) toEl.style.transform = t.dir === 1 ? `translateX(${-W}px)` : `translateX(${W}px)`;
+						const fromEl = t.from;
 						if (fromEl) {
 							fromEl.style.zIndex = "5";
 							fromEl.style.transformOrigin = "left center";
@@ -47319,19 +47460,13 @@ const docPedir = (desde, hasta, centroArg) => {
 						const t = turnRef.current;
 						if (!t || t.id !== e.pointerId) return;
 						turnRef.current = null;
-						const el = e.currentTarget;
 						if (!t.on) return;
-						const arr = origArr();
+						const fromEl = t.from, toEl = t.to;
 						const to = page + t.dir;
-						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(to)];
-						const clear = () => {
-							if (fromEl) { fromEl.style.transform = ""; fromEl.style.transition = ""; fromEl.style.zIndex = ""; fromEl.style.transformOrigin = ""; fromEl.style.opacity = ""; fromEl.classList.remove("turning", "turning-back"); fromEl.style.removeProperty("--lift"); }
-							if (toEl) { toEl.style.transform = ""; toEl.style.transition = ""; }
-						};
+						const clear = () => { limpiarHoja(fromEl); limpiarHoja(toEl); };
 						if (t.prog >= .5) {
 							// v213: más de la mitad → la página se voltea: termina el
 							// giro con fade y se asienta en la nueva página.
-							flipSkipRef.current = true;
 							flipLockUntilRef.current = Date.now() + 400;
 							origFlowLock.current = Date.now();
 							try { haptic$1.page(); } catch (err) {}
@@ -47340,19 +47475,24 @@ const docPedir = (desde, hasta, centroArg) => {
 								fromEl.style.transform = `rotateY(${(-t.dir * 185)}deg)`;
 								fromEl.style.opacity = "0";
 							}
-							setPage(to);
-							setTimeout(() => {
-								origFlowLock.current = Date.now();
-								clearTimeout(el._t);
-								el.scrollLeft = origArr().indexOf(to) * (el.clientWidth || 1);
-								clear();
-							}, 330);
+							// v215: el estado cambia al TERMINAR el giro; el useLayoutEffect centra
+							// la nueva y limpia los estilos ANTES de pintar (sin blanco ni página
+							// equivocada: la limpieza va por elemento, no por índice).
+							const commit = () => {
+								turnEndRef.current = null;
+								flipPendingClearRef.current = [fromEl, toEl].filter(Boolean);
+								flipSkipRef.current = to;
+								setPage(to);
+							};
+							const tm = setTimeout(commit, 330);
+							turnEndRef.current = (flush) => { clearTimeout(tm); turnEndRef.current = null; if (flush) commit(); else clear(); };
 						} else {
 							// v213: antes de la mitad → la página vuelve a su sitio
 							// (no cambia de página).
 							if (fromEl) { fromEl.style.transition = "transform 280ms cubic-bezier(.25,.7,.35,1.04), opacity 280ms"; fromEl.style.transform = "rotateY(0deg)"; fromEl.style.opacity = "1"; }
 							if (toEl) { toEl.style.transition = "transform 280ms ease"; toEl.style.transform = ""; }
-							setTimeout(clear, 300);
+							const tm = setTimeout(() => { turnEndRef.current = null; clear(); }, 300);
+							turnEndRef.current = () => { clearTimeout(tm); turnEndRef.current = null; clear(); };
 						}
 					},
 					onPointerCancel: (e) => {
@@ -47360,21 +47500,27 @@ const docPedir = (desde, hasta, centroArg) => {
 						if (!t || t.id !== e.pointerId) return;
 						turnRef.current = null;
 						if (!t.on) return;
-						const el = e.currentTarget;
-						const arr = origArr();
-						const fromEl = el.children[arr.indexOf(page)], toEl = el.children[arr.indexOf(page + t.dir)];
+						const fromEl = t.from, toEl = t.to;
 						if (fromEl) { fromEl.style.transition = "transform 240ms ease"; fromEl.style.transform = "rotateY(0deg)"; }
 						if (toEl) { toEl.style.transition = "transform 240ms ease"; toEl.style.transform = ""; }
-						setTimeout(() => {
-							if (fromEl) { fromEl.style.transform = ""; fromEl.style.transition = ""; fromEl.style.zIndex = ""; fromEl.style.transformOrigin = ""; fromEl.style.opacity = ""; fromEl.classList.remove("turning", "turning-back"); fromEl.style.removeProperty("--lift"); }
-							if (toEl) { toEl.style.transform = ""; toEl.style.transition = ""; }
-						}, 260);
+						const tm = setTimeout(() => { turnEndRef.current = null; limpiarHoja(fromEl); limpiarHoja(toEl); }, 260);
+						turnEndRef.current = () => { clearTimeout(tm); turnEndRef.current = null; limpiarHoja(fromEl); limpiarHoja(toEl); };
 					},
 						onScroll: onOrigCarouselScroll,
 						onWheel: (e) => {
 							const d = e.deltaX || e.deltaY;
 							if (!d) return;
 							const now = Date.now();
+							if (desp === "libro") {
+								// v215: una página por giro COMPLETO (700 ms ≥ levantada 640 ms): así la
+								// rueda nunca cae en pleno giro y cada página anima entera.
+								if (turnRef.current && turnRef.current.on) return;
+								if (now < flipLockUntilRef.current || now - flipWheelAtRef.current < 700) { flipWheelAtRef.current = Math.max(flipWheelAtRef.current, now - 400); return; } // los «clics» seguidos de la rueda no se acumulan: hay que soltarla ≥300 ms
+								flipWheelAtRef.current = now;
+								origFlowLock.current = now;
+								go(d > 0 ? 1 : -1);
+								return;
+							}
 							if (now - origFlowLock.current < 500) return;
 							origFlowLock.current = now;
 							go(d > 0 ? 1 : -1);
@@ -47385,6 +47531,7 @@ const docPedir = (desde, hasta, centroArg) => {
 					if (fa && fa.steps !== 1 && i === fa.to) cls += fa.dir === "fwd" ? " page-flip-in-fwd" : " page-flip-in-back";
 					return (0, import_jsx_runtime.jsx)("div", {
 						className: cls,
+						"data-pg": i, // v215: las hojas se localizan por número de página
 						children: origImgs[i] ? (0, import_jsx_runtime.jsx)("img", {
 							src: origImgs[i],
 							alt: "",
@@ -47956,8 +48103,12 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 										setSheet("tts");
 									}, 1000);
 								},
-								onPointerUp: () => clearTimeout(voiceHold.current),
-								onPointerLeave: () => clearTimeout(voiceHold.current),
+								// v214 (#4): si el long-press abrió la hoja, el click de ese mismo
+								// gesto no siempre llega (la hoja queda encima) y `fired` se quedaba
+								// en true → el SIGUIENTE toque a Voz/Reanudar se tragaba. Se limpia
+								// el flag poco después de soltar.
+								onPointerUp: () => { clearTimeout(voiceHold.current); setTimeout(() => { voiceHold.fired = false; }, 350); },
+								onPointerLeave: () => { clearTimeout(voiceHold.current); setTimeout(() => { voiceHold.fired = false; }, 350); },
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
 							children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused ? "⏸" : "▶"
@@ -51539,7 +51690,21 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
 				className: "plain",
 				value: settings.ttsVoice || "",
-				onChange: (e) => setSettings({ ttsVoice: e.target.value }),
+				onChange: (e) => {
+					setSettings({ ttsVoice: e.target.value });
+					// v214 (#4): cambiar la voz a mitad de lectura → pausar en
+					// seguida (no esperar a que termine la frase en voz vieja); al
+					// reanudar se sigue con la NUEVA voz.
+					try {
+						const sonaba = speaker.playing && !speaker.paused;
+						const enPausa = speaker.paused && speaker.queue.length > 0;
+						speaker.setVoice(e.target.value || settings.ttsVoiceAuto || "");
+						if (sonaba) toast?.("🗣️ Voz cambiada · lectura en pausa · reanuda para oírla");
+						else if (enPausa) toast?.("🗣️ Voz cambiada · se usará al reanudar");
+					} catch (e2) {
+						console.warn("[tts] cambio de voz", e2?.message || e2);
+					}
+					},
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
 					value: "",
 					children: "Automática (es)"
@@ -51798,6 +51963,12 @@ function TtsPanel({ settings, setSettings, toast, autoRef, text, bookTitle, page
 						speaker.pitch = settings.ttsPitch || 1;
 						speaker.voiceName = settings.ttsVoice || settings.ttsVoiceAuto || "";
 						if (!speaker.playing) {
+							// v214 (#4): pausada a mitad de página → reanuda desde la
+							// frase actual (con la voz nueva), no desde el principio.
+							if (speaker.paused && speaker.queue.length && (speaker.i || 0) < speaker.queue.length) {
+								try { speaker.play(); } catch {}
+								return;
+							}
 							if (!text?.trim()) return toast?.("Sin texto");
 							speaker.speak(text);
 						} else speaker.toggle();
@@ -51968,7 +52139,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v213" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v215" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -52102,6 +52273,10 @@ function App() {
 	// «al cerrar el libro» (opción elegida en Ajustes → Logros)
 	const [logrosCierre, setLogrosCierre] = (0, import_react.useState)([]);
 	const lecturaLogrosRef = (0, import_react.useRef)([]);
+	// v214 (#3): mientras se cierra un libro (goLibrary → cleanup del Reader →
+	// último onPageRead asíncrono), los logros que lleguen tarde siguen siendo
+	// «de esta lectura»: van al menú de cierre, no al aviso/sonido suelto.
+	const cerrandoLibroRef = (0, import_react.useRef)(0);
 	const routeRef = (0, import_react.useRef)(null);
 	const logrosViewRef = (0, import_react.useRef("leyendo"));
 	(0, import_react.useEffect)(() => { routeRef.current = route; }, [route]);
@@ -52212,8 +52387,15 @@ function App() {
 			await tagTimeOfDay();
 			await refreshProgress();
 			initReminders().catch(() => {});
-			const fresh = await checkAchievements();
+			// v214 (#3): al arrancar con el libro abierto y opción «cierre»,
+			// tampoco aquí se interrumpe (antes filtraba la racha de 1 día).
+			const enCierre0 = logrosViewRef.current === "cierre" && routeRef.current?.view === "reader";
+			const fresh = await checkAchievements(enCierre0);
 			if (fresh.length) {
+				if (enCierre0) {
+					lecturaLogrosRef.current = [...lecturaLogrosRef.current, ...fresh];
+					return;
+				}
 				setRewards((r) => [...r, ...fresh.map((a) => ({
 					type: "achievement",
 					a
@@ -52535,10 +52717,21 @@ function App() {
 		});
 	}, []);
 	const goLibrary = (0, import_react.useCallback)((pushHistory = true) => {
-		// v195 (#7): al cerrar el libro, mostrar los logros de esa lectura
-		if (routeRef.current?.view === "reader" && routeRef.current?.bookId && lecturaLogrosRef.current.length) {
-			setLogrosCierre([...lecturaLogrosRef.current]);
-			lecturaLogrosRef.current = [];
+		// v195 (#7): al cerrar el libro, mostrar los logros de esa lectura.
+		// v214 (#3): se espera ~1,2 s a que llegue el último onPageRead (el
+		// cleanup del Reader cuenta la página al salir) y se muestra TODO junto
+		// con UN solo sonido (antes: el logro tardío sonaba aparte y no salía).
+		if (routeRef.current?.view === "reader" && routeRef.current?.bookId && logrosViewRef.current === "cierre") {
+			const marca = Date.now();
+			cerrandoLibroRef.current = marca;
+			setTimeout(() => {
+				if (cerrandoLibroRef.current === marca) cerrandoLibroRef.current = 0;
+				if (!lecturaLogrosRef.current.length) return;
+				if (routeRef.current?.view === "reader") return; // volvió a abrir otro: se mostrarán al cerrar ese
+				setLogrosCierre([...lecturaLogrosRef.current]);
+				lecturaLogrosRef.current = [];
+				__vitePreload(() => import("./sonidos-By6nBBuC.js").then((s) => s.sonidoLogro()), __vite__mapDeps([8,2,1,7]), import.meta.url).catch(() => {});
+			}, 1200);
 		}
 		try {
 			speaker.stop();
@@ -52600,11 +52793,13 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 			});
 			setTimeout(() => setCelebrate(null), 3400);
 		}
-const fresh = await checkAchievements();
+	// v214 (#3): con «Al cerrar el libro» NO interrumpo la lectura: ni toast
+	// (pestaña T) ni sonido mientras leo; se acumulan y, al cerrar, se muestra
+	// el menú y suena UNA sola vez.
+	const enCierre = logrosViewRef.current === "cierre" && (routeRef.current?.view === "reader" || cerrandoLibroRef.current > 0);
+	const fresh = await checkAchievements(enCierre);
 	if (fresh.length) {
-	// v195 (#7): con «Al cerrar el libro» no interrumpo la lectura:
-	// se acumulan y se muestran al salir en un menú pequeño.
-	if (logrosViewRef.current === "cierre" && routeRef.current?.view === "reader") {
+	if (enCierre) {
 		lecturaLogrosRef.current = [...lecturaLogrosRef.current, ...fresh];
 		await refreshProgress();
 		return;
