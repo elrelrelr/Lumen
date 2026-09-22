@@ -36575,7 +36575,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v215"
+							children: "v216"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38478,7 +38478,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v215 · escritorio y móvil"
+					children: "Lumen Reader · v216 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -45239,6 +45239,7 @@ const go = (0, import_react.useCallback)((delta) => {
 		}
 		if (!s.moved && !s.hadSelection && dt < 500 && Math.abs(dx) < 18 && Math.abs(dy) < 18) {
 			if (e.target.closest("button, a, input, select, textarea, .ocr-banner, .selection-pop, .cite-chip, .cite-bubble, .ad-space")) return;
+			if (Date.now() - turnLastRef.current < 700) return; // v216: pasar página (arrastre 📖 Libro) no abre/cierra las barras
 			haptic$1.tap();
 			setChrome((c) => !c);
 		}
@@ -45257,6 +45258,7 @@ const go = (0, import_react.useCallback)((delta) => {
 		if (e.target.closest("button, a, input, select, textarea, .ocr-banner, .selection-pop, .cite-chip, .cite-bubble, .ad-space")) return;
 		if (e.nativeEvent?.pointerType === "touch") return;
 		if (Date.now() - ultimoToque.current < 700) return;
+		if (Date.now() - turnLastRef.current < 700) return; // v216: el clic que remata un arrastre de página no alterna las barras
 		setChrome((c) => !c);
 	};
 	const onCarouselScroll = () => {
@@ -45654,6 +45656,7 @@ const docPedir = (desde, hasta, centroArg) => {
 	const flipPendingClearRef = (0, import_react.useRef)([]); // hojas con estilos inline del commit del arrastre (se limpian al centrar)
 	const turnRef = (0, import_react.useRef)(null);
 	const turnEndRef = (0, import_react.useRef)(null); // (flush) => cancela/termina el arrastre o commit en curso
+	const turnLastRef = (0, import_react.useRef)(0); // v216: hora del último arrastre de página (el clic/tap que lo remata no alterna las barras)
 	const flipWheelAtRef = (0, import_react.useRef)(0); // última rueda atendida (gate propio: un arrastre no bloquea la rueda)
 	const pgEl = (el, n) => { if (!el) return null; for (const c of el.children) if (c.dataset && c.dataset.pg === String(n)) return c; return null; };
 	const slotX = (el, c) => Array.prototype.indexOf.call(el.children, c) * (el.clientWidth || 1);
@@ -47444,6 +47447,16 @@ const docPedir = (desde, hasta, centroArg) => {
 						}
 						const W = el.clientWidth || 1;
 						t.prog = Math.min(Math.max(-t.dir * dx, 0) / W, 1); // v215: volver con el dedo baja la página (no la sube más)
+						{ // v216: velocidad reciente (flick): un golpe corto y rápido también pasa página.
+							// Media sobre los últimos ~140 ms (robusta a un evento retrasado).
+							const now = performance.now();
+							(t.sm || (t.sm = [])).push({ t: now, x: e.clientX });
+							while (t.sm.length > 1 && now - t.sm[0].t > 140) t.sm.shift();
+							const a = t.sm[0];
+							if (now - a.t > 0) t.vx = (e.clientX - a.x) / (now - a.t);
+							t.lt = now;
+						}
+						turnLastRef.current = Date.now();
 						origFlowLock.current = Date.now();
 						const fromEl = t.from;
 						if (fromEl) {
@@ -47464,7 +47477,11 @@ const docPedir = (desde, hasta, centroArg) => {
 						const fromEl = t.from, toEl = t.to;
 						const to = page + t.dir;
 						const clear = () => { limpiarHoja(fromEl); limpiarHoja(toEl); };
-						if (t.prog >= .5) {
+						turnLastRef.current = Date.now();
+						// v216: basta con un cuarto del ancho (antes la mitad) o un golpe rápido en la
+						// dirección del giro (flick ≥ 0,5 px/ms, soltado en movimiento); si no, vuelve.
+						const flick = t.vx !== undefined && -t.dir * t.vx >= .5 && t.prog >= .08 && performance.now() - t.lt < 160;
+						if (t.prog >= .25 || flick) {
 							// v213: más de la mitad → la página se voltea: termina el
 							// giro con fade y se asienta en la nueva página.
 							flipLockUntilRef.current = Date.now() + 400;
@@ -52139,7 +52156,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v215" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v216" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
