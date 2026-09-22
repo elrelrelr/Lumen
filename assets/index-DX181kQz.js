@@ -36324,14 +36324,36 @@ const toquesDev = (0, import_react.useRef)(0);
 		c.height = S;
 		const x = c.getContext("2d");
 		if (bk.kind === "pdf") {
-			const { loadPdf, renderPageToCanvas } = await __vitePreload(async () => {
-				const { loadPdf, renderPageToCanvas } = await Promise.resolve().then(() => pdf_exports);
+			const { loadPdf, renderPageToCanvas, extractPageText } = await __vitePreload(async () => {
+				const { loadPdf, renderPageToCanvas, extractPageText } = await Promise.resolve().then(() => pdf_exports);
 				return {
 					loadPdf,
-					renderPageToCanvas
+					renderPageToCanvas,
+					extractPageText
 				};
 			}, void 0, import.meta.url);
-			const cv = await renderPageToCanvas(await loadPdf("cover-" + bk.id, await blob.arrayBuffer()), 1, 420);
+			const doc = await loadPdf("cover-" + bk.id, await blob.arrayBuffer());
+			// v218 (#2): muchos PDF escaneados traen de 1.ª página el aviso de Google
+			// («This is a digital copy of a book…») o una hoja en blanco: la portada
+			// se toma de la primera página que NO sea eso (hasta 6 páginas).
+			const esAvisoOBlanco = async (n) => {
+				try {
+					const t = (await extractPageText(doc, n)).toLowerCase();
+					if (/digital copy of a book|google book search|preserved for generations|usage guidelines|copia digital de un libro|b(ú|u)squeda de libros de google/.test(t)) return true;
+					if (/gallica|biblioth(è|e)que nationale|numérisé|hathitrust|public domain, google-digitized/.test(t) && t.length < 1200) return true;
+					return false;
+				} catch { return false; }
+			};
+			const pagBlanca = (cv) => { try { const x2 = cv.getContext("2d"); const d = x2.getImageData(0, 0, cv.width, cv.height).data; let oscuros = 0; for (let i = 0; i < d.length; i += 16) if (d[i] + d[i + 1] + d[i + 2] < 540) oscuros++; return oscuros / (d.length / 16) < .004; } catch { return false; } };
+			let cv = null;
+			const total = Math.min(doc.numPages || 1, 6);
+			for (let n = 1; n <= total; n++) {
+				if (await esAvisoOBlanco(n)) continue;
+				const cand = await renderPageToCanvas(doc, n, 420);
+				if (n < total && pagBlanca(cand)) continue;
+				cv = cand; break;
+			}
+			if (!cv) cv = await renderPageToCanvas(doc, 1, 420);
 			const side = Math.min(cv.width, cv.height);
 			x.drawImage(cv, (cv.width - side) / 2, 0, side, side, 0, 0, S, S);
 			const { unloadPdf } = await __vitePreload(async () => {
@@ -36575,7 +36597,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v217"
+							children: "v218"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38478,7 +38500,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v217 · escritorio y móvil"
+					children: "Lumen Reader · v218 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -45700,18 +45722,36 @@ const docPedir = (desde, hasta, centroArg) => {
 		const fromEl = pgEl(el, fa.from), toEl = pgEl(el, fa.to);
 		if (!fromEl || !toEl || fromEl === toEl) return () => window.removeEventListener("resize", centrar);
 		flipLockUntilRef.current = Date.now() + 700;
-		fromEl.style.setProperty("--sh", (slotX(el, toEl) - slotX(el, fromEl)) + "px"); // la vieja, encima de la visible
-		fromEl.style.zIndex = "5";
-		fromEl.classList.add(fa.dir === "fwd" ? "page-lift-fwd" : "page-lift-back");
+		const sh = slotX(el, toEl) - slotX(el, fromEl);
+		if (fa.dir === "fwd") {
+			fromEl.style.setProperty("--sh", sh + "px"); // la vieja, encima de la visible
+			fromEl.style.zIndex = "5";
+			fromEl.classList.add("page-lift-fwd");
+		} else {
+			// v218 (#3): retroceder = avanzar al revés: la página que dejamos (fromEl) se
+			// trae al hueco visible DEBAJO, y la anterior (toEl, ya centrada) se despliega
+			// desde la izquierda hacia la derecha hasta asentarse encima.
+			fromEl.style.transition = "none";
+			fromEl.style.transform = `translateX(${sh}px)`;
+			fromEl.style.zIndex = "4";
+			toEl.style.setProperty("--sh", "0px");
+			toEl.style.zIndex = "5";
+			toEl.classList.add("page-lift-back");
+		}
 		let done = false;
 		const finish = () => {
 			if (done) return;
 			done = true;
 			clearTimeout(t);
 			if (flipFinishRef.current === finish) flipFinishRef.current = null;
-			fromEl.classList.remove("page-lift-fwd", "page-lift-back");
-			fromEl.style.zIndex = "";
-			fromEl.style.removeProperty("--sh");
+			if (fa.dir === "fwd") {
+				fromEl.classList.remove("page-lift-fwd");
+				fromEl.style.zIndex = ""; fromEl.style.removeProperty("--sh");
+			} else {
+				toEl.classList.remove("page-lift-back");
+				toEl.style.zIndex = ""; toEl.style.removeProperty("--sh");
+				fromEl.style.zIndex = ""; fromEl.style.transform = ""; fromEl.style.transition = "";
+			}
 			flipLockUntilRef.current = 0;
 		};
 		const t = setTimeout(finish, 640);
@@ -47442,7 +47482,9 @@ const docPedir = (desde, hasta, centroArg) => {
 							t.from = pgEl(el, page); // v215: por número de página (data-pg), nunca por índice
 							t.to = pgEl(el, n0);
 							try { el.setPointerCapture(e.pointerId); } catch (err) {}
-							if (t.to) { t.to.style.transition = "none"; t.to.style.transform = `translateX(${slotX(el, t.from || t.to) - slotX(el, t.to)}px)`; }
+							t.shTo = slotX(el, t.from || t.to) - slotX(el, t.to);
+							// v218 (#3): hacia atrás, la ANTERIOR llega de canto por la izquierda (invisible) y se despliega con el dedo
+							if (t.to) { t.to.style.transition = "none"; t.to.style.transform = `translateX(${t.shTo}px)` + (t.dir === -1 ? " rotateY(-90deg)" : ""); if (t.dir === -1) { t.to.style.transformOrigin = "left center"; t.to.style.zIndex = "5"; } }
 							turnEndRef.current = () => { turnRef.current = null; turnEndRef.current = null; limpiarHoja(t.from); limpiarHoja(t.to); };
 						}
 						const W = el.clientWidth || 1;
@@ -47459,14 +47501,25 @@ const docPedir = (desde, hasta, centroArg) => {
 						turnLastRef.current = Date.now();
 						origFlowLock.current = Date.now();
 						const fromEl = t.from;
-						if (fromEl) {
+						if (t.dir === -1) {
+							// v218 (#3): retroceder = la página anterior se despliega desde la izquierda
+							// hacia la derecha encima de la actual (espejo de avanzar); la actual no se mueve.
+							const toEl = t.to;
+							if (toEl) {
+								toEl.style.zIndex = "5";
+								toEl.style.transformOrigin = "left center";
+								toEl.style.transition = "none";
+								toEl.style.transform = `translateX(${t.shTo}px) rotateY(${(-90 + t.prog * 90).toFixed(1)}deg)`;
+								toEl.style.setProperty("--lift", String(Math.max(0, Math.min(1, 1 - t.prog * 1.2))));
+								toEl.classList.add("turning", "turning-back");
+							}
+						} else if (fromEl) {
 							fromEl.style.zIndex = "5";
 							fromEl.style.transformOrigin = "left center";
 							fromEl.style.transition = "none";
 							fromEl.style.transform = `rotateY(${(-t.dir * t.prog * 150).toFixed(1)}deg)`;
 							fromEl.style.setProperty("--lift", String(Math.min(t.prog * 1.3, 1)));
 							fromEl.classList.add("turning");
-							if (t.dir === -1) fromEl.classList.add("turning-back");
 						}
 					},
 					onPointerUp: (e) => {
@@ -47487,7 +47540,10 @@ const docPedir = (desde, hasta, centroArg) => {
 							flipLockUntilRef.current = Date.now() + 400;
 							origFlowLock.current = Date.now();
 							try { haptic$1.page(); } catch (err) {}
-							if (fromEl) {
+							if (t.dir === -1) {
+								// v218 (#3): la anterior termina de asentarse plana encima de la actual
+								if (toEl) { toEl.style.transition = "transform 300ms cubic-bezier(.25,.7,.35,1.04)"; toEl.style.transform = `translateX(${t.shTo}px) rotateY(0deg)`; toEl.style.setProperty("--lift", "0"); }
+							} else if (fromEl) {
 								fromEl.style.transition = "transform 300ms cubic-bezier(.55,.06,.75,.5), opacity 240ms ease-in 60ms";
 								fromEl.style.transform = `rotateY(${(-t.dir * 185)}deg)`;
 								fromEl.style.opacity = "0";
@@ -47507,7 +47563,7 @@ const docPedir = (desde, hasta, centroArg) => {
 							// v213: antes de la mitad → la página vuelve a su sitio
 							// (no cambia de página).
 							if (fromEl) { fromEl.style.transition = "transform 280ms cubic-bezier(.25,.7,.35,1.04), opacity 280ms"; fromEl.style.transform = "rotateY(0deg)"; fromEl.style.opacity = "1"; }
-							if (toEl) { toEl.style.transition = "transform 280ms ease"; toEl.style.transform = ""; }
+							if (toEl) { toEl.style.transition = "transform 280ms ease"; toEl.style.transform = t.dir === -1 ? `translateX(${t.shTo}px) rotateY(-90deg)` : ""; } // v218: la anterior vuelve a plegarse
 							const tm = setTimeout(() => { turnEndRef.current = null; clear(); }, 300);
 							turnEndRef.current = () => { clearTimeout(tm); turnEndRef.current = null; clear(); };
 						}
@@ -47519,7 +47575,7 @@ const docPedir = (desde, hasta, centroArg) => {
 						if (!t.on) return;
 						const fromEl = t.from, toEl = t.to;
 						if (fromEl) { fromEl.style.transition = "transform 240ms ease"; fromEl.style.transform = "rotateY(0deg)"; }
-						if (toEl) { toEl.style.transition = "transform 240ms ease"; toEl.style.transform = ""; }
+						if (toEl) { toEl.style.transition = "transform 240ms ease"; toEl.style.transform = t.dir === -1 ? `translateX(${t.shTo}px) rotateY(-90deg)` : ""; }
 						const tm = setTimeout(() => { turnEndRef.current = null; limpiarHoja(fromEl); limpiarHoja(toEl); }, 260);
 						turnEndRef.current = () => { clearTimeout(tm); turnEndRef.current = null; limpiarHoja(fromEl); limpiarHoja(toEl); };
 					},
@@ -47565,7 +47621,7 @@ const docPedir = (desde, hasta, centroArg) => {
 							origFlowLock.current = Date.now();
 							go(dir);
 						} : void 0,
-						showControls: false,
+						showControls: true, // v218 (#1): botones de zoom de vuelta en Imágenes/Original
 						enabled: true,
 						className: (invertir && filtroImg === "normal" ? "invertido" : "") + " orig-flow",
 						style: docFx(),
@@ -47678,7 +47734,7 @@ const docPedir = (desde, hasta, centroArg) => {
 							})
 						]
 					}),
-					mode === "text" && canOcr && book?.hasOriginal && chrome && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					mode === "text" && canOcr && book?.hasOriginal && chrome && settings.fabsLectura !== false && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						className: "img-fab" + (ocrFabIdle ? " idle" : ""),
 						onClick: () => {
 							setMode("imagenes");
@@ -47860,7 +47916,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					// v170: se quitó el botón flotante «Invertir colores» (inv-fab):
 					// abría la MISMA hoja que el botón de la barra inferior. El icono
 					// IconInvert (más lindo) se pasó a ese otro botón (rb-fx).
-					mode === "imagenes" && canOcr && chrome && !renderingOriginal && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					mode === "imagenes" && canOcr && chrome && !renderingOriginal && settings.fabsLectura !== false && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 						className: "ocr-fab" + (ocrFabIdle ? " idle" : ""),
 						disabled: ocrBusy,
 						onClick: () => {
@@ -50728,8 +50784,25 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "btn sm",
 							style: { whiteSpace: "nowrap" },
-							onClick: () => { setHojaImg(true); haptic$1.tap(); },
+							onClick: () => { closeSheet(); setHojaImg(true); haptic$1.tap(); }, // v218 (#5): abrir colores cierra el menú
 							children: "Abrir"
+						})]
+					}),
+					/* v218 (#4): botones flotantes «Ver texto / Ver imagen» activables */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Botones flotantes Texto / Imagen"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-sub",
+							children: "«📄 Ver texto» y «Ver la imagen original» sobre la barra inferior"
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "btn sm" + (settings.fabsLectura !== false ? " primary" : ""),
+							style: { whiteSpace: "nowrap" },
+							"aria-pressed": settings.fabsLectura !== false,
+							onClick: () => { setSettings({ fabsLectura: settings.fabsLectura === false }); haptic$1.tap(); },
+							children: settings.fabsLectura !== false ? "Activados" : "Desactivados"
 						})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -51124,7 +51197,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 			// v187 (#2): botón de sincronizar scroll con la página que se lee
 			vozActiva: ttsState.playing || ttsState.paused,
 			ttsPageVoz: (ttsPage != null ? ttsPage : page) + 1,
-			onSyncVoz: sincronizarConVoz
+			onSyncVoz: () => { closeSheet(); sincronizarConVoz(); } // v218 (#5): sincronizar cierra el menú
 		})
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -52156,7 +52229,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 						children: "📖"
 					}),
 					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v217" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v218" })
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

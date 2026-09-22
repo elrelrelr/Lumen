@@ -391,6 +391,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	// una sola consulta busca TODO (catálogo Nostr + libros gratis y las 5 bibliotecas).
 	const [lgQ, setLgQ] = (0, import_react.useState)("");
 	const [lgUrlAbierto, setLgUrlAbierto] = (0, import_react.useState)(false);
+	// v218 (#3b): la barra de búsqueda va oculta por defecto (cabecera más baja); la lupa la muestra/oculta
+	const [busqVisible, setBusqVisible] = (0, import_react.useState)(false);
+	const busqInputRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => { if (busqVisible) setTimeout(() => busqInputRef.current?.focus?.(), 60); }, [busqVisible]);
 	const [lgUrlWeb, setLgUrlWeb] = (0, import_react.useState)("");
 	const [lgUrlBusy, setLgUrlBusy] = (0, import_react.useState)(false);
 	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
@@ -639,7 +643,14 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-acciones",
-								children: [/* v208: solo «＋ Publicar»: 📦// se movieron a «crear libro» y 📡 feeds se eliminó */ (0, import_jsx_runtime.jsx)("button", {
+								children: [/* v218 (#3b): lupa que despliega/oculta la búsqueda */ (0, import_jsx_runtime.jsx)("button", {
+									className: "cg-lupa" + (busqVisible ? " on" : ""),
+									"aria-label": busqVisible ? "Ocultar búsqueda" : "Buscar",
+									"aria-pressed": busqVisible,
+									title: "Buscar",
+									onClick: () => { haptic.tap(); setBusqVisible((v) => !v); },
+									children: "🔍"
+								}), /* v208: solo «＋ Publicar»: 📦// se movieron a «crear libro» y 📡 feeds se eliminó */ (0, import_jsx_runtime.jsx)("button", {
 									className: "cg-publicar",
 									onClick: () => {
 										haptic.tap();
@@ -651,7 +662,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "cg-busq",
+								className: "cg-busq" + (busqVisible ? "" : " oculta"),
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "cg-busq-campo",
@@ -659,6 +670,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 												className: "plain cg-busq-input",
 												placeholder: "Buscar en la store y en las 5 bibliotecas…",
+												ref: busqInputRef,
 												value: lgQ,
 												onChange: (e) => setLgQ(e.target.value)
 											}),

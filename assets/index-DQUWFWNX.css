@@ -13670,12 +13670,18 @@ mark.find-flash {
 .page-lift-fwd::after { animation: liftShade 620ms ease both; }
 /* retroceder: la página se levanta hacia la DERECHA (sentido contrario) y se
    voltea hasta desaparecer (fade) */
+/* v218 (#3): retroceder = avanzar al revés: la hoja ANTERIOR sube desde la
+   derecha (volteada) y se asienta sobre la página, en vez de irse para atrás y
+   desaparecer. Se anima la hoja `to` (la que llega), no la que se va. */
 .page-lift-back { animation: pageLiftBack 620ms cubic-bezier(.32, .12, .45, 1) both; }
 @keyframes pageLiftBack {
-	0% { transform: translateX(var(--sh, 0px)) rotateY(0deg); opacity: 1; }
-	45% { transform: translateX(var(--sh, 0px)) rotateY(52deg); opacity: 1; }
-	100% { transform: translateX(var(--sh, 0px)) rotateY(178deg); opacity: 0; }
+	0% { transform: translateX(var(--sh, 0px)) rotateY(-118deg); opacity: 1; }
+	18% { transform: translateX(var(--sh, 0px)) rotateY(-90deg); }
+	55% { transform: translateX(var(--sh, 0px)) rotateY(-42deg); }
+	100% { transform: translateX(var(--sh, 0px)) rotateY(0deg); opacity: 1; }
 }
+.page-lift-back::after { animation: liftShadeBack 620ms ease both !important; }
+@keyframes liftShadeBack { 0% { opacity: .6; } 55% { opacity: .35; } 100% { opacity: 0; } }
 .page-lift-back::after { animation: liftShade 620ms ease both; }
 @keyframes liftShade {
 	0% { opacity: 0; }
@@ -13752,3 +13758,17 @@ mark.find-flash {
 	.fx-rating .rate-star { font-size: 26px; }
 	.fx-leer { flex-basis: 100%; }
 }
+
+/* ============ v218 ============ */
+/* (#4) botones flotantes «Ver texto» / «Ver imagen»: más arriba (no chocan con
+   rd-bottom) y SIEMPRE centrados: left/transform con !important para que ningún
+   estado (idle, :active, con-fondo) los corra a la izquierda. */
+.reader .ocr-fab, .reader .img-fab { left: 50% !important; right: auto !important; bottom: calc(var(--safe-b) + 132px) !important; transform: translateX(-50%) !important; margin: 0 !important; }
+.reader .ocr-fab.idle, .reader .img-fab.idle { transform: translateX(-50%) !important; }
+.reader .ocr-fab:active, .reader .img-fab:active { transform: translateX(-50%) scale(.96) !important; }
+/* (#1) zoom en Imágenes/Original: columna a la derecha, por encima de la barra inferior y de los fabs */
+.reader .orig-flow .zoom-btns, .reader .zoom-btns { bottom: calc(var(--safe-b) + 132px); right: 12px; z-index: 26; }
+/* (#3b) Lumen Store: búsqueda oculta por defecto; lupa junto a «＋ Publicar» */
+.cg-lupa { padding: 8px 11px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg-soft, transparent); color: var(--fg); font-size: 16px; line-height: 1; cursor: pointer; }
+.cg-lupa.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.cg-busq.oculta { display: none; }
