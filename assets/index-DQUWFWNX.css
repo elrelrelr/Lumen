@@ -13789,3 +13789,53 @@ mark.find-flash {
 /* Zoom real en Imágenes: escalado visual reactivo con ScrollFab (＋/%/−) y pan 2D suave */
 .orig-flow canvas, .orig-flow img { zoom: 1 !important; }
 
+/* ============ v221 ============ */
+/* (#1) Disposición configurable: Sidebar a la derecha / FAB a la izquierda */
+@media (min-width: 960px) {
+  .app.sidebar-right {
+    flex-direction: row;
+  }
+  .app.sidebar-right .sidebar {
+    order: 2;
+    border-right: none;
+    border-left: 1px solid var(--line);
+  }
+  .app.sidebar-right .app-main {
+    order: 1;
+  }
+}
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebar-pos-btn {
+  background: var(--chip-bg, rgba(255, 255, 255, .08));
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--fg);
+  line-height: 1;
+  transition: background .15s ease, transform .15s ease;
+  flex-shrink: 0;
+}
+.sidebar-pos-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, .16));
+}
+.sidebar-pos-btn:active {
+  transform: scale(.92);
+}
+.fab.fab-left {
+  right: auto !important;
+  left: 18px !important;
+}
+.fab-menu.fab-left {
+  right: auto !important;
+  left: 18px !important;
+  align-items: flex-start !important;
+}
+
+

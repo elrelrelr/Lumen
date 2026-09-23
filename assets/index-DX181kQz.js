@@ -23575,6 +23575,20 @@ var SHOP = [
 		premium: false
 	},
 	{
+		id: "ball_futbol",
+		cat: "toy",
+		precio: 160,
+		nombre: "Balón de fútbol",
+		premium: false
+	},
+	{
+		id: "ball_basket",
+		cat: "toy",
+		precio: 160,
+		nombre: "Balón de básquet",
+		premium: false
+	},
+	{
 		id: "martillo_thor",
 		cat: "weapon",
 		precio: 400,
@@ -24226,6 +24240,25 @@ function lumoAccesorio(id, lado) {
 		lumoJ("path", { d: "M78 197 Q92 205 106 197 M79 211 Q92 218 105 211", fill: "none", stroke: "#b02529", strokeWidth: 2.5 }),
 		lumoJ("circle", { cx: 85, cy: 197, r: 4.5, fill: "#ff9a9a", opacity: .85 })
 	] });
+	if (id === "ball_futbol") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 92, cy: 204, r: 17, fill: "#ffffff", stroke: "#1e293b", strokeWidth: 2.5 }),
+		lumoJ("polygon", { points: "92,198 97.5,202 95.5,208 88.5,208 86.5,202", fill: "#1e293b" }),
+		lumoJ("path", { d: "M92 187 C95 187 97 189 97 192 L87 192 C87 189 89 187 92 187 Z", fill: "#1e293b" }),
+		lumoJ("path", { d: "M76 199 C75 201 75 204 76 206 L81 202 Z", fill: "#1e293b" }),
+		lumoJ("path", { d: "M108 199 C109 201 109 204 108 206 L103 202 Z", fill: "#1e293b" }),
+		lumoJ("path", { d: "M81 216 C83 219 86 220 89 221 L87 214 Z", fill: "#1e293b" }),
+		lumoJ("path", { d: "M103 216 C101 219 98 220 95 221 L97 214 Z", fill: "#1e293b" }),
+		lumoJ("path", { d: "M92 198 L92 192 M97.5 202 L103 202 M95.5 208 L97 214 M88.5 208 L87 214 M86.5 202 L81 202", fill: "none", stroke: "#1e293b", strokeWidth: 1.8, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 85, cy: 196, r: 4, fill: "#ffffff", opacity: .75 })
+	] });
+	if (id === "ball_basket") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 92, cy: 204, r: 17, fill: "#ea580c", stroke: "#9a3412", strokeWidth: 2.5 }),
+		lumoJ("path", { d: "M75 204 L109 204", fill: "none", stroke: "#431407", strokeWidth: 2.2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M92 187 L92 221", fill: "none", stroke: "#431407", strokeWidth: 2.2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M80 191 Q88 204 80 217", fill: "none", stroke: "#431407", strokeWidth: 2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M104 191 Q96 204 104 217", fill: "none", stroke: "#431407", strokeWidth: 2, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 85, cy: 196, r: 4.5, fill: "#ffedd5", opacity: .6 })
+	] });
 	if (id === "martillo_thor") return lumoJ("g", { children: [
 		lumoJ("rect", { x: 168, y: 184, width: 11, height: 36, rx: 4, fill: "#7a4a21", stroke: "#5d3717", strokeWidth: 2, transform: "rotate(18 173 202)" }),
 		lumoJ("rect", { x: 142, y: 157, width: 54, height: 27, rx: 6, fill: "#93a1b3", stroke: "#5c6b7f", strokeWidth: 2.5, transform: "rotate(18 169 170)" }),
@@ -24274,9 +24307,17 @@ var MUEBLES_SVG = {
 		lumoJ("ellipse", { cx: 50, cy: 88, rx: 15, ry: 5, fill: "#607d8b" })
 	]}),
 	rug: () => lumoJ("svg", { viewBox: "0 0 100 100", children: [
-		lumoJ("ellipse", { cx: 50, cy: 55, rx: 46, ry: 24, fill: "#ef9a9a", stroke: "#e57373", strokeWidth: 3 }),
-		lumoJ("ellipse", { cx: 50, cy: 55, rx: 32, ry: 16, fill: "none", stroke: "#fff", strokeWidth: 2.5, strokeDasharray: "6 5", opacity: .8 }),
-		lumoJ("ellipse", { cx: 50, cy: 55, rx: 16, ry: 8, fill: "#e57373" })
+		lumoJ("ellipse", { cx: 50, cy: 91, rx: 26, ry: 6, fill: "rgba(0,0,0,.15)" }),
+		lumoJ("path", { d: "M66 78 C78 84 86 86 94 80 C98 76 96 70 91 68 C88 66 84 72 87 76", fill: "none", stroke: "#e57373", strokeWidth: 3, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 50, cy: 50, r: 38, fill: "#ef5350", stroke: "#c62828", strokeWidth: 2.6 }),
+		lumoJ("path", { d: "M20 40 Q40 24 68 28 Q84 32 86 52", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.8, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M16 54 Q30 72 62 70 Q80 68 87 48", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.8, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M36 16 Q58 36 54 64 Q52 78 44 86", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.8, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M58 14 Q70 38 64 64 Q60 80 50 88", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.8, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M26 30 Q48 50 76 46", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.4, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M24 70 Q52 54 76 60", fill: "none", stroke: "#ffcdd2", strokeWidth: 2.4, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M34 46 Q50 34 68 46", fill: "none", stroke: "#e57373", strokeWidth: 2.2, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 38, cy: 36, r: 7, fill: "#ffffff", opacity: .35 })
 	]}),
 	library: () => lumoJ("svg", { viewBox: "0 0 100 100", children: [
 		lumoJ("rect", { x: 14, y: 74, width: 72, height: 10, rx: 2, fill: "#90a4ae" }),
@@ -24368,7 +24409,7 @@ var MUEBLES_SVG = {
 	]})
 };
 var MOBLE_SLOTS = {
-	rug: { left: "27%", bottom: "0%", w: "46%", z: 1 },
+	rug: { left: "28%", bottom: "0%", w: "12%", z: 3 },
 	plant: { left: "0%", bottom: "13%", w: "15%", z: 1 },
 	bookshelf: { left: "2%", bottom: "0%", w: "17%", z: 1 },
 	lamp: { left: "16%", bottom: "0%", w: "11%", z: 1 },
@@ -24490,6 +24531,8 @@ var ICONO_ACC = {
 	glasses_solar: "🕶️",
 	glasses_vintage: "👓",
 	ball_roja: "🔴",
+	ball_futbol: "⚽",
+	ball_basket: "🏀",
 	martillo_thor: "🔨",
 	bracelete_dorado: "⚜️",
 	piercing_oreja: "✨",
@@ -36636,7 +36679,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v220"
+							children: "v221"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -37609,6 +37652,79 @@ const toquesDev = (0, import_react.useRef)(0);
 							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
+							icono: "📐",
+							titulo: "Disposición e interfaz",
+							resumen: "Posición del menú lateral y del botón flotante",
+							abierta: seccionAbierta === "disposicion",
+							onToggle: () => alternarSeccion("disposicion"),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "row-label",
+										children: "Menú lateral (Sidebar)"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "row-sub",
+										children: "En pantallas grandes y escritorio"
+									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: { display: "flex", gap: 6 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm" + (settings.sidebarPos !== "right" ? " on" : " ghost"),
+												onClick: () => {
+													setSettings({ sidebarPos: "left" });
+													try { localStorage.setItem("lumen_sidebar_pos", "left"); } catch {}
+													haptic$1.tap();
+												},
+												children: "⬅️ Izquierda"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm" + (settings.sidebarPos === "right" ? " on" : " ghost"),
+												onClick: () => {
+													setSettings({ sidebarPos: "right" });
+													try { localStorage.setItem("lumen_sidebar_pos", "right"); } catch {}
+													haptic$1.tap();
+												},
+												children: "Derecha ➡️"
+											})
+										]
+									})]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "row-label",
+										children: "Botón flotante (＋)"
+									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "row-sub",
+										children: "Botón de acciones en la biblioteca"
+									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: { display: "flex", gap: 6 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm" + (settings.fabPos === "left" ? " on" : " ghost"),
+												onClick: () => {
+													setSettings({ fabPos: "left" });
+													try { localStorage.setItem("lumen_fab_pos", "left"); } catch {}
+													haptic$1.tap();
+												},
+												children: "⬅️ Izquierda"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm" + (settings.fabPos !== "left" ? " on" : " ghost"),
+												onClick: () => {
+													setSettings({ fabPos: "right" });
+													try { localStorage.setItem("lumen_fab_pos", "right"); } catch {}
+													haptic$1.tap();
+												},
+												children: "Derecha ➡️"
+											})
+										]
+									})]
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "🔔",
 							titulo: "Notificaciones",
 							resumen: "Recordatorios de lectura y avisos",
@@ -38539,7 +38655,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v220 · escritorio y móvil"
+					children: "Lumen Reader · v221 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -39416,7 +39532,7 @@ const toquesDev = (0, import_react.useRef)(0);
 				]
 			})] }),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-				className: "fab" + (fab ? " open" : ""),
+				className: "fab" + (fab ? " open" : "") + (settings?.fabPos === "left" ? " fab-left" : ""),
 				onClick: () => {
 					if (fabHold.fired) {
 						fabHold.fired = false;
@@ -39453,7 +39569,7 @@ const toquesDev = (0, import_react.useRef)(0);
 				onClick: () => setFab(false)
 			}),
 			fab && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				className: "fab-menu",
+				className: "fab-menu" + (settings?.fabPos === "left" ? " fab-left" : ""),
 				children: [
 					[
 						"➕",
@@ -39481,6 +39597,16 @@ const toquesDev = (0, import_react.useRef)(0);
 						"⚙️",
 						"Ajustes",
 						() => setSheet("settings")
+					],
+					[
+						settings?.fabPos === "left" ? "➡️" : "⬅️",
+						settings?.fabPos === "left" ? "Mover botón a la derecha" : "Mover botón a la izquierda",
+						() => {
+							const next = settings?.fabPos === "left" ? "right" : "left";
+							setSettings({ fabPos: next });
+							try { localStorage.setItem("lumen_fab_pos", next); } catch {}
+							toast?.(next === "left" ? "Botón flotante a la izquierda" : "Botón flotante a la derecha");
+						}
 					],
 					[
 						vaultOpen ? "🔓" : "🔒",
@@ -52258,7 +52384,7 @@ var Boundary = class extends import_react.Component {
 		return this.props.children;
 	}
 };
-function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, onPublicar, onMisPubs, onAds, onPremium, onApoyar, onTips, onAutoDetectar, onLibrosGratis }) {
+function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, onPublicar, onMisPubs, onAds, onPremium, onApoyar, onTips, onAutoDetectar, onLibrosGratis, sidebarPos, onCambiarPos }) {
 	const item = (ico, txt, fn, on) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 		className: "side-item" + (on ? " on" : ""),
 		onClick: fn,
@@ -52272,17 +52398,30 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "sidebar-brand",
-				onClick: onTips,
-				role: "button",
-				tabIndex: 0,
-				title: "Tips de Lumen",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "brand-dot",
-						children: "📖"
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "sidebar-brand-title",
+						onClick: onTips,
+						role: "button",
+						tabIndex: 0,
+						title: "Tips de Lumen",
+						style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 },
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "brand-dot",
+								children: "📖"
+							}),
+							"Lumen ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v221" })
+						]
 					}),
-					"Lumen ",
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v220" })
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "sidebar-pos-btn",
+						onClick: onCambiarPos,
+						title: sidebarPos === "right" ? "Mover menú lateral a la izquierda" : "Mover menú lateral a la derecha",
+						"aria-label": "Cambiar posición del menú",
+						children: sidebarPos === "right" ? "⬅️" : "➡️"
+					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -52324,6 +52463,35 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 			})
 		]
 	});
+}
+if (typeof window !== "undefined") {
+	window.cargarConfig = () => {
+		try {
+			const m = JSON.parse(localStorage.getItem("lumen_settings_mirror") || "{}");
+			return {
+				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || m.sidebarPos || "left",
+				fabPos: localStorage.getItem("lumen_fab_pos") || m.fabPos || "right",
+				...m
+			};
+		} catch {
+			return {
+				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || "left",
+				fabPos: localStorage.getItem("lumen_fab_pos") || "right"
+			};
+		}
+	};
+	window.guardarConfig = (cfg) => {
+		try {
+			if (cfg?.sidebarPos) localStorage.setItem("lumen_sidebar_pos", cfg.sidebarPos);
+			if (cfg?.fabPos) localStorage.setItem("lumen_fab_pos", cfg.fabPos);
+			const prev = JSON.parse(localStorage.getItem("lumen_settings_mirror") || "{}");
+			const next = { ...prev, ...cfg };
+			localStorage.setItem("lumen_settings_mirror", JSON.stringify(next));
+			return next;
+		} catch {
+			return cfg;
+		}
+	};
 }
 function App() {
 	const [settings, setSettingsState] = (0, import_react.useState)(null);
@@ -52513,20 +52681,29 @@ function App() {
 					fontSize: 20,
 					ttsRate: 1.25,
 					musicVolume: 1,
+					sidebarPos: localStorage.getItem("lumen_sidebar_pos") || mirror.sidebarPos || "left",
+					fabPos: localStorage.getItem("lumen_fab_pos") || mirror.fabPos || "right",
 					...mirror
 				};
 			} catch {}
 			if (!activo) return;
 			clearTimeout(timer);
-			setSettingsState(s || {
+			const baseDef = {
 				id: "settings",
 				theme: "nocturno",
 				appScale: 100,
 				fontSize: 20,
 				ttsRate: 1.25,
 				musicVolume: 1,
-				goal: 5
-			});
+				goal: 5,
+				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || "left",
+				fabPos: localStorage.getItem("lumen_fab_pos") || "right"
+			};
+			setSettingsState(s ? {
+				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || s.sidebarPos || "left",
+				fabPos: localStorage.getItem("lumen_fab_pos") || s.fabPos || "right",
+				...s
+			} : baseDef);
 			await tagTimeOfDay();
 			await refreshProgress();
 			initReminders().catch(() => {});
@@ -52778,6 +52955,8 @@ function App() {
 	}, [settings]);
 	const setSettings = (0, import_react.useCallback)(async (patch) => {
 		if (patch.theme) applyTheme(patch.theme);
+		if (patch.sidebarPos) try { localStorage.setItem("lumen_sidebar_pos", patch.sidebarPos); } catch {}
+		if (patch.fabPos) try { localStorage.setItem("lumen_fab_pos", patch.fabPos); } catch {}
 		setSettingsState((cur) => cur ? {
 			...cur,
 			...patch
@@ -52961,9 +53140,16 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
 	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "app",
+		className: "app" + (settings?.sidebarPos === "right" ? " sidebar-right" : ""),
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sidebar, {
 			enLectura: route.view === "reader",
+			sidebarPos: settings?.sidebarPos || "left",
+			onCambiarPos: () => {
+				const next = (settings?.sidebarPos === "right") ? "left" : "right";
+				setSettings({ sidebarPos: next });
+				try { localStorage.setItem("lumen_sidebar_pos", next); } catch {}
+				toast(next === "right" ? "Menú lateral a la derecha" : "Menú lateral a la izquierda");
+			},
 			onInicio: () => {
 				if (route.view !== "library") goLibrary(false);
 			},
