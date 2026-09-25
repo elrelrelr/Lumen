@@ -18982,18 +18982,34 @@ function buildPrompt({ instruction, text, title, page, pageCount, action }) {
 }
 var GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile";
 var GROQ_MODELS = [
-	{ id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Recomendado)", desc: "Máxima inteligencia, velocidad y contexto" },
-	{ id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", desc: "Ultra rápido (<0.5 seg.), latencia mínima" },
-	{ id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", desc: "Gran contexto de 32k" },
-	{ id: "gemma2-9b-it", name: "Gemma 2 9B (Google)", desc: "Respuestas concisas y directas" }
+	{ id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Recomendado)", desc: "Máxima inteligencia, velocidad y contexto (128k)" },
+	{ id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", desc: "Ultra rápido (<0.5 seg.), latencia mínima (128k)" },
+	{ id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", desc: "Gran contexto de 32k" }
 ];
+var GROQ_MODELOS_OBSOLETOS = new Set([
+	"gemma2-9b-it",
+	"gemma-7b-it",
+	"llama3-8b-8192",
+	"llama3-70b-8192",
+	"llama-3.1-70b-versatile",
+	"llama-3.2-1b-preview",
+	"llama-3.2-3b-preview"
+]);
+function sanearModeloGroq(m) {
+	const c = String(m || "").trim();
+	if (!c || GROQ_MODELOS_OBSOLETOS.has(c) || !GROQ_MODELS.some((x) => x.id === c)) {
+		return GROQ_DEFAULT_MODEL;
+	}
+	return c;
+}
 async function consultarIAIntegrada(prompt, opts = {}) {
 	const key = (opts.apiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
 	if (!key) {
 		throw new Error("Falta la API Key de Groq o FreeFlow. Configúrala para responder en Lumen.");
 	}
 	const endpoint = (opts.endpoint || "").trim() || "https://api.groq.com/openai/v1/chat/completions";
-	const model = (opts.model || "").trim() || GROQ_DEFAULT_MODEL;
+	const rawModel = (opts.model || "").trim() || GROQ_DEFAULT_MODEL;
+	const model = sanearModeloGroq(rawModel);
 	const t0 = Date.now();
 	let res;
 	try {
@@ -19025,14 +19041,27 @@ async function consultarIAIntegrada(prompt, opts = {}) {
 	const elapsedMs = Date.now() - t0;
 	if (!res.ok) {
 		let errMsg = `Error ${res.status}`;
+		let errData = null;
 		try {
-			const errBody = await res.json();
-			if (errBody?.error?.message) errMsg = errBody.error.message;
+			errData = await res.json();
+			if (errData?.error?.message) errMsg = errData.error.message;
 		} catch {
 			try {
 				const txt = await res.text();
 				if (txt) errMsg = txt.slice(0, 160);
 			} catch {}
+		}
+		// Si el modelo seleccionado fue retirado/decommissioned por Groq, auto-recuperar reintentando con Llama 3.3 70B
+		if (!opts._reintentado && (errMsg.includes("decommissioned") || errMsg.includes("no longer supported") || errData?.error?.code === "model_decommissioned")) {
+			console.warn(`[Groq IA] Modelo '${model}' retirado. Reintentando automáticamente con ${GROQ_DEFAULT_MODEL}...`);
+			try {
+				if (typeof localStorage !== "undefined") localStorage.setItem("lumen_groq_model", GROQ_DEFAULT_MODEL);
+			} catch {}
+			return await consultarIAIntegrada(prompt, {
+				...opts,
+				model: GROQ_DEFAULT_MODEL,
+				_reintentado: true
+			});
 		}
 		if (res.status === 401) {
 			errMsg = "API Key de Groq no válida o no autorizada. Revisa que tu clave empiece por gsk_ y no tenga espacios.";
@@ -19052,7 +19081,7 @@ async function probarConexionIA(apiKey, endpoint, model) {
 	return await consultarIAIntegrada("Responde exactamente en una sola frase: '¡Conexión exitosa con Lumen!'", {
 		apiKey,
 		endpoint,
-		model: model || GROQ_DEFAULT_MODEL
+		model: sanearModeloGroq(model)
 	});
 }
 function parseInlineMarkdown(str) {
@@ -19121,8 +19150,10 @@ try {
 	if (typeof window !== "undefined") {
 		window.consultarIAIntegrada = consultarIAIntegrada;
 		window.probarConexionIA = probarConexionIA;
+		window.sanearModeloGroq = sanearModeloGroq;
 		window.GROQ_MODELS = GROQ_MODELS;
 		window.GROQ_DEFAULT_MODEL = GROQ_DEFAULT_MODEL;
+		window.GROQ_MODELOS_OBSOLETOS = GROQ_MODELOS_OBSOLETOS;
 	}
 } catch {}
 var AI_TARGETS = [
@@ -23797,6 +23828,83 @@ var SHOP = [
 		precio: 120,
 		nombre: "Girasol",
 		premium: false
+	},
+	{
+		id: "beret",
+		cat: "hat",
+		precio: 140,
+		nombre: "Boina",
+		premium: false
+	},
+	{
+		id: "cyborg_lens",
+		cat: "glasses",
+		precio: 250,
+		nombre: "Lente de ciborg",
+		premium: true
+	},
+	{
+		id: "eyepatch_right",
+		cat: "glasses",
+		precio: 110,
+		nombre: "Parche (ojo derecho)",
+		premium: false
+	},
+	{
+		id: "eyepatch_left",
+		cat: "glasses",
+		precio: 110,
+		nombre: "Parche (ojo izquierdo)",
+		premium: false
+	},
+	{
+		id: "military_helmet",
+		cat: "hat",
+		precio: 260,
+		nombre: "Casco militar",
+		premium: false
+	},
+	{
+		id: "gangster_chain",
+		cat: "chain",
+		precio: 320,
+		nombre: "Cadena de gánster",
+		premium: true
+	},
+	{
+		id: "funny_mustache",
+		cat: "mouth",
+		precio: 120,
+		nombre: "Bigote divertido",
+		premium: false
+	},
+	{
+		id: "gold_bracelet",
+		cat: "wrist",
+		precio: 200,
+		nombre: "Manilla de oro",
+		premium: false
+	},
+	{
+		id: "golf_club",
+		cat: "toy",
+		precio: 180,
+		nombre: "Palo de golf",
+		premium: false
+	},
+	{
+		id: "volleyball",
+		cat: "toy",
+		precio: 150,
+		nombre: "Pelota de vóley",
+		premium: false
+	},
+	{
+		id: "magic_wand",
+		cat: "weapon",
+		precio: 240,
+		nombre: "Varita mágica",
+		premium: true
 	}
 ];
 var ROOM_ORDER = [
@@ -23830,6 +23938,8 @@ var EMPTY = {
 		glasses: null,
 		hat: null,
 		scarf: null,
+		chain: null,
+		mouth: null,
 		backpack: null,
 		cape: null,
 		bow: null,
@@ -24115,7 +24225,7 @@ var DECOR_MOBLES = {
 	decor_acuario: "acuario"
 };
 function slotDeCat(cat) {
-	return { glasses: "glasses", hat: "hat", scarf: "scarf", backpack: "backpack", cape: "cape", bow: "bow", crown: "crown", flower: "flower", toy: "toy", weapon: "weapon", wrist: "wrist", ear: "ear" }[cat] || null;
+	return { glasses: "glasses", hat: "hat", scarf: "scarf", chain: "chain", mouth: "mouth", backpack: "backpack", cape: "cape", bow: "bow", crown: "crown", flower: "flower", toy: "toy", weapon: "weapon", wrist: "wrist", ear: "ear" }[cat] || null;
 }
 async function comprarItem(id) {
 	const d = await cargarLumo();
@@ -24427,11 +24537,17 @@ function lumoAccesorio(id, lado) {
 		lumoJ("path", { d: "M104 191 Q96 204 104 217", fill: "none", stroke: "#431407", strokeWidth: 2, strokeLinecap: "round" }),
 		lumoJ("circle", { cx: 85, cy: 196, r: 4.5, fill: "#ffedd5", opacity: .6 })
 	] });
-	if (id === "martillo_thor") return lumoJ("g", { children: [
-		lumoJ("rect", { x: 168, y: 184, width: 11, height: 36, rx: 4, fill: "#7a4a21", stroke: "#5d3717", strokeWidth: 2, transform: "rotate(18 173 202)" }),
-		lumoJ("rect", { x: 142, y: 157, width: 54, height: 27, rx: 6, fill: "#93a1b3", stroke: "#5c6b7f", strokeWidth: 2.5, transform: "rotate(18 169 170)" }),
-		lumoJ("rect", { x: 149, y: 162, width: 40, height: 6, rx: 3, fill: "#c7d2de", opacity: .7, transform: "rotate(18 169 170)" }),
-		lumoJ("path", { d: lumoStar(169, 170, 7.5, 3.2), fill: "#f1c40f", stroke: "#d4a017", strokeWidth: 1.5 })
+	if (id === "martillo_thor") return lumoJ("g", { transform: "rotate(18 170 185)", children: [
+		lumoJ("rect", { x: 165, y: 176, width: 10, height: 44, rx: 4, fill: "#78350f", stroke: "#451a03", strokeWidth: 2 }),
+		lumoJ("path", { d: "M165 184 L175 186 M165 193 L175 195 M165 202 L175 204 M165 211 L175 213", stroke: "#92400e", strokeWidth: 2, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 170, cy: 221, r: 6.5, fill: "#94a3b8", stroke: "#475569", strokeWidth: 2 }),
+		lumoJ("path", { d: "M170 226 C166 232 168 238 173 236 C177 234 175 228 171 227", fill: "none", stroke: "#92400e", strokeWidth: 2.2, strokeLinecap: "round" }),
+		lumoJ("rect", { x: 142, y: 148, width: 56, height: 28, rx: 5, fill: "#94a3b8", stroke: "#475569", strokeWidth: 2.5 }),
+		lumoJ("rect", { x: 145, y: 151, width: 50, height: 5, rx: 2, fill: "#cbd5e1", opacity: .85 }),
+		lumoJ("rect", { x: 145, y: 168, width: 50, height: 5, rx: 2, fill: "#64748b", opacity: .85 }),
+		lumoJ("rect", { x: 139, y: 152, width: 3, height: 20, rx: 1.5, fill: "#64748b" }),
+		lumoJ("rect", { x: 198, y: 152, width: 3, height: 20, rx: 1.5, fill: "#64748b" }),
+		lumoJ("path", { d: lumoStar(170, 162, 7.5, 3.2), fill: "#facc15", stroke: "#ca8a04", strokeWidth: 1.2 })
 	] });
 	if (id === "bracelete_dorado") return lumoJ("g", { children: [
 		lumoJ("ellipse", { cx: 172, cy: 185, rx: 14, ry: 7.5, fill: "none", stroke: "#f1c40f", strokeWidth: 5, transform: "rotate(18 172 185)" }),
@@ -24441,6 +24557,100 @@ function lumoAccesorio(id, lado) {
 	if (id === "piercing_oreja") return lumoJ("g", { children: [
 		lumoJ("circle", { cx: 70, cy: 64, r: 4.5, fill: "none", stroke: "#c0c8d4", strokeWidth: 2.2 }),
 		lumoJ("circle", { cx: 70, cy: 71, r: 2.2, fill: "#e8edf4" })
+	] });
+	if (id === "beret") return lumoJ("g", { children: [
+		lumoJ("ellipse", { cx: 138, cy: 43, rx: 34, ry: 8.5, fill: "#0f172a" }),
+		lumoJ("path", { d: "M102 42 C92 24 116 12 144 14 C178 16 188 28 174 43 C155 49 118 47 102 42 Z", fill: "#1e293b", stroke: "#0f172a", strokeWidth: 2 }),
+		lumoJ("path", { d: "M118 36 Q146 32 168 38", fill: "none", stroke: "#334155", strokeWidth: 2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M144 14 Q143 7 146 6", fill: "none", stroke: "#0f172a", strokeWidth: 3, strokeLinecap: "round" })
+	] });
+	if (id === "cyborg_lens") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 113, cy: 92, r: 14.5, fill: "#334155", stroke: "#64748b", strokeWidth: 2.5 }),
+		lumoJ("circle", { cx: 113, cy: 92, r: 12, fill: "#1e293b", stroke: "#94a3b8", strokeWidth: 1.5 }),
+		lumoJ("circle", { cx: 113, cy: 92, r: 9.5, fill: "#dc2626", stroke: "#ef4444", strokeWidth: 1.5 }),
+		lumoJ("path", { d: "M113 83 L113 101 M104 92 L122 92", stroke: "#fca5a5", strokeWidth: 1.2, opacity: .85 }),
+		lumoJ("circle", { cx: 113, cy: 92, r: 3, fill: "#fef08a" }),
+		lumoJ("path", { d: "M99 92 L86 88 M99 87 L88 80 M100 97 L89 98", stroke: "#0ea5e9", strokeWidth: 2, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 86, cy: 88, r: 2, fill: "#38bdf8" }),
+		lumoJ("circle", { cx: 88, cy: 80, r: 1.8, fill: "#38bdf8" }),
+		lumoJ("path", { d: "M127 91 L136 88", stroke: "#64748b", strokeWidth: 2.5, strokeLinecap: "round" })
+	] });
+	if (id === "eyepatch_right") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M136 78 L188 100", stroke: "#18181b", strokeWidth: 2.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M142 100 L184 76", stroke: "#18181b", strokeWidth: 2.5, strokeLinecap: "round" }),
+		lumoJ("ellipse", { cx: 163, cy: 89, rx: 14, ry: 15, fill: "#18181b", stroke: "#27272a", strokeWidth: 2 }),
+		lumoJ("ellipse", { cx: 163, cy: 89, rx: 11, ry: 12, fill: "#09090b", stroke: "#3f3f46", strokeWidth: 1.2, strokeDasharray: "3 2" }),
+		lumoJ("circle", { cx: 163, cy: 87.5, r: 3, fill: "#e4e4e7" }),
+		lumoJ("rect", { x: 161.5, y: 91, width: 3, height: 2, rx: 1, fill: "#e4e4e7" })
+	] });
+	if (id === "eyepatch_left") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M88 78 L140 103", stroke: "#18181b", strokeWidth: 2.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M92 103 L134 79", stroke: "#18181b", strokeWidth: 2.5, strokeLinecap: "round" }),
+		lumoJ("ellipse", { cx: 113, cy: 92, rx: 14, ry: 15, fill: "#18181b", stroke: "#27272a", strokeWidth: 2 }),
+		lumoJ("ellipse", { cx: 113, cy: 92, rx: 11, ry: 12, fill: "#09090b", stroke: "#3f3f46", strokeWidth: 1.2, strokeDasharray: "3 2" }),
+		lumoJ("circle", { cx: 113, cy: 90.5, r: 3, fill: "#e4e4e7" }),
+		lumoJ("rect", { x: 111.5, y: 94, width: 3, height: 2, rx: 1, fill: "#e4e4e7" })
+	] });
+	if (id === "military_helmet") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M96 46 C94 12 176 12 174 46 C155 50 115 50 96 46 Z", fill: "#3b4a33", stroke: "#253120", strokeWidth: 2.5 }),
+		lumoJ("path", { d: "M91 46 Q135 55 179 46 Q178 50 174 52 Q135 60 96 52 Z", fill: "#2d3a27", stroke: "#1f281b", strokeWidth: 2 }),
+		lumoJ("path", { d: "M95 40 Q135 47 175 40", fill: "none", stroke: "#1c2318", strokeWidth: 3.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: lumoStar(135, 29, 6.5, 2.8), fill: "#f1f5f9", opacity: .9 }),
+		lumoJ("circle", { cx: 104, cy: 44, r: 2, fill: "#94a3b8" }),
+		lumoJ("circle", { cx: 166, cy: 44, r: 2, fill: "#94a3b8" })
+	] });
+	if (id === "gangster_chain") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M104 140 C104 182 166 182 166 140", fill: "none", stroke: "#eab308", strokeWidth: 6, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M105 141 C105 181 165 181 165 141", fill: "none", stroke: "#ca8a04", strokeWidth: 3.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M106 142 C106 180 164 180 164 142", fill: "none", stroke: "#fef08a", strokeWidth: 1.5, strokeDasharray: "4 3" }),
+		lumoJ("circle", { cx: 135, cy: 174, r: 12.5, fill: "#eab308", stroke: "#a16207", strokeWidth: 2.5 }),
+		lumoJ("circle", { cx: 135, cy: 174, r: 10, fill: "#facc15", stroke: "#ca8a04", strokeWidth: 1.2 }),
+		lumoJ("text", { x: 135, y: 179, textAnchor: "middle", fontSize: 13.5, fontWeight: "900", fill: "#854d0e", fontFamily: "system-ui, sans-serif", children: "$" }),
+		lumoJ("path", { d: lumoStar(143, 168, 3.5, 1.5), fill: "#ffffff" })
+	] });
+	if (id === "funny_mustache") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M135 103 C124 100 108 103 104 96 C102 93 107 94 114 98 C122 103 133 105 135 106 Z", fill: "#1c1917", stroke: "#0c0a09", strokeWidth: 1.2 }),
+		lumoJ("path", { d: "M135 103 C146 100 162 103 166 96 C168 93 163 94 156 98 C148 103 137 105 135 106 Z", fill: "#1c1917", stroke: "#0c0a09", strokeWidth: 1.2 }),
+		lumoJ("path", { d: "M112 99 Q122 102 133 104", stroke: "#44403c", strokeWidth: 1.2, fill: "none" }),
+		lumoJ("path", { d: "M158 99 Q148 102 137 104", stroke: "#44403c", strokeWidth: 1.2, fill: "none" })
+	] });
+	if (id === "gold_bracelet") return lumoJ("g", { children: [
+		lumoJ("ellipse", { cx: 172, cy: 185, rx: 14.5, ry: 8, fill: "none", stroke: "#eab308", strokeWidth: 6, transform: "rotate(18 172 185)" }),
+		lumoJ("ellipse", { cx: 172, cy: 185, rx: 14.5, ry: 8, fill: "none", stroke: "#fef08a", strokeWidth: 1.8, strokeDasharray: "4 2", transform: "rotate(18 172 185)" }),
+		lumoJ("circle", { cx: 175, cy: 187, r: 3.5, fill: "#ef4444", stroke: "#b91c1c", strokeWidth: 1 }),
+		lumoJ("circle", { cx: 174, cy: 186, r: 1.2, fill: "#ffffff" }),
+		lumoJ("circle", { cx: 164, cy: 182, r: 2.2, fill: "#3b82f6" }),
+		lumoJ("circle", { cx: 184, cy: 191, r: 2.2, fill: "#10b981" })
+	] });
+	if (id === "golf_club") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M88 162 L74 216", stroke: "#94a3b8", strokeWidth: 3.2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M88 162 L74 216", stroke: "#f1f5f9", strokeWidth: 1.2, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M88 162 L83 180", stroke: "#0f172a", strokeWidth: 5.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M87 165 L86 166 M86 170 L85 171 M85 175 L84 176", stroke: "#475569", strokeWidth: 1.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M74 216 L64 218 C61 218.5 60 216 63 213 L70 208 L74 216 Z", fill: "#cbd5e1", stroke: "#475569", strokeWidth: 1.8, strokeLinejoin: "round" }),
+		lumoJ("path", { d: "M66 215 L69 212 M68 216 L71 213", stroke: "#64748b", strokeWidth: 1, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 60, cy: 219, r: 3.5, fill: "#ffffff", stroke: "#cbd5e1", strokeWidth: 1 }),
+		lumoJ("circle", { cx: 59.5, cy: 218.5, r: .8, fill: "#e2e8f0" })
+	] });
+	if (id === "volleyball") return lumoJ("g", { children: [
+		lumoJ("circle", { cx: 92, cy: 204, r: 17, fill: "#ffffff", stroke: "#1e293b", strokeWidth: 2.2 }),
+		lumoJ("path", { d: "M82 190 Q95 198 108 195 C104 188 94 187 82 190 Z", fill: "#1d4ed8", stroke: "#1e293b", strokeWidth: 1.5 }),
+		lumoJ("path", { d: "M76 200 Q92 208 108 200 C108 206 98 214 86 212 Z", fill: "#facc15", stroke: "#1e293b", strokeWidth: 1.5 }),
+		lumoJ("path", { d: "M80 215 Q92 221 104 215 C99 220 89 221 80 215 Z", fill: "#1d4ed8", stroke: "#1e293b", strokeWidth: 1.5 }),
+		lumoJ("path", { d: "M92 187 C92 200 92 221 92 221 M75 204 Q92 195 109 204", fill: "none", stroke: "#1e293b", strokeWidth: 1.8, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 85, cy: 196, r: 4, fill: "#ffffff", opacity: .75 })
+	] });
+	if (id === "magic_wand") return lumoJ("g", { children: [
+		lumoJ("path", { d: "M168 214 L185 160", stroke: "#451a03", strokeWidth: 4.5, strokeLinecap: "round" }),
+		lumoJ("path", { d: "M168 214 L173 198", stroke: "#eab308", strokeWidth: 5.5, strokeLinecap: "round" }),
+		lumoJ("circle", { cx: 167, cy: 216, r: 3, fill: "#ca8a04" }),
+		lumoJ("circle", { cx: 185, cy: 160, r: 4.5, fill: "#eab308", stroke: "#fef08a", strokeWidth: 1.5 }),
+		lumoJ("path", { d: lumoStar(185, 160, 9, 4), fill: "#fde047", stroke: "#ca8a04", strokeWidth: 1.2 }),
+		lumoJ("path", { d: lumoStar(196, 150, 4.5, 2), fill: "#c084fc" }),
+		lumoJ("path", { d: lumoStar(176, 148, 4, 1.8), fill: "#38bdf8" }),
+		lumoJ("path", { d: lumoStar(192, 172, 3.5, 1.5), fill: "#fde047" }),
+		lumoJ("circle", { cx: 182, cy: 146, r: 1.5, fill: "#ffffff" }),
+		lumoJ("circle", { cx: 198, cy: 162, r: 1.5, fill: "#ffffff" })
 	] });
 	return null;
 }
@@ -24642,16 +24852,18 @@ var LumoOso = ({ estado, eq }) => {
 				lumoJ("path", { d: lumoStar(200, 24, 8, 3.4), fill: "#e67e22" })
 			] }),
 			lumoAccesorio(eq2.scarf, "frente"),
+			lumoAccesorio(eq2.chain, "frente"),
 			lumoAccesorio(eq2.backpack, "frente"),
 			lumoAccesorio(eq2.glasses, "frente"),
+			lumoAccesorio(eq2.mouth, "frente"),
 			lumoAccesorio(eq2.hat, "frente"),
 			lumoAccesorio(eq2.crown, "frente"),
 			lumoAccesorio(eq2.bow, "frente"),
 			lumoAccesorio(eq2.flower, "frente"),
-		lumoAccesorio(eq2.toy, "frente"),
-		lumoAccesorio(eq2.weapon, "frente"),
-		lumoAccesorio(eq2.wrist, "frente"),
-		lumoAccesorio(eq2.ear, "frente")
+			lumoAccesorio(eq2.toy, "frente"),
+			lumoAccesorio(eq2.weapon, "frente"),
+			lumoAccesorio(eq2.wrist, "frente"),
+			lumoAccesorio(eq2.ear, "frente")
 		]
 	});
 };
@@ -24708,7 +24920,18 @@ var ICONO_ACC = {
 	cape_estrellas: "🌌",
 	decor_guitarra: "🎸",
 	decor_peluche: "🧸",
-	decor_acuario: "🐠"
+	decor_acuario: "🐠",
+	beret: "🎨",
+	cyborg_lens: "👁️",
+	eyepatch_right: "🏴‍☠️",
+	eyepatch_left: "🏴‍☠️",
+	military_helmet: "🪖",
+	gangster_chain: "⛓️",
+	funny_mustache: "🥸",
+	gold_bracelet: "✨",
+	golf_club: "🏌️",
+	volleyball: "🏐",
+	magic_wand: "🪄"
 };
 var ICONO_BG = {
 	bg_forest: "🌲",
@@ -24724,6 +24947,8 @@ var ICONO_CROPE = {
 	bow: "42 34 52 44",
 	flower: "166 0 48 56",
 	scarf: "98 128 74 64",
+	chain: "92 136 86 64",
+	mouth: "96 92 78 40",
 	cape: "64 128 140 140",
 	backpack: "54 136 162 76",
 	toy: "62 176 62 56",
@@ -35488,7 +35713,22 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [collections, setCollections] = (0, import_react.useState)(false);
 	const [wrapped, setWrapped] = (0, import_react.useState)(false);
 	const [storiesOpen, setStoriesOpen] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		if (typeof document !== "undefined") {
+			if (storiesOpen) document.body.classList.add("en-historias");
+			else document.body.classList.remove("en-historias");
+		}
+		return () => {
+			if (typeof document !== "undefined") document.body.classList.remove("en-historias");
+		};
+	}, [storiesOpen]);
 	const [creator, setCreator] = (0, import_react.useState)(false);
+	const brandHold = (0, import_react.useRef)({ timer: null, fired: false });
+	(0, import_react.useEffect)(() => {
+		if (settings?.groqModel && GROQ_MODELOS_OBSOLETOS.has(settings.groqModel)) {
+			setSettings({ groqModel: GROQ_DEFAULT_MODEL });
+		}
+	}, [settings?.groqModel, setSettings]);
 	const [storyCfg, setStoryCfg] = (0, import_react.useState)(null);
 	const [comparison, setComparison] = (0, import_react.useState)(null);
 	const [longPress, setLongPress] = (0, import_react.useState)(null);
@@ -36837,17 +37077,38 @@ const toquesDev = (0, import_react.useRef)(0);
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "brand",
 					onClick: () => {
+						if (brandHold.current?.fired) {
+							brandHold.current.fired = false;
+							return;
+						}
 						haptic$1.tap();
 						onVerTips?.();
 					},
-					"aria-label": "Ver tips de la app",
-					title: "Tips de Lumen",
+					onPointerDown: () => {
+						if (!brandHold.current) brandHold.current = { timer: null, fired: false };
+						clearTimeout(brandHold.current.timer);
+						brandHold.current.fired = false;
+						brandHold.current.timer = setTimeout(() => {
+							brandHold.current.fired = true;
+							haptic$1.longPress?.();
+							temaSiguiente();
+						}, 550);
+					},
+					onPointerUp: () => clearTimeout(brandHold.current?.timer),
+					onPointerLeave: () => clearTimeout(brandHold.current?.timer),
+					onPointerCancel: () => clearTimeout(brandHold.current?.timer),
+					onContextMenu: (e) => {
+						e.preventDefault();
+						temaSiguiente();
+					},
+					"aria-label": "Tutorial de Lumen (mantener presionado: cambiar tema)",
+					title: "Lumen · Clic: tutorial · Mantener presionado: cambiar tema",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "brand-dot",
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v224"
+							children: "v228"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38489,7 +38750,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "⚡",
 							titulo: "Inteligencia Artificial (Groq / FreeFlow)",
-							resumen: (settings.groqApiKey || "").trim() ? `Conectado a Groq (${settings.groqModel || "Llama 3.3 70B"}) · Respuestas nativas en Lumen` : "Respuestas instantáneas en Lumen · Configurar clave gratuita",
+							resumen: (settings.groqApiKey || "").trim() ? `Conectado a Groq (${sanearModeloGroq(settings.groqModel)}) · Respuestas nativas en Lumen` : "Respuestas instantáneas en Lumen · Configurar clave gratuita",
 							abierta: seccionAbierta === "ia",
 							onToggle: () => alternarSeccion("ia"),
 							children: [
@@ -38532,7 +38793,7 @@ const toquesDev = (0, import_react.useRef)(0);
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
 											className: "plain",
-											value: settings.groqModel || GROQ_DEFAULT_MODEL,
+											value: sanearModeloGroq(settings.groqModel),
 											onChange: async (e) => {
 												await setSettings({ groqModel: e.target.value });
 												haptic$1.tap();
@@ -38577,7 +38838,7 @@ const toquesDev = (0, import_react.useRef)(0);
 														if (!key) return toast?.("Ingresa primero la clave para probar");
 														toast?.("⚡ Probando conexión con Groq…");
 														try {
-															const res = await probarConexionIA(key, settings.aiCustomEndpoint, settings.groqModel);
+															const res = await probarConexionIA(key, settings.aiCustomEndpoint, sanearModeloGroq(settings.groqModel));
 															toast?.(`✓ ${res.content} (${res.elapsedMs} ms)`);
 															haptic$1.success();
 														} catch (err) {
@@ -39028,7 +39289,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v224 · escritorio y móvil"
+					children: "Lumen Reader · v228 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -43665,6 +43926,61 @@ function detectarCapsHeuristica(rows) {
 	}
 	return caps;
 }
+async function extraerImagenesDeLibro(b) {
+	if (!b) return [];
+	const imgs = [];
+	try {
+		const blob = await getOriginal(b.id);
+		if (!blob) {
+			if (b.cover) return [b.cover];
+			return [];
+		}
+		const buf = await blob.arrayBuffer();
+		const k = (b.kind || "").toLowerCase();
+		if (k === "epub") {
+			const zip = await cargarZipOriginal(buf);
+			const mimeExt = { png: "image/png", gif: "image/gif", svg: "image/svg+xml", webp: "image/webp", avif: "image/avif", bmp: "image/bmp", jpg: "image/jpeg", jpeg: "image/jpeg" };
+			try {
+				const port = await epubPortadaDataUrl(buf);
+				if (port) imgs.push(port);
+			} catch {}
+			for (const [nom, f] of Object.entries(zip.files)) {
+				if (f.dir) continue;
+				const ext = (nom.split(".").pop() || "").toLowerCase();
+				if (["png", "jpg", "jpeg", "webp", "gif", "svg", "bmp", "avif"].includes(ext)) {
+					const size = f._data?.uncompressedSize || 0;
+					if (size > 800 && size <= 8 * 1024 * 1024) {
+						try {
+							const bytes = await f.async("uint8array");
+							imgs.push(URL.createObjectURL(new Blob([bytes], { type: mimeExt[ext] || "image/jpeg" })));
+						} catch {}
+					}
+				}
+			}
+		} else if (k === "docx") {
+			const zip = await cargarZipOriginal(buf);
+			const mimeExt = { png: "image/png", gif: "image/gif", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg" };
+			for (const [nom, f] of Object.entries(zip.files)) {
+				if (f.dir || !nom.startsWith("word/media/")) continue;
+				const ext = (nom.split(".").pop() || "").toLowerCase();
+				if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) {
+					try {
+						const bytes = await f.async("uint8array");
+						imgs.push(URL.createObjectURL(new Blob([bytes], { type: mimeExt[ext] || "image/jpeg" })));
+					} catch {}
+				}
+			}
+		} else if (k === "md" || k === "html" || k === "txt") {
+			if (b.cover) imgs.push(b.cover);
+		}
+	} catch (e) {
+		console.warn("[imagenes] error al extraer imágenes:", e?.message || e);
+	}
+	if (imgs.length === 0 && b.cover) {
+		imgs.push(b.cover);
+	}
+	return imgs;
+}
 function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFarewell, onOpenGuardados }) {
 	const [book, setBook] = (0, import_react.useState)(null);
 	const [page, setPage] = (0, import_react.useState)(0);
@@ -44680,12 +44996,27 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 							return url;
 						});
 					}
+				} else {
+					// Formatos no-PDF (epub, docx, md, txt, etc.): extraer imágenes
+					const lista = await extraerImagenesDeLibro(book);
+					if (cancelled || !mounted.current) return;
+					if (lista && lista.length > 0) {
+						const u = lista[page % lista.length] || lista[0];
+						setImgUrl(u);
+						setOrigImgs((prev) => {
+							const n = { ...prev };
+							lista.forEach((src, idx) => { n[idx] = src; });
+							return n;
+						});
+					} else {
+						setImgUrl(null);
+					}
 				}
 			} catch (e) {
 				console.warn(e);
 				if (!cancelled) {
-					toast?.("No se encontró el archivo original; mostrando el texto");
-					setMode("text");
+					setImgUrl(null);
+					setCanvasEl(null);
 				}
 			} finally {
 				if (!cancelled && mounted.current) setRenderingOriginal(false);
@@ -46366,6 +46697,11 @@ const docPedir = (desde, hasta, centroArg) => {
 						}
 						const c = await renderPageToCanvas(doc, i + 1, 900, 2);
 						url = c.toDataURL("image/jpeg", .7);
+					} else {
+						const lista = await extraerImagenesDeLibro(book);
+						if (lista && lista.length > 0) {
+							url = lista[i % lista.length] || lista[0];
+						}
 					}
 					if (url && vivo) setOrigImgs((m) => ({ ...m, [i]: url }));
 				} catch {}
@@ -47408,7 +47744,7 @@ const docPedir = (desde, hasta, centroArg) => {
 			try {
 				const r = await consultarIAIntegrada(prompt, {
 					apiKey: key,
-					model: settings.groqModel || GROQ_DEFAULT_MODEL,
+					model: sanearModeloGroq(settings.groqModel),
 					endpoint: settings.aiCustomEndpoint
 				});
 				setAiRespuesta(r.content);
@@ -47771,9 +48107,10 @@ const docPedir = (desde, hasta, centroArg) => {
 							}),
 							(0, import_jsx_runtime.jsx)("button", {
 								type: "button",
-								className: "btn ghost",
+								className: "btn primary",
+								style: { minWidth: 120 },
 								onClick: () => setFinAviso(false),
-								children: "Luego"
+								children: "Siguiente"
 							})
 						]
 					})
@@ -48214,16 +48551,26 @@ const docPedir = (desde, hasta, centroArg) => {
 					const fa = flipFromRef.current; // v213: salto multi-página (slider): la nueva entra con su giro
 					let cls = "carousel-item";
 					if (fa && fa.steps !== 1 && i === fa.to) cls += fa.dir === "fwd" ? " page-flip-in-fwd" : " page-flip-in-back";
+					const srcImg = origImgs[i] || (i === page ? imgUrl : null);
 					return (0, import_jsx_runtime.jsx)("div", {
 						className: cls,
 						"data-pg": i, // v215: las hojas se localizan por número de página
-						children: origImgs[i] ? (0, import_jsx_runtime.jsx)("img", {
-							src: origImgs[i],
+						children: srcImg ? (0, import_jsx_runtime.jsx)("img", {
+							src: srcImg,
 							alt: "",
 							style: fxStyle()
-						}) : (0, import_jsx_runtime.jsx)("div", {
+						}) : renderingOriginal ? (0, import_jsx_runtime.jsx)("div", {
 							className: "center-msg",
 							children: (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
+						}) : (0, import_jsx_runtime.jsxs)("div", {
+							className: "center-msg sin-imgs-box",
+							style: { padding: "40px 16px", textAlign: "center" },
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 36, marginBottom: 10 }, children: "🖼️" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { style: { fontSize: 16, display: "block", marginBottom: 6 }, children: "Imágenes no disponibles en este libro" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { maxWidth: 320, margin: "0 auto 14px" }, children: "Este documento no contiene imágenes o páginas para mostrar en esta vista." }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn sm primary", onClick: () => setMode("text"), children: "Ver texto" })
+							]
 						})
 					}, i);
 				})
@@ -48243,16 +48590,22 @@ const docPedir = (desde, hasta, centroArg) => {
 						children: renderingOriginal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "center-msg",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
-						}) : book.kind === "pdf" && canvasEl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CanvasHost, { canvas: canvasEl }) : book.kind === "image" && imgUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+						}) : book.kind === "pdf" && canvasEl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CanvasHost, { canvas: canvasEl }) : (book.kind === "image" || imgUrl) && imgUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 							src: imgUrl,
 							alt: "Original"
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "center-msg",
-							children: ["Este formato no tiene visor original.", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn sm",
-								onClick: () => setMode("text"),
-								children: "Ver texto"
-							})]
+							className: "center-msg sin-imgs-box",
+							style: { padding: "40px 16px", textAlign: "center" },
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 36, marginBottom: 10 }, children: "🖼️" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { style: { fontSize: 16, display: "block", marginBottom: 6 }, children: "Imágenes no disponibles en este libro" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", style: { maxWidth: 320, margin: "0 auto 14px" }, children: "Este documento no contiene imágenes o páginas para mostrar en esta vista." }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn sm primary",
+									onClick: () => setMode("text"),
+									children: "Ver texto"
+								})
+							]
 						})
 					}) : book.kind === "pdf" && docErr ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "center-msg",
@@ -48686,8 +49039,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: mode === "imagenes" ? "on" : "",
 							onClick: () => setMode("imagenes"),
-							disabled: !book.hasOriginal,
-							title: "Imágenes (páginas originales)",
+							title: "Imágenes del libro",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconImage, {
 								width: 15,
 								height: 15
@@ -52236,7 +52588,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Modelo" }),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
 												className: "plain",
-												value: settings.groqModel || GROQ_DEFAULT_MODEL,
+												value: sanearModeloGroq(settings.groqModel),
 												onChange: async (e) => {
 													await setSettings({ groqModel: e.target.value });
 													haptic$1.tap();
@@ -53169,33 +53521,13 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("aside", {
 		className: "sidebar",
 		children: [
-			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-				className: "sidebar-brand",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "sidebar-brand-title",
-						onClick: onTips,
-						role: "button",
-						tabIndex: 0,
-						title: "Tips de Lumen",
-						style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flex: 1 },
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "brand-dot",
-								children: "📖"
-							}),
-							"Lumen ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v224" })
-						]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "sidebar-pos-btn",
-						onClick: onCambiarPos,
-						title: sidebarPos === "right" ? "Mover menú lateral a la izquierda" : "Mover menú lateral a la derecha",
-						"aria-label": "Cambiar posición del menú",
-						children: sidebarPos === "right" ? "⬅️" : "➡️"
-					})
-				]
+			onCambiarPos && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+				className: "sidebar-pos-btn",
+				onClick: onCambiarPos,
+				title: sidebarPos === "right" ? "Mover menú lateral a la izquierda" : "Mover menú lateral a la derecha",
+				"aria-label": "Cambiar posición del menú",
+				style: { margin: "8px 10px 4px", alignSelf: sidebarPos === "right" ? "flex-start" : "flex-end" },
+				children: sidebarPos === "right" ? "⬅️" : "➡️"
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "side-label",
@@ -53826,7 +54158,7 @@ function App() {
 				setLogrosCierre([...lecturaLogrosRef.current]);
 				lecturaLogrosRef.current = [];
 				__vitePreload(() => import("./sonidos-By6nBBuC.js").then((s) => s.sonidoLogro()), __vite__mapDeps([8,2,1,7]), import.meta.url).catch(() => {});
-			}, 1200);
+			}, 600);
 		}
 		try {
 			speaker.stop();
@@ -53867,31 +54199,49 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 			}
 		} catch {}
 		learnFromReading().catch(() => {});
+		const enCierre = logrosViewRef.current === "cierre" && (routeRef.current?.view === "reader" || cerrandoLibroRef.current > 0);
 		if (counted !== false) {
 			const bonus = justHitGoal ? 25 + (stats.streak || 0) * 5 : 0;
 			const res = await addXp(10 + bonus, "lectura");
-			showXp(10 + bonus);
-			if (res.leveledUp) {
-				haptic$1.levelUp();
-				setRewards((r) => [...r, {
-					type: "level",
-					level: res.level
-				}].slice(-8));
+			if (!enCierre) {
+				showXp(10 + bonus);
+				if (res.leveledUp) {
+					haptic$1.levelUp();
+					setRewards((r) => [...r, {
+						type: "level",
+						level: res.level
+					}].slice(-8));
+				}
+			} else if (res.leveledUp) {
+				lecturaLogrosRef.current = [...lecturaLogrosRef.current, {
+					id: "level_" + (res.level?.lvl || res.level || "up"),
+					icon: res.level?.icon || "⭐",
+					name: "¡Subiste al nivel " + (res.level?.lvl || res.level) + "!",
+					desc: res.level?.name ? `Título: ${res.level.name}` : "Nivel alcanzado durante esta lectura"
+				}];
 			}
 		}
 		await refreshProgress();
 		if (justHitGoal) {
-			haptic$1.goal();
-			setCelebrate({
-				streak: stats.streak,
-				goal
-			});
-			setTimeout(() => setCelebrate(null), 3400);
+			if (!enCierre) {
+				haptic$1.goal();
+				setCelebrate({
+					streak: stats.streak,
+					goal
+				});
+				setTimeout(() => setCelebrate(null), 3400);
+			} else {
+				lecturaLogrosRef.current = [...lecturaLogrosRef.current, {
+					id: "streak_" + (stats.streak || 1),
+					icon: "🔥",
+					name: `¡Meta del día cumplida · Racha de ${stats.streak || 1} días!`,
+					desc: `Alcanzaste tu objetivo de ${goal} páginas hoy`
+				}];
+			}
 		}
 	// v214 (#3): con «Al cerrar el libro» NO interrumpo la lectura: ni toast
 	// (pestaña T) ni sonido mientras leo; se acumulan y, al cerrar, se muestra
 	// el menú y suena UNA sola vez.
-	const enCierre = logrosViewRef.current === "cierre" && (routeRef.current?.view === "reader" || cerrandoLibroRef.current > 0);
 	const fresh = await checkAchievements(enCierre);
 	if (fresh.length) {
 	if (enCierre) {
@@ -54187,7 +54537,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 					className: "toast",
 					children: toastMsg
 				}),
-				xpFloat && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				xpFloat && (!enLectura || settings?.logrosView !== "cierre") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "xp-float",
 					children: [
 						"+",
@@ -54195,7 +54545,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						" XP"
 					]
 				}, xpFloat.key),
-				celebrate && !bienvenida && !bienPendiente && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				celebrate && !bienvenida && !bienPendiente && (!enLectura || settings?.logrosView !== "cierre") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "celebrate",
 					onClick: () => setCelebrate(null),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
@@ -54254,7 +54604,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						})
 					] })
 				}),
-				rewards.length > 0 && !bienvenida && !bienPendiente && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				rewards.length > 0 && !bienvenida && !bienPendiente && (!enLectura || settings?.logrosView !== "cierre") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 					className: "celebrate rewards",onClick: () => setRewards((r) => r.slice(1)),
 					children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [rewards[0].type === "level" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -54338,10 +54688,10 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						className: "logros-cierre",
 						onClick: (e) => e.stopPropagation(),
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-							children: ["🏆 Logros de esta lectura (", logrosCierre.length, ")"]
+							children: ["🏆 Resumen de lectura (", logrosCierre.length, ")"]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "logros-cierre-sub",
-							children: "Se muestran al cerrar el libro, como elegiste en Ajustes → Logros."
+							children: "Progreso y logros acumulados al cerrar el libro, según elegiste en Ajustes → Logros."
 						}), logrosCierre.map((a) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "logros-cierre-item",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ic", children: a.icon }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: a.name }), a.desc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: a.desc })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { children: "✓" })]

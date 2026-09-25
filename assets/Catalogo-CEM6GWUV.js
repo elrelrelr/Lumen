@@ -669,20 +669,47 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 												className: "plain cg-busq-input",
-												placeholder: "Buscar en la store y en las 5 bibliotecas…",
+												placeholder: lgUrlAbierto ? "Pega un enlace web (https://...) para extraer…" : "Buscar en la store y en las 5 bibliotecas…",
 												ref: busqInputRef,
-												value: lgQ,
-												onChange: (e) => setLgQ(e.target.value)
+												value: lgUrlAbierto ? lgUrlWeb : lgQ,
+												onChange: (e) => {
+													const val = e.target.value;
+													if (lgUrlAbierto) setLgUrlWeb(val);
+													else {
+														setLgQ(val);
+														if (/^https?:\/\//i.test(val.trim())) setLgUrlWeb(val.trim());
+													}
+												},
+												onKeyDown: (e) => {
+													if (e.key === "Enter") {
+														if (lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) {
+															if (!lgUrlWeb.trim() && /^https?:\/\//i.test((lgQ || "").trim())) setLgUrlWeb(lgQ.trim());
+															importarPaginaWeb();
+														}
+													}
+												}
 											}),
-											lgQ && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											(lgUrlAbierto ? lgUrlWeb : lgQ) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 												className: "cg-busq-x",
-												onClick: () => setLgQ(""),
+												onClick: () => {
+													if (lgUrlAbierto) setLgUrlWeb("");
+													else setLgQ("");
+												},
 												"aria-label": "Limpiar búsqueda",
 												children: "✕"
 											})
 										]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									(lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm primary cg-busq-extraer-btn",
+										disabled: lgUrlBusy || !(lgUrlAbierto ? lgUrlWeb.trim() : lgQ.trim()),
+										onClick: () => {
+											if (!lgUrlWeb.trim() && /^https?:\/\//i.test((lgQ || "").trim())) setLgUrlWeb(lgQ.trim());
+											importarPaginaWeb();
+										},
+										title: "Extraer artículo o texto web",
+										children: lgUrlBusy ? (lgUrlPaso || "…") : "Extraer"
+									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "cg-busq-btn",
 										disabled: !lgQ.trim(),
 										title: "Buscar en la web (Anna's Archive, Gutenberg, Archive y más)",
@@ -692,31 +719,17 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "cg-busq-btn" + (lgUrlAbierto ? " on" : ""),
-										title: "Extraer el texto de una página web",
+										title: lgUrlAbierto ? "Modo búsqueda de libros" : "Modo extraer enlace web (URL)",
 										"aria-label": "Página web",
-										onClick: () => setLgUrlAbierto(!lgUrlAbierto),
+										onClick: () => {
+											const sig = !lgUrlAbierto;
+											setLgUrlAbierto(sig);
+											if (sig && /^https?:\/\//i.test((lgQ || "").trim())) setLgUrlWeb(lgQ.trim());
+											setTimeout(() => busqInputRef.current?.focus(), 50);
+										},
 										children: "🔗"
 									})
 								]
-							})
-						]
-					}),
-					lgUrlAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-url-fila",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								className: "plain lg-url-input",
-								placeholder: "https://ejemplo.com/articulo",
-								value: lgUrlWeb,
-								inputMode: "url",
-								onChange: (e) => setLgUrlWeb(e.target.value),
-								onKeyDown: (e) => { if (e.key === "Enter") importarPaginaWeb(); }
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn lg-url-btn",
-								disabled: lgUrlBusy || !lgUrlWeb.trim(),
-								onClick: importarPaginaWeb,
-								children: lgUrlBusy ? lgUrlPaso || "…" : "Extraer"
 							})
 						]
 					}),
@@ -786,7 +799,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							children: c
 						}, c))]
 					}),
-					destacado && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+					destacado && !lgQ.trim() && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "cg-destacado",
 								onClick: () => {
 									haptic.tap();
@@ -822,7 +835,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									})
 								]
 							}),
-							populares.length > 1 && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							populares.length > 1 && !lgQ.trim() && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🔥 Populares" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-fila",
@@ -836,7 +849,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									}, libro.id))
 								})]
 							}),
-							!buscandoStore && todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							!buscandoStore && todos.length > 0 && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🆕 Recién publicados" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-fila",

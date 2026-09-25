@@ -549,11 +549,19 @@ const ETIQUETA = {
 	"Category: Classics of Literature": "clásic"
 };
 function coincideTema(bookshelf, libro) {
-	if (bookshelf === "all") return true;
+	if (!bookshelf || bookshelf === "all") return true;
+	if (!libro) return false;
+	const bLow = String(bookshelf).toLowerCase();
 	const bs = (libro.bookshelves || []).map((x) => String(x).toLowerCase());
-	if (bs.some((x) => x === bookshelf || (bookshelf.length >= 8 && x.startsWith(bookshelf)))) return true;
+	if (bs.some((x) => x === bLow || x.includes(bLow) || (bLow.length >= 8 && x.startsWith(bLow)))) return true;
 	const et = (ETIQUETA[bookshelf] || "").toLowerCase();
 	if (et && bs.some((x) => x.includes(et))) return true;
+	const cats = [libro.categoria, ...(libro.subjects || []), ...(libro.categories || [])].filter(Boolean).map((x) => String(x).toLowerCase());
+	if (cats.some((c) => c.includes(bLow) || (et && c.includes(et)))) return true;
+	const texto = ((libro.title || "") + " " + (libro.authors || []).join(" ") + " " + (libro.desc || "")).toLowerCase();
+	if (et && texto.includes(et)) return true;
+	const palabras = PALABRAS[bookshelf];
+	if (palabras && palabras.some((p) => texto.includes(p.toLowerCase()) || bs.some((b) => b.includes(p.toLowerCase())))) return true;
 	return false;
 }
 /** Recomienda hasta 24 libros gratis parecidos a los de la biblioteca local del usuario.
@@ -1574,7 +1582,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 					className: "lg-filas",
 					children: filas(guardados.filter((g) => guardTema === "todas" || g.cat === guardTema).map((g) => g.b))
 				})]
-			}),  !cargando && recomendados && recomendados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			}),  !cargando && recomendados && recomendados.length > 0 && tema === "all" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "section-title",
 						style: { margin: "14px 4px 4px" },

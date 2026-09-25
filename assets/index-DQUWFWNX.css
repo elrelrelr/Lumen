@@ -404,34 +404,55 @@ textarea {
 
 .book {
   display: flex;
-  gap: 13px;
+  gap: 15px;
   align-items: center;
-  padding: 13px;
-  border-radius: 16px;
+  padding: 14px 15px;
+  border-radius: 18px;
   background: var(--bg-soft);
   border: 1px solid var(--line);
-  margin-bottom: 10px;
-  transition: transform 0.12s, border-color 0.15s;
+  margin-bottom: 11px;
+  transition: transform 0.16s cubic-bezier(.34, 1.56, .64, 1), border-color 0.15s, box-shadow 0.15s;
+}
+.book:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
 }
 .book:active {
   transform: scale(0.985);
 }
 .book-cover {
-  width: 46px;
-  height: 60px;
-  border-radius: 9px;
+  width: 64px;
+  height: 86px;
+  border-radius: 11px;
   display: grid;
   place-items: center;
-  font-size: 20px;
+  font-size: 28px;
   background: linear-gradient(150deg, var(--cover-a), var(--cover-b));
   border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28), 0 1px 3px rgba(0, 0, 0, 0.18), inset 3px 0 4px -1px rgba(0, 0, 0, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.12);
   flex-shrink: 0;
   overflow: hidden;
+  position: relative;
+  transition: transform 0.18s cubic-bezier(.34, 1.56, .64, 1), box-shadow 0.18s ease;
+}
+.book:hover .book-cover {
+  transform: scale(1.04) translateY(-1px);
+  box-shadow: 0 8px 22px -3px rgba(0, 0, 0, 0.42), 0 2px 7px -1px rgba(0, 0, 0, 0.22);
 }
 .book-cover img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
+  border-radius: inherit;
+}
+@media (min-width: 640px) {
+  .book-cover {
+    width: 72px;
+    height: 98px;
+    border-radius: 12px;
+    font-size: 32px;
+  }
 }
 .book-main {
   flex: 1;
@@ -1474,7 +1495,7 @@ mark.hl.destello { animation: hlDestello 1.2s ease; }
 .stories {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 1000;
   background: #08070d;
   display: flex;
   flex-direction: column;
@@ -9842,7 +9863,12 @@ html[data-fuente-app='antigua'] textarea {
   font-size: 16px; line-height: 1; cursor: pointer;
 }
 .cg-busq-btn:disabled { opacity: .35; }
-.cg-busq-btn.on { border-color: var(--accent); background: var(--chip-bg); }
+.cg-busq-btn.on { border-color: var(--accent); background: var(--chip-bg); color: var(--accent); }
+.cg-busq-extraer-btn {
+  height: 40px; padding: 0 14px; border-radius: 12px; font-weight: 700; font-size: 13px;
+  display: inline-flex; align-items: center; justify-content: center; white-space: nowrap;
+  flex: none;
+}
 /* v200: fila compacta «extraer texto de una URL» (justo bajo el navbar) */
 .cg-url-fila {
   flex: none; display: flex; gap: 6px; align-items: center;
@@ -10876,23 +10902,6 @@ html[data-fuente-app='antigua'] textarea {
     background: var(--bg-soft);
     border-right: 1px solid var(--line);
     padding: 20px 12px 28px;
-  }
-  .sidebar-brand {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-weight: 800;
-    font-size: 19px;
-    letter-spacing: -0.3px;
-    padding: 2px 10px 14px;
-  }
-  .sidebar-brand small {
-    font-weight: 500;
-    font-size: 11px;
-    color: var(--fg-mute);
-    background: var(--chip-bg);
-    padding: 2px 8px;
-    border-radius: 99px;
   }
   .side-label {
     font-size: 10.5px;
@@ -13262,11 +13271,18 @@ mark.find-flash {
 }
 .note-compose .nota-fila { width: 100%; min-width: 0; }
 /* En PC la barra de mensajes y el compositor de notas se centran con un
-   ancho razonable (en móvil siguen a todo el ancho). */
+   ancho razonable y se anclan abajo al fondo de la pantalla. */
 @media (min-width: 860px) {
   .chat-compose { justify-content: center; }
   .chat-compose .tg-pill { max-width: 620px; }
-  .note-compose { max-width: 680px; margin: 0 auto; }
+  .note-compose {
+    max-width: 680px;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-top: auto !important;
+    margin-bottom: 0 !important;
+    width: 100%;
+  }
 }
 
 
@@ -13314,15 +13330,37 @@ mark.find-flash {
 .sheet:has(.note-compose) .sheet-body,
 .sheet-full:has(.note-compose) .sheet-body {
   max-height: none;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  height: 100% !important;
   padding-bottom: calc(var(--safe-b, 0px) + 10px);
 }
 .sheet-body:has(.note-compose) .notes-list {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.sheet-body:has(.note-compose) .notas-vacio {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin: auto 0;
+}
+.note-compose,
+.note-compose.chat-compose {
+  position: sticky !important;
+  bottom: 0 !important;
+  margin-top: auto !important;
+  margin-bottom: 0 !important;
+  background: var(--bg-elev);
+  z-index: 10;
+  width: 100%;
 }
 .notas-cab {
   display: flex;
@@ -13804,12 +13842,6 @@ mark.find-flash {
     order: 1;
   }
 }
-.sidebar-brand {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 .sidebar-pos-btn {
   background: var(--chip-bg, rgba(255, 255, 255, .08));
   border: 1px solid var(--line);
@@ -14078,13 +14110,16 @@ body:has(.lumo-backdrop) .sidebar,
 body:has(.tp-scrim) .sidebar,
 body:has(.lg-menu-fondo) .sidebar,
 body:has(.logros-cierre-velo) .sidebar,
+body:has(.stories) .sidebar,
 .app:has(.reader) .sidebar,
 .app:has(.sheet) .sidebar,
 .app:has(.backdrop) .sidebar,
 .app:has(.cg-scrim) .sidebar,
 .app:has(.lumo-backdrop) .sidebar,
+.app:has(.stories) .sidebar,
 .app.en-lectura .sidebar,
 .app.con-modal .sidebar,
+.app.en-historias .sidebar,
 .sidebar.oculto {
   display: none !important;
 }
