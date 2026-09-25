@@ -383,7 +383,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [feeds, setFeeds] = (0, import_react.useState)([]);
 	const [librosFeed, setLibrosFeed] = (0, import_react.useState)([]);
 	// v198: el catálogo de LIBROS GRATIS vive embebido aquí (sección):
-	// su buscador reemplaza al de la store y su ventana de 100/100 se
+	// su buscador reemplaza al de la store y su ventana de 40/40 se
 	// gobierna desde el pie (cg-pie) con botones compactos.
 	const [LGComp, setLGComp] = (0, import_react.useState)(null);
 	const [lgVentana, setLgVentana] = (0, import_react.useState)(null);
@@ -877,8 +877,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 								className: "cg-pag-btn",
 								disabled: lgVentana.desde === 0,
 								onClick: () => lgVentana.api.current.irAnteriores(),
-								title: "Anteriores 100",
-								"aria-label": "Anteriores 100",
+								title: "Anteriores 40",
+								"aria-label": "Anteriores 40",
 								children: "⏪"
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 								className: "cg-pag-info",
@@ -888,8 +888,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 								/* v208: en carga el botón se anima pero NUNCA se oculta ni se troca por «…» */
 								disabled: lgVentana.navegando || (!lgVentana.hayMas && lgVentana.fin >= lgVentana.nCat),
 								onClick: () => lgVentana.api.current.irSiguientes(),
-								title: "Siguientes 100",
-								"aria-label": "Siguientes 100",
+								title: "Siguientes 40",
+								"aria-label": "Siguientes 40",
 								children: "⏩"
 							})]
 						}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {

@@ -18980,7 +18980,166 @@ function buildPrompt({ instruction, text, title, page, pageCount, action }) {
 	const clean = String(text || "").replace(/[<>]/g, "").trim();
 	return `${`${action && ACTION_TEMPLATES[action] ? ACTION_TEMPLATES[action].replace("{title}", String(title || "el documento en curso")) : instruction || ""}\n\n[Fuente: "${title || "documento"}"${page != null ? ` · página ${page}${pageCount ? "/" + pageCount : ""}` : ""}]\n\n"""\n`}${clean}\n"""`;
 }
+var GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile";
+var GROQ_MODELS = [
+	{ id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Recomendado)", desc: "Máxima inteligencia, velocidad y contexto" },
+	{ id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", desc: "Ultra rápido (<0.5 seg.), latencia mínima" },
+	{ id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", desc: "Gran contexto de 32k" },
+	{ id: "gemma2-9b-it", name: "Gemma 2 9B (Google)", desc: "Respuestas concisas y directas" }
+];
+async function consultarIAIntegrada(prompt, opts = {}) {
+	const key = (opts.apiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
+	if (!key) {
+		throw new Error("Falta la API Key de Groq o FreeFlow. Configúrala para responder en Lumen.");
+	}
+	const endpoint = (opts.endpoint || "").trim() || "https://api.groq.com/openai/v1/chat/completions";
+	const model = (opts.model || "").trim() || GROQ_DEFAULT_MODEL;
+	const t0 = Date.now();
+	let res;
+	try {
+		res = await fetch(endpoint, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"Authorization": `Bearer ${key}`
+			},
+			body: JSON.stringify({
+				model,
+				messages: [
+					{
+						role: "system",
+						content: "Eres el asistente de lectura inteligente de Lumen Reader. Responde de forma concisa, útil, enriquecedora y en español. Emplea formato Markdown limpio con negritas y listas breves cuando sea conveniente."
+					},
+					{
+						role: "user",
+						content: prompt
+					}
+				],
+				temperature: 0.5,
+				max_tokens: 2048
+			})
+		});
+	} catch (netErr) {
+		throw new Error("No se pudo conectar con el servicio de IA. Revisa tu conexión a internet.");
+	}
+	const elapsedMs = Date.now() - t0;
+	if (!res.ok) {
+		let errMsg = `Error ${res.status}`;
+		try {
+			const errBody = await res.json();
+			if (errBody?.error?.message) errMsg = errBody.error.message;
+		} catch {
+			try {
+				const txt = await res.text();
+				if (txt) errMsg = txt.slice(0, 160);
+			} catch {}
+		}
+		if (res.status === 401) {
+			errMsg = "API Key de Groq no válida o no autorizada. Revisa que tu clave empiece por gsk_ y no tenga espacios.";
+		}
+		throw new Error(errMsg);
+	}
+	const data = await res.json();
+	const content = data.choices?.[0]?.message?.content || "";
+	return {
+		ok: true,
+		content: content.trim(),
+		model,
+		elapsedMs
+	};
+}
+async function probarConexionIA(apiKey, endpoint, model) {
+	return await consultarIAIntegrada("Responde exactamente en una sola frase: '¡Conexión exitosa con Lumen!'", {
+		apiKey,
+		endpoint,
+		model: model || GROQ_DEFAULT_MODEL
+	});
+}
+function parseInlineMarkdown(str) {
+	if (!str) return "";
+	const parts = [];
+	const regex = /(\*\*([^*]+)\*\*)|(`([^`]+)`)/g;
+	let lastIndex = 0;
+	let m;
+	let key = 0;
+	while ((m = regex.exec(str)) !== null) {
+		if (m.index > lastIndex) {
+			parts.push(str.slice(lastIndex, m.index));
+		}
+		if (m[2]) {
+			parts.push((0, import_jsx_runtime.jsx)("b", { children: m[2] }, key++));
+		} else if (m[4]) {
+			parts.push((0, import_jsx_runtime.jsx)("code", { className: "ia-code", children: m[4] }, key++));
+		}
+		lastIndex = regex.lastIndex;
+	}
+	if (lastIndex < str.length) {
+		parts.push(str.slice(lastIndex));
+	}
+	return parts.length ? parts : str;
+}
+function renderFormattedMarkdown(text) {
+	if (!text) return null;
+	const lines = String(text).split("\n");
+	return lines.map((line, idx) => {
+		const trimmed = line.trim();
+		if (!trimmed) return (0, import_jsx_runtime.jsx)("div", { className: "ia-md-gap" }, idx);
+		if (/^[-*•]\s+/.test(trimmed)) {
+			const itemText = trimmed.replace(/^[-*•]\s+/, "");
+			return (0, import_jsx_runtime.jsxs)("div", {
+				className: "ia-md-li",
+				children: [
+					(0, import_jsx_runtime.jsx)("span", { className: "ia-md-bullet", children: "•" }),
+					(0, import_jsx_runtime.jsx)("span", { children: parseInlineMarkdown(itemText) })
+				]
+			}, idx);
+		}
+		const numMatch = trimmed.match(/^(\d+)[.)]\s+(.+)/);
+		if (numMatch) {
+			return (0, import_jsx_runtime.jsxs)("div", {
+				className: "ia-md-li",
+				children: [
+					(0, import_jsx_runtime.jsx)("b", { className: "ia-md-num", children: numMatch[1] + "." }),
+					(0, import_jsx_runtime.jsx)("span", { children: parseInlineMarkdown(numMatch[2]) })
+				]
+			}, idx);
+		}
+		if (/^#{1,3}\s+/.test(trimmed)) {
+			const hText = trimmed.replace(/^#{1,3}\s+/, "");
+			return (0, import_jsx_runtime.jsx)("b", {
+				className: "ia-md-h",
+				children: parseInlineMarkdown(hText)
+			}, idx);
+		}
+		return (0, import_jsx_runtime.jsx)("p", {
+			className: "ia-md-p",
+			children: parseInlineMarkdown(trimmed)
+		}, idx);
+	});
+}
+try {
+	if (typeof window !== "undefined") {
+		window.consultarIAIntegrada = consultarIAIntegrada;
+		window.probarConexionIA = probarConexionIA;
+		window.GROQ_MODELS = GROQ_MODELS;
+		window.GROQ_DEFAULT_MODEL = GROQ_DEFAULT_MODEL;
+	}
+} catch {}
 var AI_TARGETS = [
+	{
+		id: "groq",
+		label: "Groq (En Lumen)",
+		icono: "⚡",
+		integrado: true,
+		url: () => "https://console.groq.com/keys"
+	},
+	{
+		id: "freeflow",
+		label: "FreeFlow LLM",
+		icono: "🌊",
+		integrado: true,
+		url: () => "https://freeflow.is"
+	},
 	{
 		id: "chatgpt",
 		label: "ChatGPT",
@@ -19095,6 +19254,15 @@ async function sendToAI(target, prompt) {
 	const dest = AI_TARGETS.find((t) => t.id === target) || AI_TARGETS[0];
 	const texto = String(prompt ?? "");
 	const copied = await copyText(texto);
+	if (dest.integrado) {
+		return {
+			copied,
+			abierto: false,
+			integrado: true,
+			label: dest.label,
+			total: texto.length
+		};
+	}
 	const maxUrl = 4800;
 	const q = texto.length > maxUrl ? texto.slice(0, maxUrl) + "…" : texto;
 	const url = dest.url(q);
@@ -36679,7 +36847,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v221"
+							children: "v222"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38298,6 +38466,191 @@ const toquesDev = (0, import_react.useRef)(0);
 								})]
 							})]
 						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
+							icono: "⚡",
+							titulo: "Inteligencia Artificial (Groq / FreeFlow)",
+							resumen: (settings.groqApiKey || "").trim() ? `Conectado a Groq (${settings.groqModel || "Llama 3.3 70B"}) · Respuestas nativas en Lumen` : "Respuestas instantáneas en Lumen · Configurar clave gratuita",
+							abierta: seccionAbierta === "ia",
+							onToggle: () => alternarSeccion("ia"),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									style: { marginBottom: 10 },
+									children: "Respuestas, resúmenes y preguntas ultrarrápidos directamente dentro de Lumen sin salir a webs externas. Conecta tu API Key gratuita de Groq (Llama 3.3 70B en menos de 1 segundo) o FreeFlow."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Destino preferido" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Groq genera respuestas directas en Lumen en <1 segundo" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+											className: "plain",
+											value: settings.aiTarget || "groq",
+											onChange: async (e) => {
+												await setSettings({ aiTarget: e.target.value });
+												haptic$1.tap();
+											},
+											children: AI_TARGETS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+												value: t.id,
+												children: t.label
+											}, t.id))
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Modelo de Groq" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Llama 3.3 70B: inteligencia de punta y velocidad extrema" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+											className: "plain",
+											value: settings.groqModel || GROQ_DEFAULT_MODEL,
+											onChange: async (e) => {
+												await setSettings({ groqModel: e.target.value });
+												haptic$1.tap();
+											},
+											children: GROQ_MODELS.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+												value: m.id,
+												children: m.name
+											}, m.id))
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									style: { flexWrap: "wrap", gap: 8 },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											style: { flex: "1 1 180px" },
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "API Key de Groq o FreeFlow" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Empieza por gsk_... · Se guarda solo en este dispositivo" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											style: { display: "flex", gap: 6, flex: "1 1 240px" },
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+													type: "password",
+													className: "plain",
+													style: { flex: 1 },
+													placeholder: "gsk_...",
+													value: settings.groqApiKey || "",
+													onChange: async (e) => {
+														const val = e.target.value;
+														await setSettings({ groqApiKey: val, aiTarget: "groq" });
+														try { localStorage.setItem("lumen_groq_api_key", val); } catch {}
+													}
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "btn sm",
+													onClick: async () => {
+														const key = (settings.groqApiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
+														if (!key) return toast?.("Ingresa primero la clave para probar");
+														toast?.("⚡ Probando conexión con Groq…");
+														try {
+															const res = await probarConexionIA(key, settings.aiCustomEndpoint, settings.groqModel);
+															toast?.(`✓ ${res.content} (${res.elapsedMs} ms)`);
+															haptic$1.success();
+														} catch (err) {
+															toast?.(`❌ ${err.message}`);
+															haptic$1.error?.();
+														}
+													},
+													children: "⚡ Probar"
+												})
+											]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Endpoint personalizado (opcional)" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Para FreeFlow o proxies OpenAI-compatible (deja vacío para Groq oficial)" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											type: "text",
+											className: "plain",
+											style: { maxWidth: 240 },
+											placeholder: "https://api.groq.com/openai/v1/chat/completions",
+											value: settings.aiCustomEndpoint || "",
+											onChange: async (e) => {
+												await setSettings({ aiCustomEndpoint: e.target.value });
+											}
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "ia-connect-card",
+									style: { marginTop: 8 },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "📖 Guía paso a paso: Cómo obtener tu API Key gratuita en 1 minuto" }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "ia-guide-steps",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "ia-step",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "1" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "ia-step-text",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Entra a Groq Console (Gratis)" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Es 100% gratuito y no requiere tarjeta de crédito. Inicia sesión con Google o correo." }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																	className: "btn sm ghost",
+																	style: { marginTop: 4, width: "fit-content" },
+																	onClick: () => abrirUrlConfiable("https://console.groq.com/keys"),
+																	children: "🔗 Abrir console.groq.com/keys ↗"
+																})
+															]
+														})
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "ia-step",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "2" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "ia-step-text",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Crea tu API Key" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Haz clic en el botón naranja «Create API Key», ponle de nombre Lumen y pulsa Submit." })
+															]
+														})
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "ia-step",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "3" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "ia-step-text",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Copia y pega la clave" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Copia la clave que empieza por gsk_... y pégala en el campo de arriba." })
+															]
+														})
+													]
+												})
+											]
+										})
+									]
+								})
+							]
+						}, "seccion-ia"),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 						icono: "📚",
 						titulo: "Diccionarios",
@@ -38655,7 +39008,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v221 · escritorio y móvil"
+					children: "Lumen Reader · v222 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -43412,6 +43765,15 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [renameValue, setRenameValue] = (0, import_react.useState)("");
 	const [frozenSel, setFrozenSel] = (0, import_react.useState)("");
 	const [aiBusy, setAiBusy] = (0, import_react.useState)(false);
+	const [aiRespuesta, setAiRespuesta] = (0, import_react.useState)("");
+	const [aiModeloUsado, setAiModeloUsado] = (0, import_react.useState)("");
+	const [aiTiempoMs, setAiTiempoMs] = (0, import_react.useState)(null);
+	const [aiError, setAiError] = (0, import_react.useState)("");
+	const [aiPreguntaCustom, setAiPreguntaCustom] = (0, import_react.useState)("");
+	const [aiConfigOpen, setAiConfigOpen] = (0, import_react.useState)(false);
+	const [aiGuiaOpen, setAiGuiaOpen] = (0, import_react.useState)(false);
+	const [aiTempKey, setAiTempKey] = (0, import_react.useState)("");
+	const [aiGuardandoNota, setAiGuardandoNota] = (0, import_react.useState)(false);
 	const [aiRango, setAiRango] = (0, import_react.useState)(1);
 	const [fmtExport, setFmtExport] = (0, import_react.useState)("txt");
 	const [expBusy, setExpBusy] = (0, import_react.useState)(false);
@@ -46968,8 +47330,16 @@ const docPedir = (desde, hasta, centroArg) => {
 		text
 	]);
 	const aiSend = async (target, instruction, etiqueta) => {
-		const body = frozenSel || selection || await textoContexto();
-		if (!body.trim()) return toast?.("Sin texto que enviar");
+		let body = frozenSel || selection || await textoContexto();
+		if (!body.trim()) {
+			if (book?.title) {
+				body = `Obra: "${book.title}". (Página ${page + 1})`;
+			} else if (instruction?.trim()) {
+				body = instruction.trim();
+			} else {
+				return toast?.("Sin texto ni pregunta que enviar");
+			}
+		}
 		const prompt = buildPrompt({
 			instruction,
 			text: body,
@@ -46978,7 +47348,44 @@ const docPedir = (desde, hasta, centroArg) => {
 			pageCount
 		});
 		setFlag("ai").catch(() => {});
-		const r = await sendToAI(target, prompt);
+
+		const elegido = target || settings.aiTarget || "groq";
+		const key = (settings.groqApiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
+		const esDestinoIntegrado = (elegido === "groq" || elegido === "freeflow" || elegido === "integrada");
+
+		if (esDestinoIntegrado) {
+			if (!key) {
+				setAiConfigOpen(true);
+				setAiGuiaOpen(true);
+				setAiError("Para recibir la respuesta aquí mismo en Lumen, conecta tu API Key gratuita de Groq o FreeFlow.");
+				return;
+			}
+			setAiBusy(true);
+			setAiError("");
+			setAiRespuesta("");
+			setAiTiempoMs(null);
+			const t0 = Date.now();
+			try {
+				const r = await consultarIAIntegrada(prompt, {
+					apiKey: key,
+					model: settings.groqModel || GROQ_DEFAULT_MODEL,
+					endpoint: settings.aiCustomEndpoint
+				});
+				setAiRespuesta(r.content);
+				setAiModeloUsado(r.model);
+				setAiTiempoMs(r.elapsedMs || (Date.now() - t0));
+				haptic$1.success();
+				toast?.(`✓ Respuesta lista (${((r.elapsedMs || (Date.now() - t0)) / 1000).toFixed(1)}s)`);
+			} catch (e) {
+				setAiError(e?.message || "No se pudo conectar con la IA.");
+				haptic$1.error?.();
+			} finally {
+				setAiBusy(false);
+			}
+			return;
+		}
+
+		const r = await sendToAI(elegido, prompt);
 		// v181: toasts con la acción pedida: queda claro qué se envió y qué toca hacer
 		if (r.soloCopia) {
 			if (r.copied) toast?.(`✅ ${etiqueta || "El pedido"} copiado (${r.total} car.) · pégalo en ${r.label} (Ctrl+V o Mantener → Pegar) y envía`);
@@ -51511,91 +51918,416 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: sheet === "ai",
 				onClose: closeSheet,
-				title: "✨ Enviar a IA",
+				title: "✨ Asistente de IA (Groq / Lumen)",
 				children: [
-					!(frozenSel || selection) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Páginas de contexto"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: aiRango === 1 ? "Solo esta página" : `Esta y ${aiRango - 1} anteriores (desde la ${Math.max(1, page - aiRango + 2)})`
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-							value: aiRango,
-							onChange: (e) => setAiRango(Number(e.target.value)),
-							children: [
-								1,
-								2,
-								3,
-								5,
-								8,
-								12,
-								20
-							].map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
-								value: n,
+					aiBusy && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "ia-cargando-box",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner", style: { width: 34, height: 34 } }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: ["⚡ Consultando a ", settings.groqModel || "Groq", "…"] }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "row-sub", children: "Generando respuesta ultrarrápida directamente dentro de Lumen" })
+						]
+					}),
+					!aiBusy && aiRespuesta && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "ia-resp-box",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-resp-top",
 								children: [
-									n,
-									" ",
-									n === 1 ? "página" : "páginas"
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "ia-resp-badge",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-dot-online" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: `⚡ Groq · ${aiModeloUsado || "Llama 3.3"}` }),
+											aiTiempoMs != null && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-resp-time", children: `${(aiTiempoMs / 1000).toFixed(2)}s` })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm ghost",
+										onClick: () => { setAiRespuesta(""); setAiError(""); },
+										children: "🔄 Nueva consulta"
+									})
 								]
-							}, n))
-						})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "ia-resp-content",
+								children: renderFormattedMarkdown(aiRespuesta)
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-resp-actions",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										onClick: async () => {
+											await copyText(aiRespuesta);
+											haptic$1.tap();
+											toast?.("✓ Respuesta copiada");
+										},
+										children: "📋 Copiar"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										disabled: aiGuardandoNota,
+										onClick: async () => {
+											setAiGuardandoNota(true);
+											try {
+												await addNote({
+													bookId: book.id,
+													page,
+													note: `✨ [IA - ${aiModeloUsado || "Groq"}]\n${aiRespuesta}`,
+													text: (frozenSel || selection || "").slice(0, 300),
+													bookTitle: book.title,
+													createdAt: Date.now()
+												});
+												haptic$1.success();
+												toast?.("✓ Guardado en las notas de la página");
+											} catch {
+												toast?.("No se pudo guardar la nota");
+											} finally {
+												setAiGuardandoNota(false);
+											}
+										},
+										children: aiGuardandoNota ? "Guardando…" : "📝 Guardar nota"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										onClick: () => {
+											leerFrase(aiRespuesta);
+											haptic$1.tap();
+											toast?.("🗣️ Leyendo en voz alta…");
+										},
+										children: "🗣️ Escuchar"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-followup",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										type: "text",
+										className: "plain",
+										placeholder: "Pregunta de seguimiento sobre este fragmento...",
+										value: aiPreguntaCustom,
+										onChange: (e) => setAiPreguntaCustom(e.target.value),
+										onKeyDown: (e) => {
+											if (e.key === "Enter" && aiPreguntaCustom.trim()) {
+												const q = aiPreguntaCustom.trim();
+												setAiPreguntaCustom("");
+												aiSend(settings.aiTarget || "groq", q, "Pregunta");
+											}
+										}
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm primary",
+										disabled: !aiPreguntaCustom.trim() || aiBusy,
+										onClick: () => {
+											const q = aiPreguntaCustom.trim();
+											setAiPreguntaCustom("");
+											aiSend(settings.aiTarget || "groq", q, "Pregunta");
+										},
+										children: "⚡ Enviar"
+									})
+								]
+							})
+						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: { marginBottom: 10 },
-						children: frozenSel || selection ? `✂️ Solo el texto seleccionado (${(frozenSel || selection).length} caracteres)` : `Página ${page + 1} completa`
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "chips",
-						children: PRESETS.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "chip",
-							onClick: () => aiSend(settings.aiTarget || "chatgpt", p.prompt, p.label),
-							children: p.label
-						}, p.id))
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Destino"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-							value: settings.aiTarget || "chatgpt",
-							onChange: (e) => setSettings({ aiTarget: e.target.value }),
-							children: AI_TARGETS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-								value: t.id,
-								children: t.label
-							}, t.id))
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "ia-grid",
-						children: AI_TARGETS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "ia-card" + ((settings.aiTarget || "chatgpt") === t.id ? " on" : ""),
-							onClick: () => {
-								setSettings({ aiTarget: t.id });
-								haptic$1.tap();
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "ia-ico",
-									children: t.icono
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.label }),
-								t.soloCopia && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {
-									className: "ia-nota",
-									children: "pegar"
-								})
-							]
-						}, t.id))
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: { margin: "2px 4px 12px" },
-						children: "El pedido (instrucción + texto) se copia SIEMPRE al portapapeles. Si el destino no lo muestra autollenado, pégalo con Ctrl+V (o Mantener → Pegar) y envía: la IA hará exactamente lo que pediste."
+					!aiBusy && !aiRespuesta && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							aiError && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-err-box",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: ["⚠ ", aiError] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										onClick: () => { setAiConfigOpen(true); setAiGuiaOpen(true); setAiError(""); },
+										children: "🔑 Configurar API Key de Groq"
+									})
+								]
+							}),
+							(settings.groqApiKey || "").trim() ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-status-banner",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "ia-status-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-dot-online" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Groq conectado" }),
+													" · ",
+													settings.groqModel || "Llama 3.3 70B",
+													" (en Lumen)"
+												]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm ghost",
+										onClick: () => setAiConfigOpen(!aiConfigOpen),
+										children: "⚙️ Configurar"
+									})
+								]
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-promo-banner",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "ia-promo-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "⚡ Respuestas instantáneas dentro de Lumen" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Conecta Groq o FreeFlow gratis (sin tarjeta) para responder sin salir a páginas externas." })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: { display: "flex", gap: 6, marginTop: 6, flexWrap: "wrap" },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm primary",
+												onClick: () => { setAiConfigOpen(true); setAiGuiaOpen(true); },
+												children: "🔑 Conectar API Key gratis"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm ghost",
+												onClick: () => setAiGuiaOpen(!aiGuiaOpen),
+												children: "📖 ¿Cómo funciona?"
+											})
+										]
+									})
+								]
+							}),
+							(aiConfigOpen || aiGuiaOpen) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-connect-card",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "ia-connect-header",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "⚡ Configurar API Key de Groq / FreeFlow" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm ghost",
+												onClick: () => { setAiConfigOpen(false); setAiGuiaOpen(false); },
+												children: "✕"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "ia-guide-steps",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "ia-step",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "1" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "ia-step-text",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Entra a Groq Console (Gratis)" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Es 100% gratuito y no pide tarjeta de crédito. Inicia sesión con Google o correo." }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																className: "btn sm ghost",
+																style: { marginTop: 4, width: "fit-content" },
+																onClick: () => abrirUrlConfiable("https://console.groq.com/keys"),
+																children: "🔗 Abrir console.groq.com/keys ↗"
+															})
+														]
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "ia-step",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "2" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "ia-step-text",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Crea tu API Key" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Toca «Create API Key», escribe de nombre Lumen y pulsa «Submit»." })
+														]
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "ia-step",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ia-step-num", children: "3" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "ia-step-text",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Copia y pega la clave" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Copia la clave que empieza por gsk_... y pégala en el campo de abajo." })
+														]
+													})
+												]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										style: { marginTop: 10, gap: 6 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												type: "password",
+												className: "plain",
+												style: { flex: 1 },
+												placeholder: "Pega tu clave (gsk_...)",
+												value: aiTempKey !== "" ? aiTempKey : (settings.groqApiKey || ""),
+												onChange: (e) => setAiTempKey(e.target.value)
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn primary sm",
+												onClick: async () => {
+													const k = (aiTempKey !== "" ? aiTempKey : (settings.groqApiKey || "")).trim();
+													if (!k) {
+														toast?.("Ingresa una clave válida");
+														return;
+													}
+													await setSettings({ groqApiKey: k, aiTarget: "groq" });
+													try { localStorage.setItem("lumen_groq_api_key", k); } catch {}
+													setAiConfigOpen(false);
+													setAiGuiaOpen(false);
+													haptic$1.success();
+													toast?.("✓ Clave de Groq guardada con éxito");
+												},
+												children: "Guardar"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										style: { marginTop: 6 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Modelo" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+												className: "plain",
+												value: settings.groqModel || GROQ_DEFAULT_MODEL,
+												onChange: async (e) => {
+													await setSettings({ groqModel: e.target.value });
+													haptic$1.tap();
+												},
+												children: GROQ_MODELS.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: m.id,
+													children: m.name
+												}, m.id))
+											})
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "ia-free-query",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										type: "text",
+										className: "plain",
+										placeholder: "Haz cualquier pregunta sobre este texto...",
+										value: aiPreguntaCustom,
+										onChange: (e) => setAiPreguntaCustom(e.target.value),
+										onKeyDown: (e) => {
+											if (e.key === "Enter" && aiPreguntaCustom.trim()) {
+												const q = aiPreguntaCustom.trim();
+												setAiPreguntaCustom("");
+												aiSend(settings.aiTarget || "groq", q, "Pregunta");
+											}
+										}
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary sm",
+										disabled: !aiPreguntaCustom.trim() || aiBusy,
+										onClick: () => {
+											const q = aiPreguntaCustom.trim();
+											setAiPreguntaCustom("");
+											aiSend(settings.aiTarget || "groq", q, "Pregunta");
+										},
+										children: "⚡ Preguntar"
+									})
+								]
+							}),
+							!(frozenSel || selection) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									children: "Páginas de contexto"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: aiRango === 1 ? "Solo esta página" : `Esta y ${aiRango - 1} anteriores (desde la ${Math.max(1, page - aiRango + 2)})`
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+									className: "plain",
+									value: aiRango,
+									onChange: (e) => setAiRango(Number(e.target.value)),
+									children: [
+										1,
+										2,
+										3,
+										5,
+										8,
+										12,
+										20
+									].map((n) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
+										value: n,
+										children: [
+											n,
+											" ",
+											n === 1 ? "página" : "páginas"
+										]
+									}, n))
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-sub",
+								style: { marginBottom: 10 },
+								children: frozenSel || selection ? `✂️ Solo el texto seleccionado (${(frozenSel || selection).length} caracteres)` : `Página ${page + 1} completa`
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "chips",
+								children: PRESETS.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "chip",
+									onClick: () => aiSend(settings.aiTarget || "groq", p.prompt, p.label),
+									children: p.label
+								}, p.id))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									children: "Destino"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+									className: "plain",
+									value: settings.aiTarget || "groq",
+									onChange: (e) => setSettings({ aiTarget: e.target.value }),
+									children: AI_TARGETS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+										value: t.id,
+										children: t.label
+									}, t.id))
+								})]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "ia-grid",
+								children: AI_TARGETS.map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "ia-card" + ((settings.aiTarget || "groq") === t.id ? " on" : ""),
+									onClick: () => {
+										setSettings({ aiTarget: t.id });
+										haptic$1.tap();
+									},
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "ia-ico",
+											children: t.icono
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.label }),
+										t.soloCopia && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {
+											className: "ia-nota",
+											children: "pegar"
+										}),
+										t.integrado && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {
+											className: "ia-nota",
+											children: "in-app"
+										})
+									]
+								}, t.id))
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-sub",
+								style: { margin: "2px 4px 12px" },
+								children: (settings.aiTarget || "groq") === "groq" || (settings.aiTarget || "groq") === "freeflow" ? "⚡ Respuestas instantáneas y nativas dentro de Lumen usando tu clave gratuita." : "El pedido se copia al portapapeles y se abre la web externa."
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
@@ -52412,7 +53144,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 								children: "📖"
 							}),
 							"Lumen ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v221" })
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v222" })
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {

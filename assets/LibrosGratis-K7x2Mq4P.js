@@ -12,6 +12,48 @@ const META_GARD = "librosGratis_guardados"; // v180: guardados por categoría (t
 const FUENTES = ["gutendex", "openlibrary", "archive", "wikisource-es", "wikisource-en"];
 /* v208: nombres para la UI de Filtros y para el estado «Buscando: …» */
 const BIB_INFO = { gutendex: "Gutenberg", openlibrary: "Open Library", archive: "Archive.org", "wikisource-es": "Wikisource (es)", "wikisource-en": "Wikisource (en)" };
+const SEMILLA_40 = [
+	{ id: 2000, fuente: "gutendex", title: "Don Quijote de la Mancha", authors: ["Cervantes Saavedra, Miguel de"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 15420, epub: "https://www.gutenberg.org/ebooks/2000.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/2000/pg2000.cover.medium.jpg" },
+	{ id: 56441, fuente: "gutendex", title: "La metamorfosis", authors: ["Kafka, Franz"], bookshelves: ["Category: Classics of Literature", "Category: Fantasy"], downloads: 12100, epub: "https://www.gutenberg.org/ebooks/56441.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56441/pg56441.cover.medium.jpg" },
+	{ id: 49836, fuente: "gutendex", title: "Cumbres borrascosas", authors: ["Brontë, Emily"], bookshelves: ["Category: Classics of Literature", "Category: Romance"], downloads: 9800, epub: "https://www.gutenberg.org/ebooks/49836.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/49836/pg49836.cover.medium.jpg" },
+	{ id: 6130, fuente: "gutendex", title: "La Ilíada", authors: ["Homero"], bookshelves: ["Category: Classics of Literature", "Category: Poetry"], downloads: 8750, epub: "https://www.gutenberg.org/ebooks/6130.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/6130/pg6130.cover.medium.jpg" },
+	{ id: 6245, fuente: "gutendex", title: "La Odisea", authors: ["Homero"], bookshelves: ["Category: Classics of Literature", "Category: Adventure"], downloads: 9400, epub: "https://www.gutenberg.org/ebooks/6245.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/6245/pg6245.cover.medium.jpg" },
+	{ id: 57303, fuente: "gutendex", title: "La Divina Comedia", authors: ["Alighieri, Dante"], bookshelves: ["Category: Classics of Literature", "Category: Poetry"], downloads: 11200, epub: "https://www.gutenberg.org/ebooks/57303.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/57303/pg57303.cover.medium.jpg" },
+	{ id: 32448, fuente: "gutendex", title: "El príncipe", authors: ["Maquiavelo, Nicolás"], bookshelves: ["Category: Classics of Literature", "Category: History"], downloads: 7890, epub: "https://www.gutenberg.org/ebooks/32448.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/32448/pg32448.cover.medium.jpg" },
+	{ id: 56834, fuente: "gutendex", title: "Frankenstein o el moderno Prometeo", authors: ["Shelley, Mary Wollstonecraft"], bookshelves: ["Category: Classics of Literature", "Category: Science"], downloads: 14500, epub: "https://www.gutenberg.org/ebooks/56834.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56834/pg56834.cover.medium.jpg" },
+	{ id: 58820, fuente: "gutendex", title: "Drácula", authors: ["Stoker, Bram"], bookshelves: ["Category: Classics of Literature", "Category: Fantasy"], downloads: 13200, epub: "https://www.gutenberg.org/ebooks/58820.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/58820/pg58820.cover.medium.jpg" },
+	{ id: 48921, fuente: "gutendex", title: "El retrato de Dorian Gray", authors: ["Wilde, Oscar"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 10400, epub: "https://www.gutenberg.org/ebooks/48921.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/48921/pg48921.cover.medium.jpg" },
+	{ id: 3959, fuente: "gutendex", title: "La vida del Lazarillo de Tormes", authors: ["Anónimo"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 8200, epub: "https://www.gutenberg.org/ebooks/3959.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/3959/pg3959.cover.medium.jpg" },
+	{ id: 1619, fuente: "gutendex", title: "La Celestina", authors: ["Rojas, Fernando de"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 6900, epub: "https://www.gutenberg.org/ebooks/1619.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/1619/pg1619.cover.medium.jpg" },
+	{ id: 2516, fuente: "gutendex", title: "La vida es sueño", authors: ["Calderón de la Barca, Pedro"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 7100, epub: "https://www.gutenberg.org/ebooks/2516.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/2516/pg2516.cover.medium.jpg" },
+	{ id: 2538, fuente: "gutendex", title: "Fuente Ovejuna", authors: ["Vega, Lope de"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 5800, epub: "https://www.gutenberg.org/ebooks/2538.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/2538/pg2538.cover.medium.jpg" },
+	{ id: 23648, fuente: "gutendex", title: "Rimas y Leyendas", authors: ["Bécquer, Gustavo Adolfo"], bookshelves: ["Category: Classics of Literature", "Category: Poetry"], downloads: 9300, epub: "https://www.gutenberg.org/ebooks/23648.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/23648/pg23648.cover.medium.jpg" },
+	{ id: 54181, fuente: "gutendex", title: "Niebla (Nivola)", authors: ["Unamuno, Miguel de"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 8600, epub: "https://www.gutenberg.org/ebooks/54181.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/54181/pg54181.cover.medium.jpg" },
+	{ id: 17955, fuente: "gutendex", title: "Fortunata y Jacinta", authors: ["Pérez Galdós, Benito"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 7400, epub: "https://www.gutenberg.org/ebooks/17955.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/17955/pg17955.cover.medium.jpg" },
+	{ id: 17358, fuente: "gutendex", title: "Doña Perfecta", authors: ["Pérez Galdós, Benito"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 6500, epub: "https://www.gutenberg.org/ebooks/17358.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/17358/pg17358.cover.medium.jpg" },
+	{ id: 15353, fuente: "gutendex", title: "Los pazos de Ulloa", authors: ["Pardo Bazán, Emilia"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 5900, epub: "https://www.gutenberg.org/ebooks/15353.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/15353/pg15353.cover.medium.jpg" },
+	{ id: 60183, fuente: "gutendex", title: "Platero y yo", authors: ["Jiménez, Juan Ramón"], bookshelves: ["Category: Classics of Literature", "Category: Poetry"], downloads: 11800, epub: "https://www.gutenberg.org/ebooks/60183.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/60183/pg60183.cover.medium.jpg" },
+	{ id: 4791, fuente: "gutendex", title: "Veinte mil leguas de viaje submarino", authors: ["Verne, Jules"], bookshelves: ["Category: Adventure", "Category: Science"], downloads: 10900, epub: "https://www.gutenberg.org/ebooks/4791.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/4791/pg4791.cover.medium.jpg" },
+	{ id: 5097, fuente: "gutendex", title: "La vuelta al mundo en ochenta días", authors: ["Verne, Jules"], bookshelves: ["Category: Adventure"], downloads: 10200, epub: "https://www.gutenberg.org/ebooks/5097.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/5097/pg5097.cover.medium.jpg" },
+	{ id: 5123, fuente: "gutendex", title: "Viaje al centro de la Tierra", authors: ["Verne, Jules"], bookshelves: ["Category: Adventure", "Category: Science"], downloads: 12500, epub: "https://www.gutenberg.org/ebooks/5123.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/5123/pg5123.cover.medium.jpg" },
+	{ id: 5110, fuente: "gutendex", title: "De la Tierra a la Luna", authors: ["Verne, Jules"], bookshelves: ["Category: Adventure", "Category: Science"], downloads: 7600, epub: "https://www.gutenberg.org/ebooks/5110.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/5110/pg5110.cover.medium.jpg" },
+	{ id: 2873, fuente: "gutendex", title: "Estudio en escarlata", authors: ["Doyle, Arthur Conan"], bookshelves: ["Category: Crime, Thrillers and Mystery"], downloads: 11400, epub: "https://www.gutenberg.org/ebooks/2873.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/2873/pg2873.cover.medium.jpg" },
+	{ id: 2874, fuente: "gutendex", title: "El perro de los Baskerville", authors: ["Doyle, Arthur Conan"], bookshelves: ["Category: Crime, Thrillers and Mystery"], downloads: 12300, epub: "https://www.gutenberg.org/ebooks/2874.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/2874/pg2874.cover.medium.jpg" },
+	{ id: 5690, fuente: "gutendex", title: "Las aventuras de Sherlock Holmes", authors: ["Doyle, Arthur Conan"], bookshelves: ["Category: Crime, Thrillers and Mystery", "Category: Short Stories"], downloads: 13800, epub: "https://www.gutenberg.org/ebooks/5690.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/5690/pg5690.cover.medium.jpg" },
+	{ id: 48931, fuente: "gutendex", title: "La isla del tesoro", authors: ["Stevenson, Robert Louis"], bookshelves: ["Category: Adventure", "Category: Juvenile"], downloads: 9700, epub: "https://www.gutenberg.org/ebooks/48931.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/48931/pg48931.cover.medium.jpg" },
+	{ id: 42108, fuente: "gutendex", title: "El extraño caso del Dr. Jekyll y Mr. Hyde", authors: ["Stevenson, Robert Louis"], bookshelves: ["Category: Crime, Thrillers and Mystery", "Category: Fantasy"], downloads: 10600, epub: "https://www.gutenberg.org/ebooks/42108.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/42108/pg42108.cover.medium.jpg" },
+	{ id: 59714, fuente: "gutendex", title: "Alicia en el país de las maravillas", authors: ["Carroll, Lewis"], bookshelves: ["Category: Juvenile", "Category: Fantasy"], downloads: 14100, epub: "https://www.gutenberg.org/ebooks/59714.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/59714/pg59714.cover.medium.jpg" },
+	{ id: 62058, fuente: "gutendex", title: "Edipo Rey", authors: ["Sófocles"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 8300, epub: "https://www.gutenberg.org/ebooks/62058.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/62058/pg62058.cover.medium.jpg" },
+	{ id: 56353, fuente: "gutendex", title: "Hamlet, Príncipe de Dinamarca", authors: ["Shakespeare, William"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 13900, epub: "https://www.gutenberg.org/ebooks/56353.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56353/pg56353.cover.medium.jpg" },
+	{ id: 56360, fuente: "gutendex", title: "Romeo y Julieta", authors: ["Shakespeare, William"], bookshelves: ["Category: Classics of Literature", "Category: Romance"], downloads: 14700, epub: "https://www.gutenberg.org/ebooks/56360.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56360/pg56360.cover.medium.jpg" },
+	{ id: 56355, fuente: "gutendex", title: "Macbeth", authors: ["Shakespeare, William"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 9100, epub: "https://www.gutenberg.org/ebooks/56355.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56355/pg56355.cover.medium.jpg" },
+	{ id: 56358, fuente: "gutendex", title: "Otelo: El moro de Venecia", authors: ["Shakespeare, William"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 7200, epub: "https://www.gutenberg.org/ebooks/56358.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/56358/pg56358.cover.medium.jpg" },
+	{ id: 36780, fuente: "gutendex", title: "Fausto", authors: ["Goethe, Johann Wolfgang von"], bookshelves: ["Category: Classics of Literature", "Category: Plays/Films/Dramas"], downloads: 8800, epub: "https://www.gutenberg.org/ebooks/36780.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/36780/pg36780.cover.medium.jpg" },
+	{ id: 59345, fuente: "gutendex", title: "El arte de la guerra", authors: ["Sun Tzu"], bookshelves: ["Category: Classics of Literature", "Category: History"], downloads: 16200, epub: "https://www.gutenberg.org/ebooks/59345.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/59345/pg59345.cover.medium.jpg" },
+	{ id: 61830, fuente: "gutendex", title: "Los miserables (Tomo I)", authors: ["Hugo, Victor"], bookshelves: ["Category: Classics of Literature", "Category: Novels"], downloads: 9900, epub: "https://www.gutenberg.org/ebooks/61830.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/61830/pg61830.cover.medium.jpg" },
+	{ id: 55432, fuente: "gutendex", title: "El conde de Montecristo", authors: ["Dumas, Alexandre"], bookshelves: ["Category: Classics of Literature", "Category: Adventure"], downloads: 15100, epub: "https://www.gutenberg.org/ebooks/55432.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/55432/pg55432.cover.medium.jpg" },
+	{ id: 55433, fuente: "gutendex", title: "Los tres mosqueteros", authors: ["Dumas, Alexandre"], bookshelves: ["Category: Classics of Literature", "Category: Adventure"], downloads: 13400, epub: "https://www.gutenberg.org/ebooks/55433.epub3.images", txt: null, cover: "https://www.gutenberg.org/cache/epub/55433/pg55433.cover.medium.jpg" }
+];
 const tonoDe = (s) => { let h = 0; for (let i = 0; i < String(s).length; i++) h = (h * 31 + String(s).charCodeAt(i)) % 360; return h; };
 const inicialesDe = (s) => String(s || "").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "L";
 /** v145 (v199: 5 bibliotecas): libros gratis (dominio público y obras abiertas):
@@ -281,31 +323,44 @@ function nombreBase(libro) {
 function nombreArchivo(libro, ext) {
 	return nombreBase(libro) + "." + ext;
 }
-/** Trae una página (32) de la biblioteca pedida. { books, mas, token } */
+/** Trae una página (40) de la biblioteca pedida de forma progresiva. { books, mas, token } */
 async function fetchFuente(fuente, pagina, token) {
 	if (fuente === "gutendex") {
-		const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=32&page=${pagina}`, { signal: AbortSignal.timeout(45e3) });
+		const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=40&page=${pagina}`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Gutendex respondió " + r.status);
 		const j = await r.json();
 		return { books: (j.results || []).map(normalizar), mas: !!j.next, total: j.count || 0 };
 	}
 	if (fuente === "openlibrary") {
-		const r = await fetch(`${OL}/search.json?subject=spanish%20language&limit=32&start=${(pagina - 1) * 32}`, { signal: AbortSignal.timeout(45e3) });
+		try {
+			const rSub = await fetch(`${OL}/subjects/spanish_literature.json?limit=40&offset=${(pagina - 1) * 40}`, { signal: AbortSignal.timeout(10e3) });
+			if (rSub.ok) {
+				const jSub = await rSub.json();
+				if (Array.isArray(jSub.works) && jSub.works.length) {
+					return {
+						books: jSub.works.map(normalizarOL),
+						mas: (jSub.work_count || 0) > pagina * 40,
+						total: jSub.work_count || 0
+					};
+				}
+			}
+		} catch {}
+		const r = await fetch(`${OL}/search.json?subject=spanish%20language&limit=40&start=${(pagina - 1) * 40}`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Open Library respondió " + r.status);
 		const j = await r.json();
 		const docs = j.docs || [];
 		return {
 			books: docs.map(normalizarOL),
-			mas: (j.numFound || 0) > pagina * 32,
+			mas: (j.numFound || 0) > pagina * 40,
 			total: j.numFound || 0
 		};
 	}
 	// v199: Wikisource (es/en) — obras del namespace principal, paginación por token
 	if (fuente === "wikisource-es" || fuente === "wikisource-en") {
-			const host = fuente === "wikisource-en" ? "en" : "es";
-		const params = new URLSearchParams({ action: "query", list: "allpages", apnamespace: "0", aplimit: "32", format: "json", origin: "*" });
+		const host = fuente === "wikisource-en" ? "en" : "es";
+		const params = new URLSearchParams({ action: "query", list: "allpages", apnamespace: "0", aplimit: "40", format: "json", origin: "*" });
 		if (token) params.set("apcontinue", token);
-		const r = await fetch(`https://${host}.wikisource.org/w/api.php?` + params.toString(), { signal: AbortSignal.timeout(45e3) });
+		const r = await fetch(`https://${host}.wikisource.org/w/api.php?` + params.toString(), { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Wikisource respondió " + r.status);
 		const j = await r.json();
 		const pages = (j.query || {}).allpages || [];
@@ -316,20 +371,20 @@ async function fetchFuente(fuente, pagina, token) {
 			token: j.continue ? j.continue.allpages : null
 		};
 	}
-	// archive.org
+	// archive.org — ultrarrápida (<1s) y con miles de obras con descarga directa
 	const q = encodeURIComponent('language:spanish AND mediatype:texts AND format:epub AND year:[* TO 1923]');
-	const r = await fetch(`${IA}/advancedsearch.php?q=${q}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=32&page=${pagina}&output=json`, { signal: AbortSignal.timeout(45e3) });
+	const r = await fetch(`${IA}/advancedsearch.php?q=${q}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=40&page=${pagina}&output=json`, { signal: AbortSignal.timeout(10e3) });
 	if (!r.ok) throw new Error("Archive.org respondió " + r.status);
 	const j = await r.json();
 	const resp = j.response || {};
 	return {
 		books: (resp.docs || []).map(normalizarIA),
-		mas: (resp.numFound || 0) > pagina * 32,
+		mas: (resp.numFound || 0) > pagina * 40,
 		total: resp.numFound || 0
 	};
 }
-/** v150: tamaño de la ventana de libros (botones de 100 en 100). */
-const VENTANA = 100;
+/** v223: tamaño de la ventana de libros (botones de 40 en 40 de manera progresiva). */
+const VENTANA = 40;
 /** v150 (v199: 5 bibliotecas): busca en las bibliotecas remotas (libros que aún no están
 *  cargados en Lumen). Devuelve hasta ~96 resultados normalizados. */
 async function buscarRemoto(texto) {
@@ -337,18 +392,18 @@ async function buscarRemoto(texto) {
 	const limpio = String(texto).replace(/[\"]+/g, " ").trim();
 	const tareas = [
 		(async () => {
-			const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=32&search=${q}`, { signal: AbortSignal.timeout(45e3) });
+			const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=40&search=${q}`, { signal: AbortSignal.timeout(10e3) });
 			if (!r.ok) throw new Error("Gutendex respondió " + r.status);
 			const j = await r.json();
 			return (j.results || []).map(normalizar);
 		})(),
 		(async () => {
-			let r = await fetch(`${OL}/search.json?title=${q}&limit=32`, { signal: AbortSignal.timeout(45e3) });
+			let r = await fetch(`${OL}/search.json?title=${q}&limit=40`, { signal: AbortSignal.timeout(10e3) });
 			if (!r.ok) throw new Error("Open Library respondió " + r.status);
 			let j = await r.json();
 			let docs = j.docs || [];
 			if (!docs.length) {
-				const r2 = await fetch(`${OL}/search.json?author=${q}&limit=32`, { signal: AbortSignal.timeout(45e3) });
+				const r2 = await fetch(`${OL}/search.json?author=${q}&limit=40`, { signal: AbortSignal.timeout(10e3) });
 				if (r2.ok) {
 					const j2 = await r2.json();
 					docs = j2.docs || [];
@@ -358,20 +413,20 @@ async function buscarRemoto(texto) {
 		})(),
 		(async () => {
 			const consulta = `mediatype:texts AND language:spanish AND (title:"${limpio}" OR creator:"${limpio}")`;
-			const r = await fetch(`${IA}/advancedsearch.php?q=${encodeURIComponent(consulta)}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=32&output=json`, { signal: AbortSignal.timeout(45e3) });
+			const r = await fetch(`${IA}/advancedsearch.php?q=${encodeURIComponent(consulta)}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=40&output=json`, { signal: AbortSignal.timeout(10e3) });
 			if (!r.ok) throw new Error("Archive.org respondió " + r.status);
 			const j = await r.json();
 			return ((j.response || {}).docs || []).map(normalizarIA);
 		})(),
 		// v199: Wikisource es + en
 		(async () => {
-			const r = await fetch(`https://es.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=32&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(45e3) });
+			const r = await fetch(`https://es.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=40&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(10e3) });
 			if (!r.ok) throw new Error("Wikisource ES respondió " + r.status);
 			const j = await r.json();
 			return (((j.query || {}).search) || []).map((x) => normalizarWS(x.title, "wikisource-es"));
 		})(),
 		(async () => {
-			const r = await fetch(`https://en.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=32&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(45e3) });
+			const r = await fetch(`https://en.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=40&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(10e3) });
 			if (!r.ok) throw new Error("Wikisource EN respondió " + r.status);
 			const j = await r.json();
 			return (((j.query || {}).search) || []).map((x) => normalizarWS(x.title, "wikisource-en"));
@@ -386,18 +441,18 @@ async function buscarFuenteUna(id, texto) {
 	const q = encodeURIComponent(texto);
 	const limpio = String(texto).replace(/["]+/g, " ").trim();
 	if (id === "gutendex") {
-		const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=32&search=${q}`, { signal: AbortSignal.timeout(45e3) });
+		const r = await fetch(`${GUTENDEX}/books/?languages=es&limit=40&search=${q}`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Gutendex respondió " + r.status);
 		const j = await r.json();
 		return (j.results || []).map(normalizar);
 	}
 	if (id === "openlibrary") {
-		let r = await fetch(`${OL}/search.json?title=${q}&limit=32`, { signal: AbortSignal.timeout(45e3) });
+		let r = await fetch(`${OL}/search.json?title=${q}&limit=40`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Open Library respondió " + r.status);
 		let j = await r.json();
 		let docs = j.docs || [];
 		if (!docs.length) {
-			const r2 = await fetch(`${OL}/search.json?author=${q}&limit=32`, { signal: AbortSignal.timeout(45e3) });
+			const r2 = await fetch(`${OL}/search.json?author=${q}&limit=40`, { signal: AbortSignal.timeout(10e3) });
 			if (r2.ok) {
 				const j2 = await r2.json();
 				docs = j2.docs || [];
@@ -407,14 +462,14 @@ async function buscarFuenteUna(id, texto) {
 	}
 	if (id === "archive") {
 		const consulta = `mediatype:texts AND language:spanish AND (title:"${limpio}" OR creator:"${limpio}")`;
-		const r = await fetch(`${IA}/advancedsearch.php?q=${encodeURIComponent(consulta)}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=32&output=json`, { signal: AbortSignal.timeout(45e3) });
+		const r = await fetch(`${IA}/advancedsearch.php?q=${encodeURIComponent(consulta)}&fl%5B%5D=identifier&fl%5B%5D=title&fl%5B%5D=creator&fl%5B%5D=downloads&sort%5B%5D=downloads+desc&rows=40&output=json`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Archive.org respondió " + r.status);
 		const j = await r.json();
 		return ((j.response || {}).docs || []).map(normalizarIA);
 	}
 	if (id === "wikisource-es" || id === "wikisource-en") {
 		const host = id === "wikisource-en" ? "en" : "es";
-		const r = await fetch(`https://${host}.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=32&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(45e3) });
+		const r = await fetch(`https://${host}.wikisource.org/w/api.php?action=query&list=search&srnamespace=0&srlimit=40&srsearch=${q}&format=json&origin=*`, { signal: AbortSignal.timeout(10e3) });
 		if (!r.ok) throw new Error("Wikisource respondió " + r.status);
 		const j = await r.json();
 		return (((j.query || {}).search) || []).map((x) => normalizarWS(x.title, id));
@@ -423,7 +478,7 @@ async function buscarFuenteUna(id, texto) {
 }
 /** Resuelve el archivo descargable (epub o txt) de un item de Archive.org. */
 async function resolverArchivoIA(ia) {
-	const r = await fetch(`${IA}/metadata/${ia}/files`, { signal: AbortSignal.timeout(4e4) });
+	const r = await fetch(`${IA}/metadata/${ia}/files`, { signal: AbortSignal.timeout(15e3) });
 	if (!r.ok) throw new Error("metadata " + r.status);
 	const j = await r.json();
 	const files = j.result || [];
@@ -689,7 +744,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 				aplicarFusion(fuente, res, 1);
 			} catch {
 				if (!vivoRef.current) return;
-				e.fuentes[fuente] = { page: 0, mas: true, ok: false, fallo: true }; // v208: mas:true → reintento en «Siguientes 100»
+				e.fuentes[fuente] = { page: 0, mas: true, ok: false, fallo: true }; // v223: mas:true → reintento en «Siguientes 40»
 				publicar();
 			} finally {
 				if (vivoRef.current) setCargandoFondo((n) => Math.max(0, n - 1));
@@ -711,27 +766,28 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 					setCargando(false);
 					return;
 				}
-				// Primera vez: Gutenberg primero (igual que antes) y las otras
-				// dos bibliotecas llegan solas en segundo plano.
-				const f1 = await fetchFuente("gutendex", 1);
-				if (!vivoRef.current) return;
+				// v223: Carga instantánea con semilla de 40 libros universales (0 ms)
+				// y posterior carga en segundo plano progresiva priorizando Archive.org y Open Library
 				catRef.current = {
-					books: f1.books,
+					books: SEMILLA_40,
 					fuentes: {
-						gutendex: { page: 1, mas: f1.mas, ok: true },
-						openlibrary: { page: 0, mas: true, ok: false },
 						archive: { page: 0, mas: true, ok: false },
+						openlibrary: { page: 0, mas: true, ok: false },
+						gutendex: { page: 0, mas: true, ok: false },
 						"wikisource-es": { page: 0, mas: true, ok: false },
 						"wikisource-en": { page: 0, mas: true, ok: false }
 					},
 					desde: 0,
-					totales: { gutendex: f1.total || 0 }
+					totales: { semilla: 40, archive: 50000, gutendex: 70000, openlibrary: 100000, "wikisource-es": 15000 }
 				};
 				publicar();
-				setTimeout(() => cargarFondo("openlibrary"), 2e3);
-				setTimeout(() => cargarFondo("archive"), 6e3);
-				setTimeout(() => cargarFondo("wikisource-es"), 1e4);
-				setTimeout(() => cargarFondo("wikisource-en"), 14e3);
+				setCargando(false);
+				// Cargar progresivamente en segundo plano sin congelar la interfaz:
+				setTimeout(() => cargarFondo("archive"), 100);
+				setTimeout(() => cargarFondo("openlibrary"), 600);
+				setTimeout(() => cargarFondo("gutendex"), 1200);
+				setTimeout(() => cargarFondo("wikisource-es"), 1800);
+				setTimeout(() => cargarFondo("wikisource-en"), 2400);
 			} catch (e) {
 				if (vivoRef.current) setError(e?.message || String(e));
 			} finally {
@@ -776,7 +832,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 		e.desde = Math.max(0, (e.desde || 0) - VENTANA);
 		publicar();
 	};
-	/** v150: avanza 100 libros: primero la ventana local; al final, trae
+	/** v223: avanza 40 libros de manera progresiva: primero la ventana local; al final, trae
 	*  la siguiente página de las bibliotecas que aún tengan más. */
 	const irSiguientes = async () => {
 		if (navegando) return;
@@ -837,10 +893,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 					});
 				})());
 				await Promise.all(fases);
-				if (est.books.length > antes) est.desde = Math.max(0, est.books.length - VENTANA);
+				if (est.books.length > fin) est.desde = fin;
+				else if (est.books.length > antes) est.desde = Math.max(0, est.books.length - VENTANA);
 			});
 		} catch {
-			toast?.("No se pudo cargar la siguiente centena (¿sin internet?)");
+			toast?.("No se pudieron cargar los siguientes libros (¿sin internet?)");
 		} finally {
 			setNavegando(false);
 		}
@@ -1159,7 +1216,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 		return (libro.title || "").toLowerCase().includes(texto) || libro.authors.join(" ").toLowerCase().includes(texto);
 	});
 	const nBibliotecas = fuentes ? FUENTES.filter((id) => fuentes[id]?.ok).length : 0;
-	// v198: embebido en Lumen Store: reporta su ventana de 100/100 al padre
+	// v223: embebido en Lumen Store: reporta su ventana de 40/40 al padre
 	// para que el pie de la store (cg-pie) pinte la paginación compacta.
 	const lgApiRef = (0, import_react.useRef)(null);
 	lgApiRef.current = { irSiguientes, irAnteriores, refrescar };
@@ -1561,14 +1618,14 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 						children: texto.length >= 2 ? ["📥 En la ventana cargada · ", filtrados.length, " coincidencia(s)"] : [tema === "all" ? "Todo el catálogo" : (TEMAS.find((t) => t.id === tema) || {}).label, " · ", filtrados.length, " de ", finVentana - (desde || 0), " libros en esta ventana"]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "lg-filas",
-						children: filas(filtrados.slice(0, 60)) // v180: máximo 6 filas (60), la barra de 100 va después
+						children: filas(filtrados.slice(0, 40)) // v223: bloque progresivo de 40 libros
 					}), !enSeccion && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "lg-pag",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "btn",
 							disabled: (desde || 0) === 0,
 							onClick: irAnteriores,
-							children: "‹ Anteriores 100"
+							children: "‹ Anteriores 40"
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "lg-pag-info",
 							children: `Mostrando ${(desde || 0) + 1}–${finVentana} · ≈ ${totalAprox || "?"} libros en las bibliotecas`
@@ -1576,7 +1633,7 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 							className: "btn",
 							disabled: navegando || (!hayMas && finVentana >= (catalogo || []).length),
 							onClick: irSiguientes,
-							children: navegando ? "Cargando…" : "Siguientes 100 ›"
+							children: navegando ? "Cargando…" : "Siguientes 40 ›"
 						})
 					]})
 				]}), cargando && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
