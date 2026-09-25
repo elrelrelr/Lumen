@@ -14066,5 +14066,29 @@ mark.find-flash {
   font-size: 12.5px;
 }
 
+/* ============ v224: Ocultación automática del Sidebar en libro o menú ============ */
+body:has(.reader) .sidebar,
+body:has(.sheet) .sidebar,
+body:has(.backdrop) .sidebar,
+body:has(.cg-scrim) .sidebar,
+body:has(.modal) .sidebar,
+body:has(.dialog) .sidebar,
+body:has(.vault-modal) .sidebar,
+body:has(.lumo-backdrop) .sidebar,
+body:has(.tp-scrim) .sidebar,
+body:has(.lg-menu-fondo) .sidebar,
+body:has(.logros-cierre-velo) .sidebar,
+.app:has(.reader) .sidebar,
+.app:has(.sheet) .sidebar,
+.app:has(.backdrop) .sidebar,
+.app:has(.cg-scrim) .sidebar,
+.app:has(.lumo-backdrop) .sidebar,
+.app.en-lectura .sidebar,
+.app.con-modal .sidebar,
+.sidebar.oculto {
+  display: none !important;
+}
+
+
 
 

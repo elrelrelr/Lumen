@@ -36847,7 +36847,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v222"
+							children: "v224"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -38366,10 +38366,30 @@ const toquesDev = (0, import_react.useRef)(0);
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "🏆",
 							titulo: "Logros",
-							resumen: "Cuándo verlos mientras lees · reiniciar todos",
+							resumen: "Mascota Lumo · cuándo verlos mientras lees · reiniciar",
 							abierta: seccionAbierta === "logros",
 							onToggle: () => alternarSeccion("logros"),
 							children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									children: "Apartado de Lumo"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: "Tu mascota de lectura, habitación, accesorios y trofeos"
+								})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn sm primary",
+									onClick: () => {
+										setSheet(null);
+										setLumoOpen(true);
+										haptic$1.tap();
+									},
+									title: "Abrir apartado de Lumo",
+									"aria-label": "Abrir apartado de Lumo",
+									children: "🐾 Abrir Lumo"
+								})]
+							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "row",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -39008,7 +39028,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v222 · escritorio y móvil"
+					children: "Lumen Reader · v224 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -41184,6 +41204,26 @@ setBusyId(null);
 				onClose: () => setSheet(null),
 				title: "🏆 Logros y nivel",
 				children: game && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, padding: "10px 14px", background: "var(--bg-soft)", borderRadius: 14, border: "1px solid var(--line)" },
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontWeight: 700, fontSize: 13.5 }, children: "🐾 Mascota de lectura (Lumo)" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Habitación, accesorios, tienda y logros" })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn sm primary",
+								onClick: () => {
+									setSheet(null);
+									setLumoOpen(true);
+									haptic$1.tap();
+								},
+								children: "🐾 Abrir Lumo"
+							})
+						]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "level-hero",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -53116,7 +53156,8 @@ var Boundary = class extends import_react.Component {
 		return this.props.children;
 	}
 };
-function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, onPublicar, onMisPubs, onAds, onPremium, onApoyar, onTips, onAutoDetectar, onLibrosGratis, sidebarPos, onCambiarPos }) {
+function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, onPublicar, onMisPubs, onAds, onPremium, onApoyar, onTips, onAutoDetectar, onLibrosGratis, sidebarPos, onCambiarPos, oculto }) {
+	if (enLectura || oculto) return null;
 	const item = (ico, txt, fn, on) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 		className: "side-item" + (on ? " on" : ""),
 		onClick: fn,
@@ -53144,7 +53185,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 								children: "📖"
 							}),
 							"Lumen ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v222" })
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "v224" })
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -53871,10 +53912,13 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 		style: { height: "100vh" },
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
 	});
+	const enLectura = route.view === "reader";
+	const hayModal = !!(buscadorAbierto || torrentAbierto || catalogoAbierto || librosGratisAbierto || publicarOpen || misPubsAbierto || adsAbierto || premiumAbierto || apoyo || bienvenida || archivosAbierto || lectorGlobal || sheetReq);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: "app" + (settings?.sidebarPos === "right" ? " sidebar-right" : ""),
+		className: "app" + (settings?.sidebarPos === "right" ? " sidebar-right" : "") + (enLectura ? " en-lectura" : "") + (hayModal ? " con-modal" : ""),
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sidebar, {
-			enLectura: route.view === "reader",
+			enLectura,
+			oculto: hayModal,
 			sidebarPos: settings?.sidebarPos || "left",
 			onCambiarPos: () => {
 				const next = (settings?.sidebarPos === "right") ? "left" : "right";
