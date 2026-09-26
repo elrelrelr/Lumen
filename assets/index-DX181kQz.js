@@ -18980,27 +18980,74 @@ function buildPrompt({ instruction, text, title, page, pageCount, action }) {
 	const clean = String(text || "").replace(/[<>]/g, "").trim();
 	return `${`${action && ACTION_TEMPLATES[action] ? ACTION_TEMPLATES[action].replace("{title}", String(title || "el documento en curso")) : instruction || ""}\n\n[Fuente: "${title || "documento"}"${page != null ? ` · página ${page}${pageCount ? "/" + pageCount : ""}` : ""}]\n\n"""\n`}${clean}\n"""`;
 }
-var GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile";
+var GROQ_DEFAULT_MODEL = "openai/gpt-oss-120b";
 var GROQ_MODELS = [
-	{ id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Recomendado)", desc: "Máxima inteligencia, velocidad y contexto (128k)" },
-	{ id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant", desc: "Ultra rápido (<0.5 seg.), latencia mínima (128k)" },
-	{ id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", desc: "Gran contexto de 32k" }
+	{ id: "openai/gpt-oss-120b", name: "GPT-OSS 120B (Recomendado)", desc: "Insignia oficial Groq: 120B, razonamiento superior, 500 t/s (131k)" },
+	{ id: "openai/gpt-oss-20b", name: "GPT-OSS 20B (Ultra rápido)", desc: "Velocidad extrema (~1000 t/s), reemplazo de Llama 3.1 8B (131k)" },
+	{ id: "qwen/qwen3.8-27b", name: "Qwen 3.8 27B", desc: "Multimodal y altamente instructivo (~450 t/s, 131k)" },
+	{ id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B (Solo Enterprise)", desc: "Para cuentas de pago o Enterprise en Groq (128k)" },
+	{ id: "llama-3.1-8b-instant", name: "Llama 3.1 8B Instant (Solo Enterprise)", desc: "Para cuentas de pago o Enterprise en Groq (128k)" }
 ];
 var GROQ_MODELOS_OBSOLETOS = new Set([
+	"mixtral-8x7b-32768",
 	"gemma2-9b-it",
 	"gemma-7b-it",
 	"llama3-8b-8192",
 	"llama3-70b-8192",
 	"llama-3.1-70b-versatile",
 	"llama-3.2-1b-preview",
-	"llama-3.2-3b-preview"
+	"llama-3.2-3b-preview",
+	"qwen/qwen3.6-27b",
+	"qwen/qwen3-32b",
+	"groq/compound",
+	"groq/compound-mini"
 ]);
 function sanearModeloGroq(m) {
 	const c = String(m || "").trim();
-	if (!c || GROQ_MODELOS_OBSOLETOS.has(c) || !GROQ_MODELS.some((x) => x.id === c)) {
+	if (!c || GROQ_MODELOS_OBSOLETOS.has(c)) {
 		return GROQ_DEFAULT_MODEL;
 	}
-	return c;
+	if (GROQ_MODELS.some((x) => x.id === c)) {
+		return c;
+	}
+	if (c.length > 2 && (c.includes("/") || c.includes("-"))) {
+		return c;
+	}
+	return GROQ_DEFAULT_MODEL;
+}
+async function listarModelosGroq(apiKey) {
+	const key = (apiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
+	if (!key) return GROQ_MODELS;
+	try {
+		const res = await fetch("https://api.groq.com/openai/v1/models", {
+			headers: { "Authorization": `Bearer ${key}` }
+		});
+		if (!res.ok) return GROQ_MODELS;
+		const data = await res.json();
+		const list = data?.data || [];
+		if (!list.length) return GROQ_MODELS;
+		const chatModels = list.filter((m) => {
+			const id = String(m.id || "").toLowerCase();
+			return m.active !== false &&
+				!id.includes("whisper") &&
+				!id.includes("orpheus") &&
+				!id.includes("guard") &&
+				!id.includes("embed") &&
+				!id.includes("safeguard") &&
+				!id.includes("tts");
+		});
+		if (!chatModels.length) return GROQ_MODELS;
+		return chatModels.map((m) => {
+			const existing = GROQ_MODELS.find((g) => g.id === m.id);
+			return {
+				id: m.id,
+				name: existing ? existing.name : m.id,
+				desc: existing ? existing.desc : `Modelo activo en tu cuenta Groq`
+			};
+		});
+	} catch {
+		return GROQ_MODELS;
+	}
 }
 async function consultarIAIntegrada(prompt, opts = {}) {
 	const key = (opts.apiKey || "").trim() || (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_api_key") || "" : "");
@@ -19051,17 +19098,33 @@ async function consultarIAIntegrada(prompt, opts = {}) {
 				if (txt) errMsg = txt.slice(0, 160);
 			} catch {}
 		}
-		// Si el modelo seleccionado fue retirado/decommissioned por Groq, auto-recuperar reintentando con Llama 3.3 70B
-		if (!opts._reintentado && (errMsg.includes("decommissioned") || errMsg.includes("no longer supported") || errData?.error?.code === "model_decommissioned")) {
-			console.warn(`[Groq IA] Modelo '${model}' retirado. Reintentando automáticamente con ${GROQ_DEFAULT_MODEL}...`);
+		// Si el modelo seleccionado no existe, no está disponible en la cuenta o fue retirado por Groq
+		const noExisteOAcceso = errMsg.includes("does not exist") ||
+			errMsg.includes("do not have access") ||
+			errMsg.includes("model_not_found") ||
+			errMsg.includes("decommissioned") ||
+			errMsg.includes("no longer supported") ||
+			errData?.error?.code === "model_not_found" ||
+			errData?.error?.code === "model_decommissioned";
+
+		if (!opts._reintentado && noExisteOAcceso) {
+			const fallbackModel = (model === "openai/gpt-oss-120b" || model === "llama-3.3-70b-versatile")
+				? "openai/gpt-oss-20b"
+				: "openai/gpt-oss-120b";
+			console.warn(`[Groq IA] El modelo '${model}' no está disponible en tu cuenta (${errMsg}). Reintentando automáticamente con '${fallbackModel}'...`);
 			try {
-				if (typeof localStorage !== "undefined") localStorage.setItem("lumen_groq_model", GROQ_DEFAULT_MODEL);
+				if (typeof localStorage !== "undefined") localStorage.setItem("lumen_groq_model", fallbackModel);
 			} catch {}
-			return await consultarIAIntegrada(prompt, {
+			const reintento = await consultarIAIntegrada(prompt, {
 				...opts,
-				model: GROQ_DEFAULT_MODEL,
-				_reintentado: true
+				model: fallbackModel,
+				_reintentado: true,
+				_modeloOriginal: model
 			});
+			return {
+				...reintento,
+				modeloAutoCorregido: fallbackModel
+			};
 		}
 		if (res.status === 401) {
 			errMsg = "API Key de Groq no válida o no autorizada. Revisa que tu clave empiece por gsk_ y no tenga espacios.";
@@ -19151,6 +19214,7 @@ try {
 		window.consultarIAIntegrada = consultarIAIntegrada;
 		window.probarConexionIA = probarConexionIA;
 		window.sanearModeloGroq = sanearModeloGroq;
+		window.listarModelosGroq = listarModelosGroq;
 		window.GROQ_MODELS = GROQ_MODELS;
 		window.GROQ_DEFAULT_MODEL = GROQ_DEFAULT_MODEL;
 		window.GROQ_MODELOS_OBSOLETOS = GROQ_MODELOS_OBSOLETOS;
@@ -35906,8 +35970,18 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [creator, setCreator] = (0, import_react.useState)(false);
 	const brandHold = (0, import_react.useRef)({ timer: null, fired: false });
 	(0, import_react.useEffect)(() => {
-		if (settings?.groqModel && GROQ_MODELOS_OBSOLETOS.has(settings.groqModel)) {
-			setSettings({ groqModel: GROQ_DEFAULT_MODEL });
+		const rawLocal = typeof localStorage !== "undefined" ? localStorage.getItem("lumen_groq_model") || "" : "";
+		const m = String(settings?.groqModel || rawLocal).trim();
+		if (
+			GROQ_MODELOS_OBSOLETOS.has(m) ||
+			m === "llama-3.1-8b-instant" ||
+			m === "llama-3.3-70b-versatile" ||
+			m === "mixtral-8x7b-32768" ||
+			m.toLowerCase().includes("niama")
+		) {
+			const nuevo = (m.includes("8b") || m.includes("instant")) ? "openai/gpt-oss-20b" : "openai/gpt-oss-120b";
+			setSettings({ groqModel: nuevo });
+			try { localStorage.setItem("lumen_groq_model", nuevo); } catch {}
 		}
 	}, [settings?.groqModel, setSettings]);
 	const [storyCfg, setStoryCfg] = (0, import_react.useState)(null);
@@ -38941,7 +39015,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "row-sub",
 									style: { marginBottom: 10 },
-									children: "Respuestas, resúmenes y preguntas ultrarrápidos directamente dentro de Lumen sin salir a webs externas. Conecta tu API Key gratuita de Groq (Llama 3.3 70B en menos de 1 segundo) o FreeFlow."
+									children: "Respuestas, resúmenes y preguntas ultrarrápidos directamente dentro de Lumen sin salir a webs externas. Conecta tu API Key gratuita de Groq (GPT-OSS 120B o 20B a ultra velocidad) o FreeFlow."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "row",
@@ -38972,7 +39046,7 @@ const toquesDev = (0, import_react.useRef)(0);
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											children: [
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Modelo de Groq" }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Llama 3.3 70B: inteligencia de punta y velocidad extrema" })
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "GPT-OSS 120B / 20B: modelos activos de punta en la capa gratuita" })
 											]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
@@ -39023,7 +39097,12 @@ const toquesDev = (0, import_react.useRef)(0);
 														toast?.("⚡ Probando conexión con Groq…");
 														try {
 															const res = await probarConexionIA(key, settings.aiCustomEndpoint, sanearModeloGroq(settings.groqModel));
-															toast?.(`✓ ${res.content} (${res.elapsedMs} ms)`);
+															if (res?.modeloAutoCorregido) {
+																await setSettings({ groqModel: res.modeloAutoCorregido });
+																toast?.(`✓ ${res.content} (${res.elapsedMs} ms) · Modelo actualizado a ${res.modeloAutoCorregido}`);
+															} else {
+																toast?.(`✓ ${res.content} (${res.elapsedMs} ms)`);
+															}
 															haptic$1.success();
 														} catch (err) {
 															toast?.(`❌ ${err.message}`);
@@ -47931,6 +48010,9 @@ const docPedir = (desde, hasta, centroArg) => {
 					model: sanearModeloGroq(settings.groqModel),
 					endpoint: settings.aiCustomEndpoint
 				});
+				if (r?.modeloAutoCorregido) {
+					await setSettings({ groqModel: r.modeloAutoCorregido });
+				}
 				setAiRespuesta(r.content);
 				setAiModeloUsado(r.model);
 				setAiTiempoMs(r.elapsedMs || (Date.now() - t0));
@@ -52631,7 +52713,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 												children: [
 													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Groq conectado" }),
 													" · ",
-													settings.groqModel || "Llama 3.3 70B",
+													settings.groqModel || "GPT-OSS 120B",
 													" (en Lumen)"
 												]
 											})

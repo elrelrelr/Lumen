@@ -58,11 +58,17 @@ var PROVEEDORES = [
 	},
 	{
 		id: "groq",
-		nombre: "Groq (Llama)",
+		nombre: "Groq (GPT-OSS / Llama)",
 		icono: "🟣",
 		desc: "Rápido y con capa gratuita",
-		modelos: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"],
-		modeloDefecto: "llama-3.3-70b-versatile",
+		modelos: [
+			"openai/gpt-oss-120b",
+			"openai/gpt-oss-20b",
+			"qwen/qwen3.8-27b",
+			"llama-3.3-70b-versatile",
+			"llama-3.1-8b-instant"
+		],
+		modeloDefecto: "openai/gpt-oss-120b",
 		urlBase: "https://api.groq.com/openai/v1"
 	},
 	{
@@ -172,7 +178,7 @@ async function pingOpenAICompatible(p, key, model) {
 			content: "ok"
 		}]
 	}, { bearer: key });
-	return r.ok || r.status === 400;
+	return r.ok && !r.data?.error;
 }
 async function pingAnthropic(key, model) {
 	const r = await postJson("https://api.anthropic.com/v1/messages", {
@@ -183,7 +189,7 @@ async function pingAnthropic(key, model) {
 			content: "ok"
 		}]
 	}, { apiKeyHeader: `x-api-key:${key}` });
-	return r.ok || r.status === 400;
+	return r.ok && !r.data?.error;
 }
 var cacheModelos = /* @__PURE__ */ new Map();
 async function modelosRemotos(p, key) {
@@ -205,6 +211,9 @@ async function modelosRemotos(p, key) {
 function prioridadModelo(n) {
 	const x = String(n).toLowerCase();
 	let p = 50;
+	if (x.includes("gpt-oss-120b")) p -= 40;
+	if (x.includes("gpt-oss-20b")) p -= 35;
+	if (x.includes("qwen3.8")) p -= 30;
 	if (x.includes("pro")) p -= 20;
 	if (x.includes("flash")) p -= 5;
 	if (x.includes("ultra")) p -= 25;
@@ -217,7 +226,7 @@ function prioridadModelo(n) {
 async function candidatosPara(p, key) {
 	const remotos = (await modelosRemotos(p, key)).filter((n) => {
 		const l = n.toLowerCase();
-		return !(l.includes("embed") || l.includes("tts") || l.includes("vision") || l.includes("image") || l.includes("bison"));
+		return !(l.includes("embed") || l.includes("tts") || l.includes("vision") || l.includes("image") || l.includes("bison") || l.includes("whisper") || l.includes("orpheus") || l.includes("guard") || l.includes("safeguard"));
 	}).sort((a, b) => prioridadModelo(a) - prioridadModelo(b));
 	const set = new Set(remotos);
 	for (const m of p.modelos) set.add(m);
@@ -252,13 +261,26 @@ async function probarClaveIA({ proveedor = "google", apiKey = "", modelo = null 
 		mensaje: "Escribe la clave primero."
 	};
 	if (modelo) try {
-		return (p.id === "google" ? await pingGoogle(key, modelo) : p.id === "anthropic" ? await pingAnthropic(key, modelo) : await pingOpenAICompatible(p, key, modelo)) ? {
-			ok: true,
-			mensaje: `✅ Clave correcta. Usaremos ${modelo}.`,
-			modelo
-		} : {
+		const okDirecto = (p.id === "google" ? await pingGoogle(key, modelo) : p.id === "anthropic" ? await pingAnthropic(key, modelo) : await pingOpenAICompatible(p, key, modelo));
+		if (okDirecto) {
+			return {
+				ok: true,
+				mensaje: `✅ Clave correcta. Usaremos ${modelo}.`,
+				modelo
+			};
+		}
+		// Si el modelo específico no está disponible en la cuenta, auto-detectar el mejor disponible
+		const det = await detectarModelo({ proveedor, apiKey: key });
+		if (det.ok) {
+			return {
+				ok: true,
+				mensaje: `✅ Clave correcta. ${modelo} no está habilitado en tu cuenta; usaremos ${det.modelo}.`,
+				modelo: det.modelo
+			};
+		}
+		return {
 			ok: false,
-			mensaje: `❌ La clave no funciona con ${modelo}.`
+			mensaje: `❌ La clave no funciona con ${modelo} ni con los modelos disponibles de ${p.nombre}.`
 		};
 	} catch (e) {
 		return {
