@@ -25196,9 +25196,9 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 	const wrapPart = (partId, element) => {
 		if (!element) return null;
 		const off = currentOffsets[partId] || { x: 0, y: 0, scale: 1 };
-		const totalX = partId === "base" ? off.x : (baseOff.x + off.x);
-		const totalY = partId === "base" ? off.y : (baseOff.y + off.y);
-		const partScale = partId === "base" ? baseScale : (off.scale || 1) * (partId !== "base" && baseScale !== 1 ? baseScale : 1);
+		const totalX = off.x || 0;
+		const totalY = off.y || 0;
+		const partScale = off.scale || 1;
 		const trParts = [];
 		if (totalX || totalY) trParts.push(`translate(${totalX}px, ${totalY}px)`);
 		if (partScale !== 1) trParts.push(`scale(${partScale})`);
@@ -25229,7 +25229,7 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 					width: 270,
 					height: 270,
 					fill: "transparent",
-					style: { pointerEvents: "all", cursor: "grab" }
+					style: { pointerEvents: "none" }
 				}),
 				element
 			] : element
