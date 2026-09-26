@@ -24971,7 +24971,7 @@ function resetearLumoOffsets() {
 		};
 	} catch {}
 }
-var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim }) => {
+var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, seleccionado }) => {
 	const eq2 = eq || {};
 	const celebrando = estado === "celebrando";
 	const leyendo = estado === "leyendo";
@@ -24979,28 +24979,31 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim }) =
 	const currentOffsets = offsets || obtenerLumoOffsets();
 	const baseOff = currentOffsets["base"] || { x: 0, y: 0, scale: 1 };
 	const baseScale = baseOff.scale || 1;
+	const isLumoSelected = editando && (seleccionado === "base" || !seleccionado || !seleccionado.startsWith("mueble_"));
 	const wrapPart = (partId, element) => {
 		if (!element) return null;
 		const off = currentOffsets[partId] || { x: 0, y: 0, scale: 1 };
 		const totalX = partId === "base" ? off.x : (baseOff.x + off.x);
 		const totalY = partId === "base" ? off.y : (baseOff.y + off.y);
-		const partScale = partId === "base" ? baseScale : (off.scale || 1);
+		const partScale = partId === "base" ? baseScale : (off.scale || 1) * (partId !== "base" && baseScale !== 1 ? baseScale : 1);
 		const trParts = [];
 		if (totalX || totalY) trParts.push(`translate(${totalX}px, ${totalY}px)`);
 		if (partScale !== 1) trParts.push(`scale(${partScale})`);
 		const tr = trParts.length ? trParts.join(" ") : void 0;
+		const isBaseSel = partId === "base" && isLumoSelected;
 		return lumoJ("g", {
 			"data-lumo-part": partId,
+			className: isBaseSel ? "lumo-elem-selected" : void 0,
 			style: {
 				transform: tr,
 				transformOrigin: "135px 135px",
 				cursor: editando ? "grab" : void 0,
 				pointerEvents: editando ? "auto" : "none"
 			},
-			onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect(partId); } : void 0,
+			onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect("base"); } : void 0,
 			onPointerDown: editando && onStartDrag ? (e) => {
-				if (onSelect) onSelect(partId);
-				onStartDrag(e, partId);
+				if (onSelect) onSelect("base");
+				onStartDrag(e, "base");
 			} : void 0,
 			children: partId === "base" ? [
 				editando && lumoJ("rect", {
@@ -25019,6 +25022,7 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim }) =
 		viewBox: "0 0 270 270",
 		role: "img",
 		"aria-label": "Lumo, tu oso de lectura",
+		style: { overflow: "visible" },
 		children: [
 			wrapPart("cape", lumoAccesorio(eq2.cape, "atras")),
 			wrapPart("backpack_back", lumoAccesorio(eq2.backpack, "atras")),
@@ -25057,7 +25061,7 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim }) =
 		]
 	});
 };
-var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, onSelect, editando, anim }) => {
+var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, onSelect, editando, anim, seleccionado }) => {
 	const animActive = anim !== void 0 ? anim : (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_lumo_anim_active") !== "0" : true);
 	const animClass = !animActive ? "lumo-sin-anim" : (estado === "durmiendo" || estado === "hibernando" ? "lumo-anim-dormir" : estado === "feliz" || estado === "celebrando" ? "lumo-anim-celebrar" : estado === "leyendo" ? "lumo-anim-leer" : estado === "cansado" ? "lumo-anim-cansado" : "lumo-anim-idle");
 	return lumoJ("div", {
@@ -25073,7 +25077,8 @@ var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, onSelect, editando, a
 			onStartDrag,
 			onSelect,
 			editando,
-			anim: animActive
+			anim: animActive,
+			seleccionado
 		})
 	});
 };
@@ -25265,8 +25270,9 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		if (!editandoPos) return;
 		e.preventDefault();
 		e.stopPropagation();
-		setElemSeleccionado(partId);
-		const isSvgPart = !partId.startsWith("mueble_");
+		const actualPartId = !partId.startsWith("mueble_") ? "base" : partId;
+		setElemSeleccionado(actualPartId);
+		const isSvgPart = !actualPartId.startsWith("mueble_");
 		let scale = 1;
 		if (isSvgPart) {
 			const svg = e.currentTarget.closest("svg");
@@ -25275,7 +25281,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		}
 		const startX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
 		const startY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-		const orig = customOffsets[partId] || { x: 0, y: 0, scale: 1 };
+		const orig = customOffsets[actualPartId] || { x: 0, y: 0, scale: 1 };
 		let cur = { ...orig };
 		const onMove = (ev) => {
 			const cx = ev.clientX ?? (ev.touches && ev.touches[0]?.clientX) ?? startX;
@@ -25285,7 +25291,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 			cur = { ...orig, x: orig.x + dx, y: orig.y + dy };
 			setCustomOffsets((prev) => ({
 				...prev,
-				[partId]: cur
+				[actualPartId]: cur
 			}));
 		};
 		const onUp = () => {
@@ -25295,7 +25301,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 			window.removeEventListener("touchmove", onMove);
 			window.removeEventListener("touchend", onUp);
 			setCustomOffsets((final) => {
-				const next = { ...final, [partId]: cur };
+				const next = { ...final, [actualPartId]: cur };
 				guardarLumoOffsets(next);
 				return next;
 			});
@@ -25592,7 +25598,8 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											onStartDrag: iniciarArrastre
 										}, tipo)),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "lumo-figura lumo-editando" + (!animLumo ? " lumo-sin-anim" : "") + (elemSeleccionado === "base" ? " lumo-elem-selected" : ""),
+											className: "lumo-figura lumo-editando" + (!animLumo ? " lumo-sin-anim" : ""),
+											style: { zIndex: elemSeleccionado === "base" ? 30 : 15 },
 											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoFigura, {
 												estado: st,
 												tam: "clamp(220px, 45vmin, 520px)",
@@ -25601,7 +25608,8 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 												onStartDrag: iniciarArrastre,
 												onSelect: setElemSeleccionado,
 												editando: true,
-												anim: animLumo
+												anim: animLumo,
+												seleccionado: elemSeleccionado
 											})
 										}),
 										elemSeleccionado && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {

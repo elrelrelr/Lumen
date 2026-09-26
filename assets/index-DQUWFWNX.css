@@ -9753,11 +9753,30 @@ html[data-fuente-app='antigua'] textarea {
   max-height: 380px;
   overflow: hidden;
 }
+.lumo-figura,
+.lumo-figura svg,
+.lumo-scena svg,
+.lumo-scena-fullscreen svg {
+  overflow: visible !important;
+}
+.lumo-figura {
+  pointer-events: none;
+}
+.lumo-figura.lumo-editando [data-lumo-part],
+.lumo-figura [data-lumo-part] {
+  pointer-events: auto !important;
+  cursor: grab !important;
+}
+.lumo-figura.lumo-editando [data-lumo-part]:active,
+.lumo-figura.lumo-editando [data-lumo-part].dragging {
+  cursor: grabbing !important;
+}
+[data-lumo-part="base"].lumo-elem-selected,
 .lumo-elem-selected {
   outline: 2px dashed #f59e0b !important;
   outline-offset: 6px;
   border-radius: 16px;
-  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.45));
+  filter: drop-shadow(0 0 14px rgba(245, 158, 11, 0.55));
 }
 .lumo-moble.lumo-moble-selected {
   outline: 2px dashed #3b82f6 !important;
