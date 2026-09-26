@@ -9634,6 +9634,47 @@ html[data-fuente-app='antigua'] textarea {
   outline: 2px solid var(--accent, #60a78e);
   filter: drop-shadow(0 0 10px var(--accent, #60a78e)) brightness(1.15);
 }
+.lumo-moble.lumo-moble-editable {
+  pointer-events: auto !important;
+  cursor: grab !important;
+  touch-action: none;
+  user-select: none;
+  transition: filter 0.15s ease, outline 0.15s ease;
+}
+.lumo-moble.lumo-moble-editable:hover {
+  outline: 2px dashed var(--accent, #60a78e);
+  outline-offset: 4px;
+  border-radius: 10px;
+  filter: drop-shadow(0 0 8px var(--accent, #60a78e)) brightness(1.12);
+}
+.lumo-moble.lumo-moble-editable.dragging,
+.lumo-moble.lumo-moble-editable:active {
+  cursor: grabbing !important;
+  outline: 2px solid var(--accent, #60a78e);
+  filter: drop-shadow(0 0 14px var(--accent, #60a78e)) brightness(1.2);
+  z-index: 45 !important;
+}
+.lumo-moble-tag {
+  position: absolute;
+  bottom: -16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 8px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 50;
+  backdrop-filter: blur(4px);
+}
+.lumo-moble.lumo-moble-editable:hover .lumo-moble-tag {
+  opacity: 1;
+}
 
 /* ── Nube: botones de registro y URL que no se desborda ── */
 .nube-reg-btns {
