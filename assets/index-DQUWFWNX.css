@@ -9750,8 +9750,45 @@ html[data-fuente-app='antigua'] textarea {
   background: radial-gradient(circle at 50% 40%, rgba(96, 167, 142, 0.08), transparent 70%), var(--bg-soft, #14151b);
 }
 .lumo-scena.lumo-scena-preview {
-  max-height: 380px;
+  height: clamp(340px, 50vh, 480px);
+  min-height: 320px;
+  max-height: 520px;
   overflow: hidden;
+}
+.lumo-preview-guide-frame {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(92vw, 560px);
+  height: clamp(340px, 50vh, 480px);
+  max-height: 520px;
+  min-height: 320px;
+  border: 2px dashed var(--accent, #60a78e);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.45), 0 0 0 9999px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  z-index: 8;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 10px;
+  transition: opacity 0.2s ease;
+}
+.lumo-preview-guide-frame .lumo-guide-badge {
+  background: rgba(14, 18, 26, 0.92);
+  color: var(--accent, #60a78e);
+  border: 1px solid var(--accent, #60a78e);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 .lumo-figura,
 .lumo-figura svg,
@@ -9905,7 +9942,19 @@ html[data-fuente-app='antigua'] textarea {
 }
 @media (max-width: 640px) {
   .lumo-scena.lumo-scena-preview {
-    max-height: 290px;
+    height: clamp(300px, 44vh, 390px);
+    min-height: 280px;
+    max-height: 400px;
+  }
+  .lumo-preview-guide-frame {
+    width: min(94vw, 420px);
+    height: clamp(300px, 44vh, 390px);
+    min-height: 280px;
+    max-height: 400px;
+  }
+  .lumo-preview-guide-frame .lumo-guide-badge {
+    font-size: 10.5px;
+    padding: 3px 10px;
   }
   .lumo-guia {
     display: none !important;

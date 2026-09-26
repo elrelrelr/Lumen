@@ -24882,11 +24882,62 @@ var NOMBRES_MUEBLES = {
 	carro: "Coche",
 	radio: "Radio"
 };
+var FONDOS_TEMAS_PERSONAJE = {
+	abismo: "temas/abismo.jpg",
+	forja: "temas/forja.jpg",
+	cosmos: "temas/cosmos.jpg",
+	bosque: "temas/bosque.jpg",
+	pergamino: "temas/pergamino.jpg",
+	"nocturno-vig": "temas/nocturno.jpg",
+	arcano: "temas/arcano.jpg",
+	circuito: "temas/circuito.jpg",
+	sakura: "temas/floral.jpg",
+	imperial: "temas/imperial.jpg"
+};
+async function obtenerFondoTemaActual() {
+	let themeId = "nocturno";
+	try {
+		if (typeof document !== "undefined") {
+			themeId = document.documentElement.dataset.theme || "nocturno";
+		}
+	} catch {}
+
+	const fondoImgPath = FONDOS_TEMAS_PERSONAJE[themeId] || (typeof temaPersonaje === "function" ? temaPersonaje(themeId)?.fondo : null);
+	if (fondoImgPath) {
+		try {
+			const img = new Image();
+			img.src = fondoImgPath;
+			await new Promise((resolve) => {
+				if (img.complete && img.naturalWidth > 0) return resolve();
+				img.onload = () => resolve();
+				img.onerror = () => resolve();
+				setTimeout(resolve, 1500);
+			});
+			if (img.complete && img.naturalWidth > 0) {
+				return { tipo: "imagen", img, themeId };
+			}
+		} catch {}
+	}
+
+	let bg = "#10131a";
+	let bgSoft = "#171a24";
+	let accent = "#60a78e";
+	try {
+		if (typeof document !== "undefined") {
+			const rootCs = window.getComputedStyle(document.documentElement);
+			bg = (rootCs?.getPropertyValue("--bg") || bg).trim();
+			bgSoft = (rootCs?.getPropertyValue("--bg-soft") || bgSoft).trim();
+			accent = (rootCs?.getPropertyValue("--accent") || accent).trim();
+		}
+	} catch {}
+
+	return { tipo: "color", bg, bgSoft, accent, themeId };
+}
 async function capturarFotoCasaLumo(scenaEl, backgroundIcon) {
 	if (!scenaEl) return null;
 	const rect = scenaEl.getBoundingClientRect();
-	const width = Math.max(Math.round(rect.width), 360);
-	const height = Math.max(Math.round(rect.height), 240);
+	const width = Math.max(Math.round(rect.width), 480);
+	const height = Math.max(Math.round(rect.height), 320);
 	const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2, 2);
 	const canvas = document.createElement("canvas");
 	canvas.width = Math.round(width * dpr);
@@ -24894,27 +24945,72 @@ async function capturarFotoCasaLumo(scenaEl, backgroundIcon) {
 	const ctx = canvas.getContext("2d");
 	ctx.scale(dpr, dpr);
 
-	// 1. Fondo estético de la habitación limpia (pared, zócalo, suelo, iluminación ambiental)
-	const wallGrad = ctx.createLinearGradient(0, 0, 0, height);
-	wallGrad.addColorStop(0, "#1c1f2a");
-	wallGrad.addColorStop(0.66, "#141620");
-	wallGrad.addColorStop(0.66, "#181a24");
-	wallGrad.addColorStop(1, "#0d0e14");
-	ctx.fillStyle = wallGrad;
-	ctx.fillRect(0, 0, width, height);
+	// 1. Fondo estético de la habitación con el fondo del tema actual
+	const fondoTema = await obtenerFondoTemaActual();
+	if (fondoTema.tipo === "imagen" && fondoTema.img) {
+		const img = fondoTema.img;
+		const imgRatio = img.naturalWidth / img.naturalHeight;
+		const canvasRatio = width / height;
+		let sw, sh, sx, sy;
+		if (canvasRatio > imgRatio) {
+			sw = img.naturalWidth;
+			sh = img.naturalWidth / canvasRatio;
+			sx = 0;
+			sy = (img.naturalHeight - sh) / 2;
+		} else {
+			sh = img.naturalHeight;
+			sw = img.naturalHeight * canvasRatio;
+			sx = (img.naturalWidth - sw) / 2;
+			sy = 0;
+		}
+		ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
 
-	const rad = ctx.createRadialGradient(width / 2, height * 0.45, 10, width / 2, height * 0.45, width * 0.55);
-	rad.addColorStop(0, "rgba(96, 167, 142, 0.14)");
-	rad.addColorStop(0.6, "rgba(96, 167, 142, 0.03)");
-	rad.addColorStop(1, "rgba(0, 0, 0, 0.22)");
-	ctx.fillStyle = rad;
-	ctx.fillRect(0, 0, width, height);
+		// Degradado ambiental para integrar iluminación de habitación
+		const overlay = ctx.createLinearGradient(0, 0, 0, height);
+		overlay.addColorStop(0, "rgba(0, 0, 0, 0.26)");
+		overlay.addColorStop(0.68, "rgba(0, 0, 0, 0.40)");
+		overlay.addColorStop(1, "rgba(0, 0, 0, 0.65)");
+		ctx.fillStyle = overlay;
+		ctx.fillRect(0, 0, width, height);
+	} else {
+		let isLight = false;
+		if (fondoTema.bg.startsWith("#") && fondoTema.bg.length >= 7) {
+			const r = parseInt(fondoTema.bg.slice(1, 3), 16) || 0;
+			const g = parseInt(fondoTema.bg.slice(3, 5), 16) || 0;
+			const b = parseInt(fondoTema.bg.slice(5, 7), 16) || 0;
+			isLight = (r * 299 + g * 587 + b * 114) / 1000 > 170;
+		} else if (fondoTema.themeId === "sepia" || fondoTema.themeId === "light") {
+			isLight = true;
+		}
 
-	ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+		const wallGrad = ctx.createLinearGradient(0, 0, 0, height);
+		wallGrad.addColorStop(0, fondoTema.bgSoft || "#171a24");
+		wallGrad.addColorStop(0.68, fondoTema.bg || "#10131a");
+		wallGrad.addColorStop(0.68, isLight ? fondoTema.bgSoft : (fondoTema.bgSoft === fondoTema.bg ? "#161924" : fondoTema.bgSoft));
+		wallGrad.addColorStop(1, isLight ? "#dfd7c8" : "#080a0f");
+		ctx.fillStyle = wallGrad;
+		ctx.fillRect(0, 0, width, height);
+
+		const accentColor = fondoTema.accent || "#60a78e";
+		const rad = ctx.createRadialGradient(width / 2, height * 0.45, 15, width / 2, height * 0.45, width * 0.58);
+		if (accentColor.startsWith("#")) {
+			rad.addColorStop(0, `${accentColor}33`);
+			rad.addColorStop(0.6, `${accentColor}0a`);
+		} else {
+			rad.addColorStop(0, "rgba(96, 167, 142, 0.2)");
+			rad.addColorStop(0.6, "rgba(96, 167, 142, 0.04)");
+		}
+		rad.addColorStop(1, isLight ? "rgba(0, 0, 0, 0.08)" : "rgba(0, 0, 0, 0.35)");
+		ctx.fillStyle = rad;
+		ctx.fillRect(0, 0, width, height);
+	}
+
+	const isLight = fondoTema.themeId === "sepia" || fondoTema.themeId === "light";
+	ctx.strokeStyle = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.11)";
 	ctx.lineWidth = 1.5;
 	ctx.beginPath();
-	ctx.moveTo(0, height * 0.66);
-	ctx.lineTo(width, height * 0.66);
+	ctx.moveTo(0, height * 0.68);
+	ctx.lineTo(width, height * 0.68);
 	ctx.stroke();
 
 	if (backgroundIcon) {
@@ -24994,6 +25090,10 @@ async function capturarFotoCasaLumo(scenaEl, backgroundIcon) {
 	}
 
 	return canvas;
+}
+if (typeof window !== "undefined") {
+	window.__capturarFotoTest = capturarFotoCasaLumo;
+	window.__obtenerFondoTemaActual = obtenerFondoTemaActual;
 }
 var Mueble = ({ tipo, offsets, editando, seleccionado, onSelect, onStartDrag }) => {
 	const s = MOBLE_SLOTS[tipo];
@@ -25312,6 +25412,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	const [customOffsets, setCustomOffsets] = (0, import_react.useState)(() => obtenerLumoOffsets());
 	const [elemSeleccionado, setElemSeleccionado] = (0, import_react.useState)("base");
 	const [arrastrandoId, setArrastrandoId] = (0, import_react.useState)(null);
+	const [mostrarGuia, setMostrarGuia] = (0, import_react.useState)(true);
 	const [animLumo, setAnimLumo] = (0, import_react.useState)(() => {
 		try {
 			return localStorage.getItem("lumen_lumo_anim_active") !== "0";
@@ -25451,47 +25552,39 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		window.addEventListener("touchmove", onMove, { passive: false });
 		window.addEventListener("touchend", onUp);
 	};
-	const compartirCasaLumo = async () => {
+	const guardarFotoCasaLumo = async () => {
 		try {
 			const scenaEl = document.querySelector(".lumo-scena-fullscreen") || document.querySelector(".lumo-scena");
 			if (!scenaEl) return;
-			toast?.("📸 Tomando foto de la casa de Lumo...");
+			toast?.("📸 Generando foto en JPG con el tema actual...");
 			const cv = await capturarFotoCasaLumo(scenaEl, ICONO_BG[d?.equipped?.bg]);
 			if (!cv) {
 				toast?.("No se pudo generar la foto de la casa");
 				return;
 			}
-			let compartido = false;
-			try {
-				const nat = typeof window !== "undefined" ? window.AndroidShare : null;
-				if (nat && typeof nat.compartirImagen === "function") {
-					const datos = cv.toDataURL("image/png");
-					compartido = !!nat.compartirImagen(datos, "¡Mira la casa de Lumo en Lumen!");
-				}
-			} catch {}
-			if (!compartido && typeof navigator !== "undefined" && navigator.canShare) {
-				try {
-					const blob = await canvasToBlob(cv);
-					const file = new File([blob], `casa-lumo-${Date.now()}.png`, { type: "image/png" });
-					if (navigator.canShare({ files: [file] })) {
-						compartido = await navigator.share({
-							files: [file],
-							title: "La casa de Lumo",
-							text: "¡Mira la casa de Lumo en Lumen!"
-						}).then(() => true, () => false);
-					}
-				} catch {}
+			const filename = `casa-lumo-${Date.now()}.jpg`;
+			const blob = await new Promise((resolve) => cv.toBlob(resolve, "image/jpeg", 0.92));
+			if (!blob) {
+				toast?.("Error al exportar en formato JPG");
+				return;
 			}
-			if (!compartido) {
-				await downloadCanvas(cv, `casa-lumo-${Date.now()}.png`);
-			}
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = filename;
+			a.style.display = "none";
+			document.body.appendChild(a);
+			a.click();
+			a.remove();
+			setTimeout(() => URL.revokeObjectURL(url), 10000);
 			haptic$1?.tap?.();
-			toast?.("📸 ¡Foto de la casa de Lumo guardada!");
+			toast?.("📸 ¡Foto guardada en tu PC (JPG)!");
 		} catch (err) {
-			console.error("Error al compartir foto de Lumo:", err);
+			console.error("Error al guardar foto JPG de Lumo:", err);
 			toast?.("Error al guardar la foto");
 		}
 	};
+	const compartirCasaLumo = guardarFotoCasaLumo;
 	const timerRef = (0, import_react.useRef)(null);
 	const refrescar = (0, import_react.useCallback)(async () => {
 		const data = await cargarLumo();
@@ -25713,10 +25806,19 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											className: "lumo-edit-toolbar lumo-fs-actions",
 											children: [
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "lumo-edit-btn lumo-btn-compartir",
-													onClick: compartirCasaLumo,
-													title: "Tomar y compartir foto de la casa de Lumo limpia (sin botones)",
-													children: "📸 Compartir"
+													className: "lumo-edit-btn lumo-btn-compartir lumo-btn-guardar-jpg",
+													onClick: guardarFotoCasaLumo,
+													title: "Guardar foto limpia de la casa de Lumo en formato JPG con el tema actual",
+													children: "📸 Guardar JPG"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-edit-btn lumo-btn-guia" + (mostrarGuia ? " on" : ""),
+													onClick: () => {
+														setMostrarGuia((v) => !v);
+														haptic$1?.tap?.();
+													},
+													title: mostrarGuia ? "Ocultar guía de encuadre" : "Mostrar guía de encuadre de vista normal",
+													children: "📐 Guía"
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 													className: "lumo-edit-btn" + (animLumo ? " on" : ""),
@@ -25762,6 +25864,15 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "lumo-edit-badge",
 											children: "✏️ Arrastra o toca para ajustar el tamaño"
+										}),
+										mostrarGuia && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-preview-guide-frame",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "lumo-guide-badge",
+													children: "📐 Área visible en vista normal"
+												})
+											]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "lumo-selected-hud" + (arrastrandoId ? " lumo-hud-dragging" : ""),
@@ -25896,10 +26007,10 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											children: "🔄 Predeterminado"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn lumo-btn-compartir",
-											onClick: compartirCasaLumo,
-											title: "Tomar y compartir foto de la casa de Lumo limpia (sin botones)",
-											children: "📸 Compartir"
+											className: "lumo-edit-btn lumo-btn-compartir lumo-btn-guardar-jpg",
+											onClick: guardarFotoCasaLumo,
+											title: "Guardar foto limpia de la casa de Lumo en formato JPG con el tema actual",
+											children: "📸 Guardar JPG"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "lumo-edit-btn" + (animLumo ? " on" : ""),
