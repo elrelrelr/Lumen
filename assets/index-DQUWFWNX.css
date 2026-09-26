@@ -9676,6 +9676,195 @@ html[data-fuente-app='antigua'] textarea {
   opacity: 1;
 }
 
+/* ── Lumo v230: Editor Pantalla Completa y Escalado Libre ── */
+.lumo-editor-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 100000;
+  background: var(--bg-soft, #14151b);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: lumoFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes lumoFadeIn {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+.lumo-fs-topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  background: rgba(18, 20, 26, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  z-index: 100;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.lumo-fs-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.lumo-fs-badge {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--fg, #f3f4f6);
+}
+.lumo-fs-hint {
+  font-size: 11.5px;
+  color: var(--fg-dim, rgba(255, 255, 255, 0.6));
+}
+.lumo-fs-actions {
+  position: static !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.lumo-fs-close-btn {
+  position: static !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  margin-left: 6px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.lumo-scena.lumo-scena-fullscreen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  overflow: hidden !important;
+  border-radius: 0 !important;
+  border: none !important;
+  min-height: 0;
+  background: radial-gradient(circle at 50% 40%, rgba(96, 167, 142, 0.08), transparent 70%), var(--bg-soft, #14151b);
+}
+.lumo-scena.lumo-scena-preview {
+  max-height: 380px;
+  overflow: hidden;
+}
+.lumo-elem-selected {
+  outline: 2px dashed #f59e0b !important;
+  outline-offset: 6px;
+  border-radius: 16px;
+  filter: drop-shadow(0 0 12px rgba(245, 158, 11, 0.45));
+}
+.lumo-moble.lumo-moble-selected {
+  outline: 2px dashed #3b82f6 !important;
+  outline-offset: 6px;
+  border-radius: 10px;
+  filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.5));
+}
+.lumo-size-bar {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(22, 24, 32, 0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 8px 18px;
+  border-radius: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  max-width: 92vw;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: lumoFadeIn 0.15s ease-out;
+}
+.lumo-size-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: #fff;
+  letter-spacing: 0.3px;
+}
+.lumo-size-val {
+  background: var(--accent, #60a78e);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  font-weight: 800;
+}
+.lumo-size-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lumo-size-btn {
+  padding: 5px 11px;
+  font-size: 11.5px;
+  font-weight: 700;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.lumo-size-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+.lumo-size-btn:active {
+  transform: scale(0.96);
+}
+.lumo-size-slider {
+  width: 100px;
+  accent-color: var(--accent, #60a78e);
+  cursor: pointer;
+}
+@media (max-width: 640px) {
+  .lumo-scena.lumo-scena-preview {
+    max-height: 290px;
+  }
+  .lumo-guia {
+    display: none !important;
+  }
+  .lumo-barras {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    font-size: 11.5px !important;
+  }
+  .lumo-extra {
+    font-size: 11px !important;
+    padding: 6px 10px !important;
+    margin-top: 6px !important;
+  }
+  .lumo-size-bar {
+    bottom: 14px;
+    padding: 6px 12px;
+    gap: 8px;
+  }
+  .lumo-size-slider {
+    width: 75px;
+  }
+  .lumo-fs-topbar {
+    padding: 8px 12px;
+  }
+  .lumo-fs-hint {
+    display: none;
+  }
+}
+
 /* ── Nube: botones de registro y URL que no se desborda ── */
 .nube-reg-btns {
   display: flex;

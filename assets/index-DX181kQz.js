@@ -24866,16 +24866,38 @@ var MOBLE_SLOTS = {
 	painting: { left: "4%", top: "4%", w: "17%", z: 1 },
 	library: { right: "4%", top: "4%", w: "19%", z: 1 }
 };
-var Mueble = ({ tipo, offsets, editando, onStartDrag }) => {
+var NOMBRES_MUEBLES = {
+	plant: "Planta",
+	lamp: "Lámpara",
+	bookshelf: "Estantería",
+	rug: "Alfombra",
+	library: "Biblioteca",
+	trophy: "Trofeo",
+	globe: "Globo",
+	painting: "Cuadro",
+	guitarra: "Guitarra",
+	peluche: "Peluche",
+	acuario: "Acuario",
+	piano: "Piano",
+	carro: "Coche",
+	radio: "Radio"
+};
+var Mueble = ({ tipo, offsets, editando, seleccionado, onSelect, onStartDrag }) => {
 	const s = MOBLE_SLOTS[tipo];
 	if (!s) return null;
-	const off = (offsets && offsets["mueble_" + tipo]) || { x: 0, y: 0 };
-	const tr = (off.x || off.y) ? `translate(${off.x}px, ${off.y}px)` : void 0;
+	const off = (offsets && offsets["mueble_" + tipo]) || { x: 0, y: 0, scale: 1 };
+	const scale = off.scale || 1;
+	const trParts = [];
+	if (off.x || off.y) trParts.push(`translate(${off.x || 0}px, ${off.y || 0}px)`);
+	if (scale !== 1) trParts.push(`scale(${scale})`);
+	const tr = trParts.length ? trParts.join(" ") : void 0;
+	const isSel = editando && seleccionado === "mueble_" + tipo;
 	const st = {
 		position: "absolute",
-		zIndex: editando ? s.z + 10 : s.z,
+		zIndex: isSel ? s.z + 20 : editando ? s.z + 10 : s.z,
 		width: s.w,
 		transform: tr,
+		transformOrigin: "bottom center",
 		cursor: editando ? "grab" : "default",
 		pointerEvents: editando ? "auto" : "none",
 		touchAction: editando ? "none" : "auto",
@@ -24886,15 +24908,19 @@ var Mueble = ({ tipo, offsets, editando, onStartDrag }) => {
 	if (s.right != null) st.right = s.right;
 	else st.left = s.left;
 	return lumoJ("div", {
-		className: "lumo-moble" + (editando ? " lumo-moble-editable" : ""),
+		className: "lumo-moble" + (editando ? " lumo-moble-editable" : "") + (isSel ? " lumo-moble-selected" : ""),
 		"data-lumo-mueble": tipo,
 		style: st,
-		onPointerDown: editando && onStartDrag ? (e) => onStartDrag(e, "mueble_" + tipo) : void 0,
+		onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect("mueble_" + tipo); } : void 0,
+		onPointerDown: editando && onStartDrag ? (e) => {
+			if (onSelect) onSelect("mueble_" + tipo);
+			onStartDrag(e, "mueble_" + tipo);
+		} : void 0,
 		children: [
 			MUEBLES_SVG[tipo] ? MUEBLES_SVG[tipo]() : null,
 			editando && lumoJ("span", {
 				className: "lumo-moble-tag",
-				children: tipo
+				children: (NOMBRES_MUEBLES[tipo] || tipo) + (scale !== 1 ? ` · ${Math.round(scale * 100)}%` : "")
 			})
 		]
 	});
@@ -24945,27 +24971,37 @@ function resetearLumoOffsets() {
 		};
 	} catch {}
 }
-var LumoOso = ({ estado, eq, offsets, onStartDrag, editando, anim }) => {
+var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim }) => {
 	const eq2 = eq || {};
 	const celebrando = estado === "celebrando";
 	const leyendo = estado === "leyendo";
 	const dormido = estado === "durmiendo" || estado === "hibernando";
 	const currentOffsets = offsets || obtenerLumoOffsets();
-	const baseOff = currentOffsets["base"] || { x: 0, y: 0 };
+	const baseOff = currentOffsets["base"] || { x: 0, y: 0, scale: 1 };
+	const baseScale = baseOff.scale || 1;
 	const wrapPart = (partId, element) => {
 		if (!element) return null;
-		const off = currentOffsets[partId] || { x: 0, y: 0 };
+		const off = currentOffsets[partId] || { x: 0, y: 0, scale: 1 };
 		const totalX = partId === "base" ? off.x : (baseOff.x + off.x);
 		const totalY = partId === "base" ? off.y : (baseOff.y + off.y);
-		const tr = (totalX || totalY) ? `translate(${totalX}px, ${totalY}px)` : void 0;
+		const partScale = partId === "base" ? baseScale : (off.scale || 1);
+		const trParts = [];
+		if (totalX || totalY) trParts.push(`translate(${totalX}px, ${totalY}px)`);
+		if (partScale !== 1) trParts.push(`scale(${partScale})`);
+		const tr = trParts.length ? trParts.join(" ") : void 0;
 		return lumoJ("g", {
 			"data-lumo-part": partId,
 			style: {
 				transform: tr,
+				transformOrigin: "135px 135px",
 				cursor: editando ? "grab" : void 0,
 				pointerEvents: editando ? "auto" : "none"
 			},
-			onPointerDown: editando && onStartDrag ? (e) => onStartDrag(e, partId) : void 0,
+			onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect(partId); } : void 0,
+			onPointerDown: editando && onStartDrag ? (e) => {
+				if (onSelect) onSelect(partId);
+				onStartDrag(e, partId);
+			} : void 0,
 			children: partId === "base" ? [
 				editando && lumoJ("rect", {
 					x: 0,
@@ -25021,7 +25057,7 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, editando, anim }) => {
 		]
 	});
 };
-var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, editando, anim }) => {
+var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, onSelect, editando, anim }) => {
 	const animActive = anim !== void 0 ? anim : (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_lumo_anim_active") !== "0" : true);
 	const animClass = !animActive ? "lumo-sin-anim" : (estado === "durmiendo" || estado === "hibernando" ? "lumo-anim-dormir" : estado === "feliz" || estado === "celebrando" ? "lumo-anim-celebrar" : estado === "leyendo" ? "lumo-anim-leer" : estado === "cansado" ? "lumo-anim-cansado" : "lumo-anim-idle");
 	return lumoJ("div", {
@@ -25035,6 +25071,7 @@ var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, editando, anim }) => 
 			eq,
 			offsets,
 			onStartDrag,
+			onSelect,
 			editando,
 			anim: animActive
 		})
@@ -25151,6 +25188,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	const [logros, setLogros] = (0, import_react.useState)([]);
 	const [editandoPos, setEditandoPos] = (0, import_react.useState)(false);
 	const [customOffsets, setCustomOffsets] = (0, import_react.useState)(() => obtenerLumoOffsets());
+	const [elemSeleccionado, setElemSeleccionado] = (0, import_react.useState)("base");
 	const [animLumo, setAnimLumo] = (0, import_react.useState)(() => {
 		try {
 			return localStorage.getItem("lumen_lumo_anim_active") !== "0";
@@ -25179,8 +25217,40 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	const handleResetOffsets = () => {
 		resetearLumoOffsets();
 		setCustomOffsets({});
+		setElemSeleccionado("base");
 		haptic$1?.tap?.();
-		toast?.("Posiciones restablecidas al diseño predeterminado");
+		toast?.("Diseño y tamaños restablecidos al valor predeterminado");
+	};
+	const cambiarTamano = (id, delta) => {
+		if (!id) return;
+		setCustomOffsets((cur) => {
+			const prev = cur[id] || { x: 0, y: 0, scale: 1 };
+			const prevScale = prev.scale || 1;
+			const newScale = Math.round(Math.max(0.4, Math.min(2.5, prevScale + delta)) * 100) / 100;
+			const next = { ...cur, [id]: { ...prev, scale: newScale } };
+			guardarLumoOffsets(next);
+			return next;
+		});
+		haptic$1?.tap?.();
+	};
+	const fijarTamano = (id, val) => {
+		if (!id) return;
+		const newScale = Math.round(Math.max(0.4, Math.min(2.5, val)) * 100) / 100;
+		setCustomOffsets((cur) => {
+			const prev = cur[id] || { x: 0, y: 0, scale: 1 };
+			const next = { ...cur, [id]: { ...prev, scale: newScale } };
+			guardarLumoOffsets(next);
+			return next;
+		});
+	};
+	const getNombreElemento = (id) => {
+		if (!id) return "";
+		if (id === "base") return "🐻 Lumo";
+		if (id.startsWith("mueble_")) {
+			const tipo = id.replace("mueble_", "");
+			return (NOMBRES_MUEBLES[tipo] || tipo);
+		}
+		return id;
 	};
 	const handleToggleAnim = () => {
 		const next = !animLumo;
@@ -25195,6 +25265,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		if (!editandoPos) return;
 		e.preventDefault();
 		e.stopPropagation();
+		setElemSeleccionado(partId);
 		const isSvgPart = !partId.startsWith("mueble_");
 		let scale = 1;
 		if (isSvgPart) {
@@ -25204,14 +25275,14 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		}
 		const startX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
 		const startY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
-		const orig = customOffsets[partId] || { x: 0, y: 0 };
+		const orig = customOffsets[partId] || { x: 0, y: 0, scale: 1 };
 		let cur = { ...orig };
 		const onMove = (ev) => {
 			const cx = ev.clientX ?? (ev.touches && ev.touches[0]?.clientX) ?? startX;
 			const cy = ev.clientY ?? (ev.touches && ev.touches[0]?.clientY) ?? startY;
 			const dx = Math.round((cx - startX) * scale);
 			const dy = Math.round((cy - startY) * scale);
-			cur = { x: orig.x + dx, y: orig.y + dy };
+			cur = { ...orig, x: orig.x + dx, y: orig.y + dy };
 			setCustomOffsets((prev) => ({
 				...prev,
 				[partId]: cur
@@ -25433,24 +25504,179 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 				tab === "mascota" && d && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "lumo-mascota",
 					children: [
+						editandoPos && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "lumo-editor-fullscreen",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "lumo-fs-topbar",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-fs-title",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "lumo-fs-badge",
+													children: "✏️ Habitación de Lumo"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "lumo-fs-hint",
+													children: "Arrastra y ajusta el tamaño de cualquier elemento"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-edit-toolbar lumo-fs-actions",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-edit-btn" + (animLumo ? " on" : ""),
+													onClick: handleToggleAnim,
+													title: animLumo ? "Desactivar animaciones de Lumo" : "Activar animaciones de Lumo",
+													children: animLumo ? "✨ Animado" : "⏸️ Estático"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-edit-btn",
+													onClick: handleResetOffsets,
+													title: "Volver al diseño predeterminado",
+													children: "🔄 Predeterminado"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-edit-btn lumo-edit-btn-save on",
+													onClick: () => {
+														setEditandoPos(false);
+														haptic$1?.tap?.();
+														toast?.("¡Diseño guardado! ✓");
+													},
+													title: "Guardar cambios y volver",
+													children: "✓ Guardar"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-close lumo-fs-close-btn",
+													onClick: () => {
+														setEditandoPos(false);
+														haptic$1?.tap?.();
+													},
+													title: "Salir de pantalla completa",
+													"aria-label": "Salir",
+													children: "✕"
+												})
+											]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "lumo-scena lumo-scena-fullscreen",
+									style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
+									onClick: () => setElemSeleccionado("base"),
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "lumo-edit-badge",
+											children: "✏️ Arrastra o toca para ajustar el tamaño"
+										}),
+										ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											style: {
+												fontSize: "clamp(80px, 20vmin, 220px)",
+												position: "absolute",
+												inset: 0,
+												display: "grid",
+												placeItems: "center",
+												opacity: .25,
+												zIndex: 0
+											},
+											children: ICONO_BG[d.equipped.bg]
+										}),
+										(d.room || []).map((tipo) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mueble, {
+											tipo,
+											offsets: customOffsets,
+											editando: true,
+											seleccionado: elemSeleccionado,
+											onSelect: setElemSeleccionado,
+											onStartDrag: iniciarArrastre
+										}, tipo)),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "lumo-figura lumo-editando" + (!animLumo ? " lumo-sin-anim" : "") + (elemSeleccionado === "base" ? " lumo-elem-selected" : ""),
+											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoFigura, {
+												estado: st,
+												tam: "clamp(220px, 45vmin, 520px)",
+												eq: d.equipped,
+												offsets: customOffsets,
+												onStartDrag: iniciarArrastre,
+												onSelect: setElemSeleccionado,
+												editando: true,
+												anim: animLumo
+											})
+										}),
+										elemSeleccionado && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-size-bar",
+											onClick: (e) => e.stopPropagation(),
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "lumo-size-info",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "lumo-size-name",
+															children: getNombreElemento(elemSeleccionado)
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "lumo-size-val",
+															children: `${Math.round(((customOffsets[elemSeleccionado] && customOffsets[elemSeleccionado].scale) || 1) * 100)}%`
+														})
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "lumo-size-controls",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															className: "lumo-size-btn",
+															onClick: () => cambiarTamano(elemSeleccionado, -0.1),
+															title: "Reducir tamaño",
+															children: "🔍− Reducir"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+															type: "range",
+															min: "40",
+															max: "250",
+															step: "5",
+															value: Math.round(((customOffsets[elemSeleccionado] && customOffsets[elemSeleccionado].scale) || 1) * 100),
+															onChange: (e) => fijarTamano(elemSeleccionado, Number(e.target.value) / 100),
+															className: "lumo-size-slider",
+															"aria-label": "Tamaño de elemento"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															className: "lumo-size-btn",
+															onClick: () => cambiarTamano(elemSeleccionado, 0.1),
+															title: "Aumentar tamaño",
+															children: "🔍+ Agrandar"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															className: "lumo-size-btn",
+															onClick: () => fijarTamano(elemSeleccionado, 1),
+															title: "Restablecer a 100%",
+															children: "↺ 100%"
+														})
+													]
+												})
+											]
+										})
+									]
+								})
+							]
+						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "lumo-scena",
+							className: "lumo-scena lumo-scena-preview",
 							style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "lumo-edit-toolbar",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn" + (editandoPos ? " on" : ""),
+											className: "lumo-edit-btn lumo-edit-btn-main",
 											onClick: () => {
-												const sig = !editandoPos;
-												setEditandoPos(sig);
+												setEditandoPos(true);
+												setElemSeleccionado("base");
 												haptic$1?.tap?.();
-												if (sig) toast?.("Modo edición: arrastra cualquier elemento de Lumo para ubicarlo");
-												else toast?.("Posición guardada");
+												toast?.("Pantalla completa: mueve y ajusta el tamaño de cualquier elemento");
 											},
-											title: editandoPos ? "Terminar edición" : "Arrastrar y acomodar elementos",
-											children: editandoPos ? "✓ Guardar" : "✏️ Editar"
+											title: "Personalizar habitación en pantalla completa",
+											children: "✏️ Editar"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "lumo-edit-btn",
@@ -25465,10 +25691,6 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											children: animLumo ? "✨ Animado" : "⏸️ Estático"
 										})
 									]
-								}),
-								editandoPos && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "lumo-edit-badge",
-									children: "✏️ Arrastra a Lumo, muebles o accesorios"
 								}),
 								ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									style: {
@@ -25485,18 +25707,16 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 								(d.room || []).map((tipo) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mueble, {
 									tipo,
 									offsets: customOffsets,
-									editando: editandoPos,
-									onStartDrag: iniciarArrastre
+									editando: false
 								}, tipo)),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "lumo-figura" + (editandoPos ? " lumo-editando" : "") + (!animLumo ? " lumo-sin-anim" : ""),
+									className: "lumo-figura" + (!animLumo ? " lumo-sin-anim" : ""),
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoFigura, {
 										estado: st,
-										tam: "clamp(190px, 40vmin, 430px)",
+										tam: "clamp(180px, 36vmin, 380px)",
 										eq: d.equipped,
 										offsets: customOffsets,
-										onStartDrag: iniciarArrastre,
-										editando: editandoPos,
+										editando: false,
 										anim: animLumo
 									})
 								})
@@ -25507,18 +25727,15 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [
 								etapa.icon,
 								" Lumo"
-							] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "lumo-frase",
-								children: [
-									st === "hibernando" && "Zzz… Lumo está hibernando. Vuelve a leer para despertarlo 💤",
-									st === "durmiendo" && "Lumo está dormidito. Un rato de lectura lo llena de energía 😴",
-									st === "cansado" && "Lumo tiene poca energía. ¡Lee un poco para recargarlo! ⚡",
-									st === "leyendo" && "¡Lumo está leyendo contigo! 📖 Me encanta que leamos juntos.",
-									st === "feliz" && "Lumo está súper feliz. ¡Gracias por leer! 🎉",
-									st === "triste" && "Lumo te extraña un poquito. Unos minutos de lectura lo alegran 💛",
-									st === "celebrando" && "¡Lumo está celebrando! 🥳",
-									st === "normal" && "¡Hola! Soy Lumo, tu compañero de lectura 🐻"
-								]
+								children: st === "hibernando" ? "Zzz… Lumo está hibernando 💤" :
+									st === "durmiendo" ? "Lumo está dormidito. Lee un poco para recargarlo 😴" :
+									st === "cansado" ? "Lumo tiene poca energía. ¡Lee para recargarlo! ⚡" :
+									st === "leyendo" ? "¡Lumo está leyendo contigo! 📖" :
+									st === "feliz" ? "Lumo está súper feliz 🎉" :
+									st === "celebrando" ? "¡Lumo está celebrando! 🥳" :
+									"¡Hola! Soy Lumo, tu compañero 🐻"
 							})]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -25531,7 +25748,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											className: "lumo-bar-ic",
 											children: "⭐"
 										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["XP"] }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "XP" }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 											className: "lumo-bar-v",
 											children: [d.xp, " XP"]
@@ -25573,7 +25790,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Racha" }),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 											className: "lumo-bar-v",
-											children: [d.streak.days, " día(s)"]
+											children: [d.streak.days, " d"]
 										})
 									]
 								}),
@@ -25596,11 +25813,11 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "lumo-extra",
 							children: [
-								"📖 Páginas leídas: ",
+								"📖 Páginas: ",
 								d.pagesRead,
-								" · ⏱ Minutos: ",
+								" · ⏱️ Minutos: ",
 								d.minutesRead,
-								" · 📚 Libros: ",
+								" · 🏆 Libros: ",
 								d.booksFinished
 							]
 						}),
@@ -37407,7 +37624,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v229"
+							children: "v230"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -39595,7 +39812,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v229 · escritorio y móvil"
+					children: "Lumen Reader · v230 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -44287,6 +44504,89 @@ async function extraerImagenesDeLibro(b) {
 	}
 	return imgs;
 }
+async function renderPaginaLibroACanvas(b, i, targetW = 850) {
+	if (!b) return { url: null, canvas: null };
+	const pg = await getPage(b.id, i).catch(() => null);
+	const texto = (pg?.text || "").trim();
+	if (i === 0 && b.cover && (!texto || texto.length < 80)) {
+		return { url: b.cover, canvas: null };
+	}
+	const canvas = document.createElement("canvas");
+	const W = Math.max(750, Math.min(1200, targetW || 850));
+	const H = Math.round(W * 1.414);
+	canvas.width = W;
+	canvas.height = H;
+	const ctx = canvas.getContext("2d");
+	if (!ctx) return { url: null, canvas: null };
+	ctx.fillStyle = "#faf8f5";
+	ctx.fillRect(0, 0, W, H);
+	ctx.strokeStyle = "rgba(0,0,0,0.06)";
+	ctx.lineWidth = 1;
+	ctx.strokeRect(20, 20, W - 40, H - 40);
+	const headerY = Math.round(H * 0.055);
+	ctx.textAlign = "center";
+	ctx.fillStyle = "#807b72";
+	ctx.font = `italic ${Math.round(W * 0.016)}px Georgia, Cambria, serif`;
+	const tit = (b.title || "Lumen").toUpperCase().slice(0, 50);
+	ctx.fillText(tit, W / 2, headerY);
+	ctx.beginPath();
+	ctx.moveTo(W / 2 - 130, headerY + 12);
+	ctx.lineTo(W / 2 + 130, headerY + 12);
+	ctx.strokeStyle = "rgba(0,0,0,0.08)";
+	ctx.stroke();
+	const marginX = Math.round(W * 0.09);
+	const maxWidth = W - marginX * 2;
+	const fontSize = Math.round(W * 0.029);
+	const lineHeight = Math.round(fontSize * 1.6);
+	let curY = Math.round(H * 0.11);
+	const maxY = H - Math.round(H * 0.08);
+	ctx.textAlign = "left";
+	ctx.fillStyle = "#24221f";
+	ctx.font = `${fontSize}px Georgia, Cambria, "Times New Roman", serif`;
+	if (texto) {
+		const paras = texto.split(/\n+/);
+		for (let pIdx = 0; pIdx < paras.length; pIdx++) {
+			const p = paras[pIdx].trim();
+			if (!p) continue;
+			const words = p.split(/\s+/);
+			let line = "";
+			let isFirst = true;
+			for (let n = 0; n < words.length; n++) {
+				const w = words[n];
+				const test = line ? line + " " + w : (isFirst && paras.length > 1 ? "   " : "") + w;
+				if (ctx.measureText(test).width > maxWidth && n > 0) {
+					ctx.fillText(line, marginX, curY);
+					line = w;
+					curY += lineHeight;
+					isFirst = false;
+					if (curY > maxY) break;
+				} else {
+					line = test;
+				}
+			}
+			if (line && curY <= maxY) {
+				ctx.fillText(line, marginX, curY);
+				curY += lineHeight;
+			}
+			curY += Math.round(lineHeight * 0.35);
+			if (curY > maxY) break;
+		}
+	} else {
+		ctx.textAlign = "center";
+		ctx.fillStyle = "#99948a";
+		ctx.font = `italic ${Math.round(fontSize * 0.9)}px Georgia, serif`;
+		ctx.fillText("— Página sin texto —", W / 2, H / 2);
+	}
+	ctx.textAlign = "center";
+	ctx.fillStyle = "#8a857b";
+	ctx.font = `${Math.round(W * 0.017)}px Georgia, Cambria, serif`;
+	ctx.fillText(`— ${i + 1} —`, W / 2, H - Math.round(H * 0.04));
+	let url = null;
+	try {
+		url = canvas.toDataURL("image/jpeg", 0.88);
+	} catch {}
+	return { url, canvas };
+}
 function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFarewell, onOpenGuardados }) {
 	const [book, setBook] = (0, import_react.useState)(null);
 	const [page, setPage] = (0, import_react.useState)(0);
@@ -45303,17 +45603,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 						});
 					}
 				} else {
-					// Formatos no-PDF (epub, docx, md, txt, etc.): extraer imágenes
-					const lista = await extraerImagenesDeLibro(book);
+					// Formatos no-PDF (epub, docx, md, txt, etc.): renderizar la página como imagen/canvas individual
+					const res = await renderPaginaLibroACanvas(book, page);
 					if (cancelled || !mounted.current) return;
-					if (lista && lista.length > 0) {
-						const u = lista[page % lista.length] || lista[0];
-						setImgUrl(u);
-						setOrigImgs((prev) => {
-							const n = { ...prev };
-							lista.forEach((src, idx) => { n[idx] = src; });
-							return n;
-						});
+					if (res.canvas) setCanvasEl(res.canvas);
+					if (res.url) {
+						setImgUrl(res.url);
+						setOrigImgs((prev) => ({ ...prev, [page]: res.url }));
 					} else {
 						setImgUrl(null);
 					}
@@ -47004,10 +47300,8 @@ const docPedir = (desde, hasta, centroArg) => {
 						const c = await renderPageToCanvas(doc, i + 1, 900, 2);
 						url = c.toDataURL("image/jpeg", .7);
 					} else {
-						const lista = await extraerImagenesDeLibro(book);
-						if (lista && lista.length > 0) {
-							url = lista[i % lista.length] || lista[0];
-						}
+						const res = await renderPaginaLibroACanvas(book, i, 900);
+						url = res.url;
 					}
 					if (url && vivo) setOrigImgs((m) => ({ ...m, [i]: url }));
 				} catch {}
@@ -48899,7 +49193,7 @@ const docPedir = (desde, hasta, centroArg) => {
 						children: renderingOriginal ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "center-msg",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
-						}) : book.kind === "pdf" && canvasEl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CanvasHost, { canvas: canvasEl }) : (book.kind === "image" || imgUrl) && imgUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+						}) : canvasEl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CanvasHost, { canvas: canvasEl }) : imgUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 							src: imgUrl,
 							alt: "Original"
 						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
