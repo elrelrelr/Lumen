@@ -9427,7 +9427,44 @@ html[data-fuente-app='antigua'] textarea {
   object-fit: contain;
   -webkit-user-drag: none;
   filter: drop-shadow(0 5px 12px rgba(0,0,0,.35));
-  animation: lumoIdle 4s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+.sw-lumo-tarjeta:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso:not(.lumo-sin-anim) img,
+.sw-lumo-oso:not(.lumo-sin-anim) svg {
+  animation: lumoBreath 3.2s ease-in-out infinite;
+}
+.sw-lumo-tarjeta.lumo-anim-leer:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-anim-leer:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-anim-leer:not(.lumo-sin-anim) img,
+.sw-lumo-oso.lumo-anim-leer:not(.lumo-sin-anim) svg {
+  animation: lumoTilt 4.2s ease-in-out infinite;
+}
+.sw-lumo-tarjeta.lumo-anim-celebrar:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-anim-celebrar:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-anim-celebrar:not(.lumo-sin-anim) img,
+.sw-lumo-oso.lumo-anim-celebrar:not(.lumo-sin-anim) svg {
+  animation: lumoCheer 1.4s ease-in-out infinite;
+}
+.sw-lumo-tarjeta.lumo-anim-dormir:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-anim-dormir:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-anim-dormir:not(.lumo-sin-anim) img,
+.sw-lumo-oso.lumo-anim-dormir:not(.lumo-sin-anim) svg {
+  animation: lumoDormir 4.2s ease-in-out infinite;
+  filter: brightness(.92);
+}
+.sw-lumo-tarjeta.lumo-anim-feliz:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-anim-feliz:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-anim-feliz:not(.lumo-sin-anim) img,
+.sw-lumo-oso.lumo-anim-feliz:not(.lumo-sin-anim) svg {
+  animation: lumoDance 2.6s ease-in-out infinite;
+}
+.sw-lumo-tarjeta.lumo-anim-cansado:not(.lumo-sin-anim) .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-anim-cansado:not(.lumo-sin-anim) .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-anim-cansado:not(.lumo-sin-anim) img,
+.sw-lumo-oso.lumo-anim-cansado:not(.lumo-sin-anim) svg {
+  animation: lumoSad 3.8s ease-in-out infinite;
 }
 .sw-lumo-barras { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .sw-lumo-fila { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--fg); }
@@ -9457,43 +9494,145 @@ html[data-fuente-app='antigua'] textarea {
   text-overflow: ellipsis;
 }
 
-/* ── Animaciones de la FIGURA de Lumo (imagen real) ── */
+/* ── Animaciones de la FIGURA de Lumo (Motion Kit v2) ── */
 .lumo-figura {
   display: grid;
   place-items: center;
+  position: relative;
 }
-.lumo-figura img {
+.lumo-figura img, .lumo-figura svg {
   width: 100%;
   height: 100%;
   object-fit: contain;
   image-rendering: auto;
   -webkit-user-drag: none;
+  transform-origin: 50% 90%;
 }
-.lumo-anim-idle img, .lumo-anim-idle svg { animation: lumoIdle 4s ease-in-out infinite; }
-.lumo-anim-leer img, .lumo-anim-leer svg { animation: lumoLeer 6s ease-in-out infinite; }
-.lumo-anim-celebrar img, .lumo-anim-celebrar svg { animation: lumoCelebrar 1.1s ease-in-out infinite; }
-.lumo-anim-dormir img, .lumo-anim-dormir svg { animation: lumoDormir 4s ease-in-out infinite; filter: brightness(.92); }
+.lumo-anim-idle:not(.lumo-sin-anim) img, .lumo-anim-idle:not(.lumo-sin-anim) svg { animation: lumoBreath 3.2s ease-in-out infinite; }
+.lumo-anim-leer:not(.lumo-sin-anim) img, .lumo-anim-leer:not(.lumo-sin-anim) svg { animation: lumoTilt 4.2s ease-in-out infinite; }
+.lumo-anim-celebrar:not(.lumo-sin-anim) img, .lumo-anim-celebrar:not(.lumo-sin-anim) svg { animation: lumoCheer 1.4s ease-in-out infinite; }
+.lumo-anim-dormir:not(.lumo-sin-anim) img, .lumo-anim-dormir:not(.lumo-sin-anim) svg { animation: lumoDormir 4.2s ease-in-out infinite; filter: brightness(.92); }
+.lumo-anim-feliz:not(.lumo-sin-anim) img, .lumo-anim-feliz:not(.lumo-sin-anim) svg { animation: lumoDance 2.6s ease-in-out infinite; }
+.lumo-anim-cansado:not(.lumo-sin-anim) img, .lumo-anim-cansado:not(.lumo-sin-anim) svg { animation: lumoSad 3.8s ease-in-out infinite; }
 
-@keyframes lumoIdle {
-  0%, 100% { transform: translateY(0) rotate(0); }
-  50% { transform: translateY(-5px) rotate(-1.5deg); }
+@keyframes lumoBreath {
+  0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+  35% { transform: translateY(-3.5px) scale(1.018, 1.012) rotate(-0.5deg); }
+  68% { transform: translateY(-1.5px) scale(1.008, 1.006) rotate(0.4deg); }
 }
-@keyframes lumoLeer {
-  0%, 60%, 100% { transform: translateY(0) rotate(0); }
-  30% { transform: translateY(-3px) rotate(1deg); }
+@keyframes lumoTilt {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  38% { transform: translateY(-2.5px) rotate(3.5deg); }
+  72% { transform: translateY(-1px) rotate(-1deg); }
 }
-@keyframes lumoCelebrar {
+@keyframes lumoCheer {
   0%, 100% { transform: translateY(0) scale(1); }
-  30% { transform: translateY(-12px) scale(1.06); }
-  60% { transform: translateY(-6px) scale(1.03) rotate(-3deg); }
+  18% { transform: scale(.95, .93) translateY(3px); }
+  42% { transform: scale(1.06, 1.05) translateY(-14px) rotate(-2.5deg); }
+  70% { transform: translateY(-4px) scale(1.02) rotate(2deg); }
+}
+@keyframes lumoDance {
+  0%, 100% { transform: rotate(-3.5deg) translateY(0); }
+  50% { transform: rotate(4deg) translateY(-6px); }
 }
 @keyframes lumoDormir {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.03) translateY(2px); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(2.5px) scale(1.025, 0.985); }
 }
+@keyframes lumoSad {
+  0%, 100% { transform: rotate(-2.5deg) translateY(2px); }
+  50% { transform: rotate(0deg) translateY(0); }
+}
+
+.lumo-sin-anim img,
+.lumo-sin-anim svg,
+.lumo-sin-anim .sw-lumo-oso img,
+.lumo-sin-anim .sw-lumo-oso svg,
+.sw-lumo-tarjeta.lumo-sin-anim .sw-lumo-oso img,
+.sw-lumo-tarjeta.lumo-sin-anim .sw-lumo-oso svg,
+.sw-lumo-oso.lumo-sin-anim img,
+.sw-lumo-oso.lumo-sin-anim svg {
+  animation: none !important;
+  transform: none !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lumo-anim-idle img, .lumo-anim-idle svg, .lumo-anim-leer img, .lumo-anim-leer svg,
-  .lumo-anim-celebrar img, .lumo-anim-celebrar svg, .lumo-anim-dormir img, .lumo-anim-dormir svg { animation: none; }
+  .lumo-anim-celebrar img, .lumo-anim-celebrar svg, .lumo-anim-dormir img, .lumo-anim-dormir svg,
+  .lumo-anim-feliz img, .lumo-anim-feliz svg, .lumo-anim-cansado img, .lumo-anim-cansado svg,
+  .sw-lumo-oso img, .sw-lumo-oso svg, .lumo-figura img, .lumo-figura svg {
+    animation: none !important;
+  }
+}
+
+/* ── Modo Edición y Reubicación de Lumo y Accesorios en lumo-figura ── */
+.lumo-scena {
+  position: relative;
+  overflow: hidden;
+}
+.lumo-edit-toolbar {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 6px;
+  z-index: 25;
+}
+.lumo-edit-btn {
+  background: var(--bg-elev, rgba(30, 30, 35, 0.85));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--line);
+  color: var(--fg);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.lumo-edit-btn:hover {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.15));
+  transform: translateY(-1px);
+}
+.lumo-edit-btn.on {
+  background: var(--accent, #60a78e);
+  color: #fff;
+  border-color: var(--accent, #60a78e);
+}
+.lumo-edit-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: var(--accent, #60a78e);
+  color: #fff;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  z-index: 25;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  pointer-events: none;
+}
+.lumo-figura.lumo-editando [data-lumo-part] {
+  cursor: grab !important;
+  pointer-events: auto !important;
+  touch-action: none;
+}
+.lumo-figura.lumo-editando [data-lumo-part]:hover {
+  outline: 2px dashed var(--accent, #60a78e);
+  outline-offset: 3px;
+  filter: drop-shadow(0 0 5px var(--accent, #60a78e)) brightness(1.08);
+}
+.lumo-figura.lumo-editando [data-lumo-part].dragging {
+  cursor: grabbing !important;
+  outline: 2px solid var(--accent, #60a78e);
+  filter: drop-shadow(0 0 10px var(--accent, #60a78e)) brightness(1.15);
 }
 
 /* ── Nube: botones de registro y URL que no se desborda ── */
@@ -10892,8 +11031,8 @@ html[data-fuente-app='antigua'] textarea {
   .sidebar {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    width: 236px;
+    gap: 3px;
+    width: 248px;
     flex-shrink: 0;
     position: sticky;
     top: 0;
@@ -10901,23 +11040,23 @@ html[data-fuente-app='antigua'] textarea {
     overflow-y: auto;
     background: var(--bg-soft);
     border-right: 1px solid var(--line);
-    padding: 20px 12px 28px;
+    padding: 22px 14px 28px;
   }
   .side-label {
-    font-size: 10.5px;
+    font-size: 11.5px;
     font-weight: 800;
     letter-spacing: 0.09em;
     text-transform: uppercase;
     color: var(--fg-mute);
-    margin: 14px 12px 5px;
+    margin: 16px 12px 6px;
   }
   .side-item {
     display: flex;
     align-items: center;
-    gap: 11px;
-    padding: 9px 12px;
+    gap: 13px;
+    padding: 10px 14px;
     border-radius: 12px;
-    font-size: 13.5px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--fg);
     width: 100%;
@@ -10932,15 +11071,15 @@ html[data-fuente-app='antigua'] textarea {
     color: var(--accent);
   }
   .side-ico {
-    font-size: 17px;
-    width: 22px;
+    font-size: 20px;
+    width: 26px;
     text-align: center;
     flex-shrink: 0;
   }
   .side-pie {
     margin-top: auto;
-    padding: 16px 12px 0;
-    font-size: 10.5px;
+    padding: 18px 12px 0;
+    font-size: 11.5px;
     color: var(--fg-mute);
     line-height: 1.5;
     border-top: 1px solid var(--line);
@@ -13843,22 +13982,7 @@ mark.find-flash {
   }
 }
 .sidebar-pos-btn {
-  background: var(--chip-bg, rgba(255, 255, 255, .08));
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--fg);
-  line-height: 1;
-  transition: background .15s ease, transform .15s ease;
-  flex-shrink: 0;
-}
-.sidebar-pos-btn:hover {
-  background: var(--bg-hover, rgba(255, 255, 255, .16));
-}
-.sidebar-pos-btn:active {
-  transform: scale(.92);
+  display: none !important;
 }
 .fab.fab-left {
   right: auto !important;
