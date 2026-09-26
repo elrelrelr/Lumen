@@ -24882,6 +24882,119 @@ var NOMBRES_MUEBLES = {
 	carro: "Coche",
 	radio: "Radio"
 };
+async function capturarFotoCasaLumo(scenaEl, backgroundIcon) {
+	if (!scenaEl) return null;
+	const rect = scenaEl.getBoundingClientRect();
+	const width = Math.max(Math.round(rect.width), 360);
+	const height = Math.max(Math.round(rect.height), 240);
+	const dpr = Math.min(typeof window !== "undefined" ? window.devicePixelRatio || 2 : 2, 2);
+	const canvas = document.createElement("canvas");
+	canvas.width = Math.round(width * dpr);
+	canvas.height = Math.round(height * dpr);
+	const ctx = canvas.getContext("2d");
+	ctx.scale(dpr, dpr);
+
+	// 1. Fondo estético de la habitación limpia (pared, zócalo, suelo, iluminación ambiental)
+	const wallGrad = ctx.createLinearGradient(0, 0, 0, height);
+	wallGrad.addColorStop(0, "#1c1f2a");
+	wallGrad.addColorStop(0.66, "#141620");
+	wallGrad.addColorStop(0.66, "#181a24");
+	wallGrad.addColorStop(1, "#0d0e14");
+	ctx.fillStyle = wallGrad;
+	ctx.fillRect(0, 0, width, height);
+
+	const rad = ctx.createRadialGradient(width / 2, height * 0.45, 10, width / 2, height * 0.45, width * 0.55);
+	rad.addColorStop(0, "rgba(96, 167, 142, 0.14)");
+	rad.addColorStop(0.6, "rgba(96, 167, 142, 0.03)");
+	rad.addColorStop(1, "rgba(0, 0, 0, 0.22)");
+	ctx.fillStyle = rad;
+	ctx.fillRect(0, 0, width, height);
+
+	ctx.strokeStyle = "rgba(255, 255, 255, 0.07)";
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.moveTo(0, height * 0.66);
+	ctx.lineTo(width, height * 0.66);
+	ctx.stroke();
+
+	if (backgroundIcon) {
+		ctx.save();
+		ctx.textAlign = "center";
+		ctx.textBaseline = "middle";
+		ctx.font = `${Math.round(Math.min(width, height) * 0.38)}px sans-serif`;
+		ctx.globalAlpha = 0.24;
+		ctx.fillText(backgroundIcon, width / 2, height * 0.42);
+		ctx.restore();
+	}
+
+	const loadSvgImg = (svgElement) => new Promise((resolve) => {
+		try {
+			const clone = svgElement.cloneNode(true);
+			clone.querySelectorAll(".lumo-elem-selected, .lumo-moble-selected").forEach((el) => {
+				el.classList.remove("lumo-elem-selected", "lumo-moble-selected");
+				el.removeAttribute("class");
+				el.style.outline = "none";
+				el.style.filter = "none";
+			});
+			clone.querySelectorAll('rect[fill="transparent"]').forEach((r) => r.remove());
+			if (!clone.getAttribute("xmlns")) clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+			const serializer = new XMLSerializer();
+			const svgString = serializer.serializeToString(clone);
+			const blob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+			const url = URL.createObjectURL(blob);
+			const img = new Image();
+			img.onload = () => {
+				URL.revokeObjectURL(url);
+				resolve(img);
+			};
+			img.onerror = () => {
+				URL.revokeObjectURL(url);
+				resolve(null);
+			};
+			img.src = url;
+		} catch {
+			resolve(null);
+		}
+	});
+
+	// 2. Muebles de la habitación (en orden z-index)
+	const mobleEls = [...scenaEl.querySelectorAll(".lumo-moble")];
+	mobleEls.sort((a, b) => {
+		const za = parseInt(window.getComputedStyle(a).zIndex || "0", 10);
+		const zb = parseInt(window.getComputedStyle(b).zIndex || "0", 10);
+		return za - zb;
+	});
+
+	for (const mobleEl of mobleEls) {
+		const svg = mobleEl.querySelector("svg");
+		if (!svg) continue;
+		const mRect = mobleEl.getBoundingClientRect();
+		const x = mRect.left - rect.left;
+		const y = mRect.top - rect.top;
+		const w = mRect.width;
+		const h = mRect.height;
+		const img = await loadSvgImg(svg);
+		if (img) {
+			ctx.drawImage(img, x, y, w, h);
+		}
+	}
+
+	// 3. Lumo y todos sus accesorios
+	const lumoSvg = scenaEl.querySelector(".lumo-figura svg");
+	if (lumoSvg) {
+		const lRect = lumoSvg.getBoundingClientRect();
+		const x = lRect.left - rect.left;
+		const y = lRect.top - rect.top;
+		const w = lRect.width;
+		const h = lRect.height;
+		const img = await loadSvgImg(lumoSvg);
+		if (img) {
+			ctx.drawImage(img, x, y, w, h);
+		}
+	}
+
+	return canvas;
+}
 var Mueble = ({ tipo, offsets, editando, seleccionado, onSelect, onStartDrag }) => {
 	const s = MOBLE_SLOTS[tipo];
 	if (!s) return null;
@@ -24894,7 +25007,7 @@ var Mueble = ({ tipo, offsets, editando, seleccionado, onSelect, onStartDrag }) 
 	const isSel = editando && seleccionado === "mueble_" + tipo;
 	const st = {
 		position: "absolute",
-		zIndex: isSel ? s.z + 20 : editando ? s.z + 10 : s.z,
+		zIndex: isSel ? 45 : editando ? (seleccionado && seleccionado.startsWith("mueble_") ? 25 : 20) : s.z,
 		width: s.w,
 		transform: tr,
 		transformOrigin: "bottom center",
@@ -24913,6 +25026,7 @@ var Mueble = ({ tipo, offsets, editando, seleccionado, onSelect, onStartDrag }) 
 		style: st,
 		onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect("mueble_" + tipo); } : void 0,
 		onPointerDown: editando && onStartDrag ? (e) => {
+			e.stopPropagation();
 			if (onSelect) onSelect("mueble_" + tipo);
 			onStartDrag(e, "mueble_" + tipo);
 		} : void 0,
@@ -24979,7 +25093,6 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 	const currentOffsets = offsets || obtenerLumoOffsets();
 	const baseOff = currentOffsets["base"] || { x: 0, y: 0, scale: 1 };
 	const baseScale = baseOff.scale || 1;
-	const isLumoSelected = editando && (seleccionado === "base" || !seleccionado || !seleccionado.startsWith("mueble_"));
 	const wrapPart = (partId, element) => {
 		if (!element) return null;
 		const off = currentOffsets[partId] || { x: 0, y: 0, scale: 1 };
@@ -24990,20 +25103,24 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 		if (totalX || totalY) trParts.push(`translate(${totalX}px, ${totalY}px)`);
 		if (partScale !== 1) trParts.push(`scale(${partScale})`);
 		const tr = trParts.length ? trParts.join(" ") : void 0;
-		const isBaseSel = partId === "base" && isLumoSelected;
+		const isPartSel = editando && seleccionado === partId;
 		return lumoJ("g", {
 			"data-lumo-part": partId,
-			className: isBaseSel ? "lumo-elem-selected" : void 0,
+			className: isPartSel ? "lumo-elem-selected" : void 0,
 			style: {
 				transform: tr,
 				transformOrigin: "135px 135px",
 				cursor: editando ? "grab" : void 0,
 				pointerEvents: editando ? "auto" : "none"
 			},
-			onClick: editando && onSelect ? (e) => { e.stopPropagation(); onSelect("base"); } : void 0,
+			onClick: editando && onSelect ? (e) => {
+				e.stopPropagation();
+				onSelect(partId);
+			} : void 0,
 			onPointerDown: editando && onStartDrag ? (e) => {
-				if (onSelect) onSelect("base");
-				onStartDrag(e, "base");
+				e.stopPropagation();
+				if (onSelect) onSelect(partId);
+				onStartDrag(e, partId);
 			} : void 0,
 			children: partId === "base" ? [
 				editando && lumoJ("rect", {
@@ -25194,6 +25311,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	const [editandoPos, setEditandoPos] = (0, import_react.useState)(false);
 	const [customOffsets, setCustomOffsets] = (0, import_react.useState)(() => obtenerLumoOffsets());
 	const [elemSeleccionado, setElemSeleccionado] = (0, import_react.useState)("base");
+	const [arrastrandoId, setArrastrandoId] = (0, import_react.useState)(null);
 	const [animLumo, setAnimLumo] = (0, import_react.useState)(() => {
 		try {
 			return localStorage.getItem("lumen_lumo_anim_active") !== "0";
@@ -25248,14 +25366,33 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 			return next;
 		});
 	};
+	const NOMBRES_ACCESORIOS_LUMO = {
+		base: "🐻 Lumo (Cuerpo)",
+		hat: "🎩 Sombrero",
+		glasses: "👓 Gafas",
+		scarf: "🧣 Bufanda",
+		backpack: "🎒 Mochila",
+		backpack_back: "🎒 Mochila (Atrás)",
+		crown: "👑 Corona",
+		bow: "🎀 Lazo",
+		flower: "🌸 Flor",
+		toy: "🧸 Juguete",
+		weapon: "⚔️ Objeto en mano",
+		wrist: "⌚ Pulsera",
+		ear: "✨ Pendiente",
+		cape: "🦸 Capa",
+		mouth: "🍪 Accesorio boca",
+		props_lectura: "📖 Libro de lectura",
+		props_dormido: "💤 Efecto de sueño",
+		props_celebrar: "🎉 Confeti festivo"
+	};
 	const getNombreElemento = (id) => {
 		if (!id) return "";
-		if (id === "base") return "🐻 Lumo";
 		if (id.startsWith("mueble_")) {
 			const tipo = id.replace("mueble_", "");
 			return (NOMBRES_MUEBLES[tipo] || tipo);
 		}
-		return id;
+		return NOMBRES_ACCESORIOS_LUMO[id] || id;
 	};
 	const handleToggleAnim = () => {
 		const next = !animLumo;
@@ -25270,8 +25407,9 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		if (!editandoPos) return;
 		e.preventDefault();
 		e.stopPropagation();
-		const actualPartId = !partId.startsWith("mueble_") ? "base" : partId;
+		const actualPartId = partId || "base";
 		setElemSeleccionado(actualPartId);
+		setArrastrandoId(actualPartId);
 		const isSvgPart = !actualPartId.startsWith("mueble_");
 		let scale = 1;
 		if (isSvgPart) {
@@ -25295,6 +25433,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 			}));
 		};
 		const onUp = () => {
+			setArrastrandoId(null);
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", onUp);
 			window.removeEventListener("pointercancel", onUp);
@@ -25311,6 +25450,47 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 		window.addEventListener("pointercancel", onUp);
 		window.addEventListener("touchmove", onMove, { passive: false });
 		window.addEventListener("touchend", onUp);
+	};
+	const compartirCasaLumo = async () => {
+		try {
+			const scenaEl = document.querySelector(".lumo-scena-fullscreen") || document.querySelector(".lumo-scena");
+			if (!scenaEl) return;
+			toast?.("📸 Tomando foto de la casa de Lumo...");
+			const cv = await capturarFotoCasaLumo(scenaEl, ICONO_BG[d?.equipped?.bg]);
+			if (!cv) {
+				toast?.("No se pudo generar la foto de la casa");
+				return;
+			}
+			let compartido = false;
+			try {
+				const nat = typeof window !== "undefined" ? window.AndroidShare : null;
+				if (nat && typeof nat.compartirImagen === "function") {
+					const datos = cv.toDataURL("image/png");
+					compartido = !!nat.compartirImagen(datos, "¡Mira la casa de Lumo en Lumen!");
+				}
+			} catch {}
+			if (!compartido && typeof navigator !== "undefined" && navigator.canShare) {
+				try {
+					const blob = await canvasToBlob(cv);
+					const file = new File([blob], `casa-lumo-${Date.now()}.png`, { type: "image/png" });
+					if (navigator.canShare({ files: [file] })) {
+						compartido = await navigator.share({
+							files: [file],
+							title: "La casa de Lumo",
+							text: "¡Mira la casa de Lumo en Lumen!"
+						}).then(() => true, () => false);
+					}
+				} catch {}
+			}
+			if (!compartido) {
+				await downloadCanvas(cv, `casa-lumo-${Date.now()}.png`);
+			}
+			haptic$1?.tap?.();
+			toast?.("📸 ¡Foto de la casa de Lumo guardada!");
+		} catch (err) {
+			console.error("Error al compartir foto de Lumo:", err);
+			toast?.("Error al guardar la foto");
+		}
 	};
 	const timerRef = (0, import_react.useRef)(null);
 	const refrescar = (0, import_react.useCallback)(async () => {
@@ -25533,6 +25713,12 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											className: "lumo-edit-toolbar lumo-fs-actions",
 											children: [
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "lumo-edit-btn lumo-btn-compartir",
+													onClick: compartirCasaLumo,
+													title: "Tomar y compartir foto de la casa de Lumo limpia (sin botones)",
+													children: "📸 Compartir"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 													className: "lumo-edit-btn" + (animLumo ? " on" : ""),
 													onClick: handleToggleAnim,
 													title: animLumo ? "Desactivar animaciones de Lumo" : "Activar animaciones de Lumo",
@@ -25571,11 +25757,28 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "lumo-scena lumo-scena-fullscreen",
 									style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
-									onClick: () => setElemSeleccionado("base"),
+									onClick: () => setElemSeleccionado(null),
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "lumo-edit-badge",
 											children: "✏️ Arrastra o toca para ajustar el tamaño"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-selected-hud" + (arrastrandoId ? " lumo-hud-dragging" : ""),
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "lumo-hud-icon",
+													children: arrastrandoId ? "✋" : "🎯"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "lumo-hud-label",
+													children: arrastrandoId
+														? `Moviendo: ${getNombreElemento(arrastrandoId)}`
+														: elemSeleccionado
+															? `Seleccionado: ${getNombreElemento(elemSeleccionado)}`
+															: "Toca un objeto o Lumo para ubicarlo"
+												})
+											]
 										}),
 										ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											style: {
@@ -25691,6 +25894,12 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											onClick: handleResetOffsets,
 											title: "Volver al diseño predeterminado",
 											children: "🔄 Predeterminado"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "lumo-edit-btn lumo-btn-compartir",
+											onClick: compartirCasaLumo,
+											title: "Tomar y compartir foto de la casa de Lumo limpia (sin botones)",
+											children: "📸 Compartir"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											className: "lumo-edit-btn" + (animLumo ? " on" : ""),
