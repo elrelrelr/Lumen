@@ -298,23 +298,29 @@ function Portada({ libro, titulo, grande = false }) {
 	const [rota, setRota] = (0, import_react.useState)(false);
 	const h = tono(titulo);
 	const cls = "cg-portada" + (grande ? " cg-portada-lg" : "");
-	if (libro.portada && !rota) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	if (libro.portada && !rota) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cls,
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 			src: libro.portada,
 			alt: titulo,
 			loading: "lazy",
 			onError: () => setRota(true),
 			draggable: false
-		})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+			className: "lg-sigla-badge sigla-lum",
+			children: "LUM"
+		})]
 	});
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cls + " cg-portada-fake",
 		style: { background: `linear-gradient(150deg, hsl(${h} 60% 44%), hsl(${(h + 45) % 360} 56% 24%))` },
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 			className: "cg-ini",
 			children: iniciales(titulo)
-		})
+		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+			className: "lg-sigla-badge sigla-lum",
+			children: "LUM"
+		})]
 	});
 }
 var MOTIVOS = [
@@ -639,7 +645,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-title",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-ico", children: "📚" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-txt", children: "Lumen Store" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-ico", children: "📚" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-txt", children: "Lumen Store 2" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-acciones",
@@ -1265,7 +1271,10 @@ function Tarjeta({ libro, reportes, onAbrir }) {
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: libro.autor }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 					className: "cg-tarjeta-meta",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: r.estrellas }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "lg-sigla-desc",
+						children: "LUM · "
+					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: r.estrellas }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
 						libro,
 						reportes,
 						rep,

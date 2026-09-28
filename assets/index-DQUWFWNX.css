@@ -9496,11 +9496,21 @@ html[data-fuente-app='antigua'] textarea {
 
 /* ── Animaciones de la FIGURA de Lumo (Motion Kit v2) ── */
 .lumo-figura {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  position: relative;
+  z-index: 2;
+  pointer-events: none;
 }
-.lumo-figura img, .lumo-figura svg {
+.lumo-figura.lumo-figura-box {
+  position: relative !important;
+  inset: auto !important;
+  display: grid;
+  place-items: center;
+}
+.lumo-figura img, .lumo-figura svg,
+.lumo-figura-box img, .lumo-figura-box svg {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -9750,20 +9760,44 @@ html[data-fuente-app='antigua'] textarea {
   background: radial-gradient(circle at 50% 40%, rgba(96, 167, 142, 0.08), transparent 70%), var(--bg-soft, #14151b);
 }
 .lumo-scena.lumo-scena-preview {
-  height: clamp(300px, 44vh, 420px);
-  max-height: 440px;
+  width: min(84vw, 700px);
+  aspect-ratio: 16 / 9.5;
+  height: auto;
+  max-height: min(54vh, 400px);
   min-height: 280px;
+  margin: 0 auto;
   overflow: hidden;
-  border-radius: 16px;
+  border-radius: 18px;
 }
-.lumo-preview-guide-frame {
+.lumo-scena-stage {
   position: absolute;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
   width: min(84vw, 700px);
   aspect-ratio: 16 / 9.5;
+  height: auto;
   max-height: min(54vh, 400px);
+  border-radius: 18px;
+  overflow: visible !important;
+  z-index: 5;
+  background: var(--bg-soft, #14151b);
+}
+.lumo-scena-stage::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42%;
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.16));
+  border-radius: 0 0 18px 18px;
+  pointer-events: none;
+  z-index: 0;
+}
+.lumo-preview-guide-frame {
+  position: absolute;
+  inset: 0;
   border: 2px dashed var(--accent, #60a78e);
   border-radius: 18px;
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.42);
@@ -9941,14 +9975,15 @@ html[data-fuente-app='antigua'] textarea {
 }
 @media (max-width: 640px) {
   .lumo-scena.lumo-scena-preview {
-    height: clamp(260px, 40vh, 330px);
-    max-height: 350px;
-    min-height: 250px;
-  }
-  .lumo-preview-guide-frame {
     width: min(92vw, 440px);
     aspect-ratio: 16 / 10;
-    max-height: min(52vh, 300px);
+    max-height: min(52vh, 320px);
+    min-height: 240px;
+  }
+  .lumo-scena-stage {
+    width: min(92vw, 440px);
+    aspect-ratio: 16 / 10;
+    max-height: min(52vh, 320px);
   }
   .lumo-preview-guide-frame .lumo-guide-badge {
     font-size: 10px;
@@ -10428,6 +10463,7 @@ html[data-fuente-app='antigua'] textarea {
 }
 .cg-card:active { transform: scale(0.98); }
 .cg-portada {
+  position: relative;
   width: 100%; aspect-ratio: 2/3;
   border-radius: 14px 14px 0 0; overflow: hidden;
   background: var(--bg-soft);
@@ -13595,6 +13631,15 @@ mark.find-flash {
 .lg-mini-top { position: relative; cursor: pointer; }
 .lg-mini-top .lg-cover { width: 100%; height: auto; aspect-ratio: 5 / 7; object-fit: cover; border-radius: 8px; display: block; background: #efece4; box-shadow: 0 1px 3px rgba(0, 0, 0, .18); }
 .lg-mini-top .lg-cover.lg-falso { display: flex; align-items: center; justify-content: center; font-size: 32px; }
+.lg-sigla-badge { position: absolute; top: 4px; left: 4px; z-index: 2; padding: 1.5px 5.5px; border-radius: 4px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .45); pointer-events: none; line-height: 1.25; backdrop-filter: blur(2px); }
+.sigla-gut { background: #2563eb; }
+.sigla-opl { background: #0d9488; }
+.sigla-ia { background: #475569; }
+.sigla-wik { background: #b45309; }
+.sigla-lum { background: #7c3aed; }
+.sigla-bne { background: #dc2626; }
+.sigla-sta { background: #059669; }
+.lg-sigla-desc { font-weight: 700; opacity: .88; letter-spacing: 0.3px; }
 .lg-badge { position: absolute; left: 4px; bottom: 4px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; background: #2f8f4f; color: #fff; font-size: 11px; line-height: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
 .lg-prog { position: absolute; inset: 0; z-index: 2; border-radius: 8px; background: rgba(0, 0, 0, .55); overflow: hidden; }
 .lg-prog-fill { height: 4px; background: linear-gradient(90deg, #7c5cff, #b18cff); transition: width .2s; }

@@ -2727,12 +2727,12 @@ var KIND_REPORTE = 30024;
 var KIND_VOTO = 30025;
 var RELAYS_DEFECTO = [
 	"wss://relay.damus.io",
-	"wss://nos.lol",
+	"wss://relay.nostr.band",
 	"wss://relay.primal.net"
 ];
 var RELAY_NOMBRES = {
 	"wss://relay.damus.io": "Damus",
-	"wss://nos.lol": "nos.lol",
+	"wss://relay.nostr.band": "Nostr.band",
 	"wss://relay.primal.net": "Primal"
 };
 var CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -2950,6 +2950,10 @@ function conectarRelay(url, onEvent = null, onEstado = null) {
 	};
 	const programar = () => {
 		if (c.apagado || c.tReconexion) return;
+		if (c.intentos >= 3) {
+			c.apagado = true;
+			return;
+		}
 		const espera = Math.min(3e4, 1500 * 2 ** c.intentos);
 		c.intentos += 1;
 		c.tReconexion = setTimeout(() => {
@@ -3074,8 +3078,11 @@ async function borrarIdentidad() {
 	});
 }
 async function relaysGuardados() {
-	const lista = (await getMeta(CLAVE_RELAYS, null))?.relays || RELAYS_DEFECTO;
-	return lista.length ? lista : RELAYS_DEFECTO;
+	let lista = (await getMeta(CLAVE_RELAYS, null))?.relays || RELAYS_DEFECTO;
+	if (Array.isArray(lista)) {
+		lista = lista.map((r) => (r === "wss://nos.lol" || r === "wss://nos.lol/") ? "wss://relay.nostr.band" : r);
+	}
+	return (lista && lista.length) ? lista : RELAYS_DEFECTO;
 }
 async function guardarRelays(lista) {
 	await setMeta({
@@ -3086,9 +3093,8 @@ async function guardarRelays(lista) {
 var FUENTES_RELAYS = ["https://api.nostr.watch/v1/online", "https://raw.githubusercontent.com/aljazvalic/nostr-relays/main/relays.json"];
 var RELAYS_CONOCIDOS = [
 	"wss://relay.damus.io",
-	"wss://nos.lol",
-	"wss://relay.primal.net",
 	"wss://relay.nostr.band",
+	"wss://relay.primal.net",
 	"wss://nostr.mom",
 	"wss://relay.snort.social",
 	"wss://nostr.wine",

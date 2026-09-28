@@ -10606,7 +10606,7 @@ function fileWrite(name, content) {
 			localStorage.setItem(name, content);
 			return true;
 		}
-		console.warn("[persist] respaldo demasiado grande para localStorage");
+		// Respaldo grande gestionado de forma limpia en IndexedDB (sin advertencias en consola)
 	} catch (e) {
 		if (!window.__lumenCuotaAvisada) { window.__lumenCuotaAvisada = true; console.warn("[persist] cuota de localStorage llena: el respaldo completo no cabe; los datos siguen a salvo en la base principal (IndexedDB).", e); }
 	}
@@ -25282,7 +25282,7 @@ var LumoFigura = ({ estado, tam, eq, offsets, onStartDrag, onSelect, editando, a
 	const animActive = anim !== void 0 ? anim : (typeof localStorage !== "undefined" ? localStorage.getItem("lumen_lumo_anim_active") !== "0" : true);
 	const animClass = !animActive ? "lumo-sin-anim" : (estado === "durmiendo" || estado === "hibernando" ? "lumo-anim-dormir" : estado === "feliz" || estado === "celebrando" ? "lumo-anim-celebrar" : estado === "leyendo" ? "lumo-anim-leer" : estado === "cansado" ? "lumo-anim-cansado" : "lumo-anim-idle");
 	return lumoJ("div", {
-		className: "lumo-figura " + animClass,
+		className: "lumo-figura lumo-figura-box " + animClass,
 		style: {
 			width: tam || 180,
 			height: tam || 180
@@ -25554,7 +25554,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	};
 	const guardarFotoCasaLumo = async () => {
 		try {
-			const scenaEl = document.querySelector(".lumo-scena-fullscreen") || document.querySelector(".lumo-scena");
+			const scenaEl = document.querySelector(".lumo-scena-stage") || document.querySelector(".lumo-scena.lumo-scena-preview") || document.querySelector(".lumo-scena-fullscreen") || document.querySelector(".lumo-scena");
 			if (!scenaEl) return;
 			toast?.("📸 Generando foto en JPG con el tema actual...");
 			const cv = await capturarFotoCasaLumo(scenaEl, ICONO_BG[d?.equipped?.bg]);
@@ -25865,15 +25865,6 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 											className: "lumo-edit-badge",
 											children: "✏️ Arrastra o toca para ajustar el tamaño"
 										}),
-										mostrarGuia && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "lumo-preview-guide-frame",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-													className: "lumo-guide-badge",
-													children: "📐 Área visible en vista normal"
-												})
-											]
-										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "lumo-selected-hud" + (arrastrandoId ? " lumo-hud-dragging" : ""),
 											children: [
@@ -25891,40 +25882,55 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 												})
 											]
 										}),
-										ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											style: {
-												fontSize: "clamp(80px, 20vmin, 220px)",
-												position: "absolute",
-												inset: 0,
-												display: "grid",
-												placeItems: "center",
-												opacity: .25,
-												zIndex: 0
-											},
-											children: ICONO_BG[d.equipped.bg]
-										}),
-										(d.room || []).map((tipo) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mueble, {
-											tipo,
-											offsets: customOffsets,
-											editando: true,
-											seleccionado: elemSeleccionado,
-											onSelect: setElemSeleccionado,
-											onStartDrag: iniciarArrastre
-										}, tipo)),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "lumo-figura lumo-editando" + (!animLumo ? " lumo-sin-anim" : ""),
-											style: { zIndex: elemSeleccionado === "base" ? 30 : 15 },
-											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoFigura, {
-												estado: st,
-												tam: "clamp(220px, 45vmin, 520px)",
-												eq: d.equipped,
-												offsets: customOffsets,
-												onStartDrag: iniciarArrastre,
-												onSelect: setElemSeleccionado,
-												editando: true,
-												anim: animLumo,
-												seleccionado: elemSeleccionado
-											})
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "lumo-scena-stage",
+											style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
+											children: [
+												mostrarGuia && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "lumo-preview-guide-frame",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "lumo-guide-badge",
+															children: "📐 Área visible en vista normal"
+														})
+													]
+												}),
+												ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													style: {
+														fontSize: "clamp(60px, 13vmin, 140px)",
+														position: "absolute",
+														inset: 0,
+														display: "grid",
+														placeItems: "center",
+														opacity: .25,
+														zIndex: 0
+													},
+													children: ICONO_BG[d.equipped.bg]
+												}),
+												(d.room || []).map((tipo) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Mueble, {
+													tipo,
+													offsets: customOffsets,
+													editando: true,
+													seleccionado: elemSeleccionado,
+													onSelect: setElemSeleccionado,
+													onStartDrag: iniciarArrastre
+												}, tipo)),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "lumo-figura lumo-editando" + (!animLumo ? " lumo-sin-anim" : ""),
+													style: { zIndex: elemSeleccionado === "base" ? 30 : 15 },
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumoFigura, {
+														estado: st,
+														tam: "clamp(180px, 36vmin, 380px)",
+														eq: d.equipped,
+														offsets: customOffsets,
+														onStartDrag: iniciarArrastre,
+														onSelect: setElemSeleccionado,
+														editando: true,
+														anim: animLumo,
+														seleccionado: elemSeleccionado
+													})
+												})
+											]
 										}),
 										elemSeleccionado && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "lumo-size-bar",
@@ -37952,7 +37958,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v230"
+							children: "v231"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -40140,7 +40146,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v230 · escritorio y móvil"
+					children: "Lumen Reader · v231 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -40507,7 +40513,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Biblioteca Global" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo sin dueño: Nostr + P2P, publica y lee" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Lumen Store 2" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo sin dueño: Nostr + P2P, publica y lee" })]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "tp-acceso-fl",
@@ -41067,7 +41073,23 @@ const toquesDev = (0, import_react.useRef)(0);
 						() => setCreator(true)
 					],
 					[
-						"🗂",
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
+							viewBox: "0 0 24 24",
+							width: "19",
+							height: "19",
+							fill: "none",
+							stroke: "currentColor",
+							strokeWidth: "2.1",
+							strokeLinecap: "round",
+							strokeLinejoin: "round",
+							style: { display: "inline-block", verticalAlign: "middle", color: "var(--accent, #7c5cff)" },
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "3", y: "3", width: "7", height: "7", rx: "2" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "14", y: "3", width: "7", height: "7", rx: "2" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "14", y: "14", width: "7", height: "7", rx: "2" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "3", y: "14", width: "7", height: "7", rx: "2" })
+							]
+						}),
 						"Categorías",
 						() => setSheet("grupos")
 					],
@@ -41082,16 +41104,6 @@ const toquesDev = (0, import_react.useRef)(0);
 						"⚙️",
 						"Ajustes",
 						() => setSheet("settings")
-					],
-					[
-						settings?.fabPos === "left" ? "➡️" : "⬅️",
-						settings?.fabPos === "left" ? "Mover botón a la derecha" : "Mover botón a la izquierda",
-						() => {
-							const next = settings?.fabPos === "left" ? "right" : "left";
-							setSettings({ fabPos: next });
-							try { localStorage.setItem("lumen_fab_pos", next); } catch {}
-							toast?.(next === "left" ? "Botón flotante a la izquierda" : "Botón flotante a la derecha");
-						}
 					],
 					[
 						vaultOpen ? "🔓" : "🔒",
@@ -54468,7 +54480,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 			item("✍️", "Crear libro", () => onSheet("crear")),
 			item("🔎", "Buscar en la web", onAbrirBuscador),
 			item("🧲", "Torrent", onAbrirTorrent),
-			item("🌐", "Biblioteca Global", onAbrirCatalogo),
+			item("🌐", "Lumen Store 2", onAbrirCatalogo),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "side-label",
 				children: "Comunidad"

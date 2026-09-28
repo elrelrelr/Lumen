@@ -452,7 +452,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 						children: "✕"
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-title",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: editar ? "✏️ Editar libro" : "📤 Publicar libro" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Biblioteca Global · Lumen Storage · sin cuentas · firma propia" })]
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: editar ? "✏️ Editar libro" : "📤 Publicar libro" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Lumen Store 2 · Lumen Storage · sin cuentas · firma propia" })]
 					})]
 				}),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PasoPuntos, { paso }),
@@ -943,7 +943,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 						paso === 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "pb-paso4",
 							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: editar ? "Guardar cambios" : "Publicar en la Biblioteca Global" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: editar ? "Guardar cambios" : "Publicar en Lumen Store 2" }),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "pb-resumen",
 									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -1034,7 +1034,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 													" (catálogo → botón 📦): estado, historial, QR y compartir."
 												] }),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "☁️ En Lumen Storage: el .lumen (y el audio/vídeo, si los hay) se descarga 24/7, sin que tu equipo esté encendido." }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "🌐 En los relays: cualquiera con LumenReader lo ve en la Biblioteca Global." }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "🌐 En los relays: cualquiera con LumenReader lo ve en Lumen Store 2." }),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "📱 El .lumen está en tu teléfono: compártelo por WhatsApp, correo…" })
 											] })]
 										}),
