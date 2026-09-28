@@ -11,8 +11,7 @@ var SITIOS = [
 		espejos: ["https://annas-archive.org/search?q={q}", "https://annas-archive.se/search?q={q}"],
 		color: "#e0533d",
 		tipo: "busca",
-		avanzado: true,
-		nota: "Buscador enorme. A veces pide esperar o resolver un captcha."
+		nota: "Buscador universal de libros y artículos de toda la red."
 	},
 	{
 		id: "gutenberg",
@@ -37,6 +36,30 @@ var SITIOS = [
 		color: "#8a6fc4",
 		tipo: "libre",
 		nota: "Fichas, portadas y préstamo digital del Internet Archive."
+	},
+	{
+		id: "royalroad",
+		nombre: "Royal Road",
+		url: "https://www.royalroad.com/fictions/search?title={q}",
+		color: "#f39c12",
+		tipo: "lectura",
+		nota: "Webnovels, cómics, litrpg, fantasía y ficción serial libre."
+	},
+	{
+		id: "wattpad",
+		nombre: "Wattpad",
+		url: "https://www.wattpad.com/search/{q}",
+		color: "#ff6122",
+		tipo: "lectura",
+		nota: "Comunidad de historias originales, novelas, romance y ficción."
+	},
+	{
+		id: "arxiv",
+		nombre: "arXiv",
+		url: "https://arxiv.org/search/?query={q}&searchtype=all",
+		color: "#b31b1b",
+		tipo: "ciencia",
+		nota: "Artículos científicos, papers y preprints de investigación abierta."
 	},
 	{
 		id: "cervantes",

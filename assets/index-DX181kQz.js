@@ -44775,27 +44775,58 @@ function borrarTtsPos(id) { try { localStorage.removeItem(ttsPosKey(id)); } catc
 // fuertes («Capítulo», «Introducción»…) cuentan solas; palabras débiles
 // («Parte», «Sección», «Anexo»…) exigen un número o letra para no chocar con
 // texto normal. Solo mira la primera línea con contenido de la página.
-const RE_CAP_FUERTE = /^\s*(?:cap[íi]tulo|chapter|ap[ée]ndice|appendix|introducci[oó]n|introduction|ep[íi]logo|pr[oó]logo|prol[oó]go|conclusi[oó]n|conclusion|bibliograf[íi]a|glosario|presentaci[oó]n)\b/i;
+const RE_CAP_MD = /^\s*(#{1,3})\s+(.+)$/;
+const RE_CAP_FUERTE = /^\s*(?:#{1,3}\s+)?(?:cap[íi]tulo|chapter|chapitre|kapitel|parte|part|secci[oó]n|section|libro|book|acto|act|ap[ée]ndice|appendix|introducci[oó]n|introduction|ep[íi]logo|epilogue|pr[oó]logo|prologue|prefacio|preface|conclusi[oó]n|conclusion|bibliograf[íi]a|glosario|presentaci[oó]n)\b/i;
 const RE_CAP_DEBIL = /^\s*(?:parte|secci[oó]n|section|unidad|lecci[oó]n|lesson|anexo)\s*[.:)]?\s*(?:[0-9]{1,4}|[ivxlcdm]{1,7}|[a-d])\b/i;
-function detectarCapsHeuristica(rows) {
+const RE_CAP_ROMANO = /^\s*([ivxlcdm]{1,8})[.:\-–—]\s+([A-ZÁÉÍÓÚÑa-záéíóúñ0-9].*)$/i;
+
+function detectarCapsHeuristica(rows, book) {
 	const caps = [];
 	let basePrev = "";
 	let idxPrev = -10;
 	for (const r of rows || []) {
 		const t = (r.text || "");
-		const linea = ((t.split(/\n/).find((l) => l.trim()) || "").trim()).replace(/\s+/g, " ");
-		if (!linea || linea.length > 90) continue;
-		if (!RE_CAP_FUERTE.test(linea) && !RE_CAP_DEBIL.test(linea)) continue;
-		const base = linea.toLowerCase();
-		if (base === basePrev && r.index - idxPrev <= 2) continue;
-		basePrev = base;
-		idxPrev = r.index;
-		caps.push({
-			id: "cap_h_" + (r.index + 1),
-			titulo: linea.slice(0, 80),
-			inicio: r.index + 1,
-			auto: true
-		});
+		const lineas = t.split(/\n/).map((l) => l.trim()).filter(Boolean);
+		let foundTitle = null;
+		for (const lineaRaw of lineas.slice(0, 6)) {
+			const linea = lineaRaw.replace(/\s+/g, " ");
+			if (!linea || linea.length > 95 || linea.length < 2) continue;
+			const mMd = linea.match(RE_CAP_MD);
+			if (mMd) {
+				const clean = mMd[2].replace(/[\*_`#]/g, "").trim();
+				if (clean.length >= 2) {
+					foundTitle = clean;
+					break;
+				}
+			}
+			if (RE_CAP_FUERTE.test(linea) || RE_CAP_DEBIL.test(linea)) {
+				const clean = linea.replace(/^#{1,3}\s+/, "").replace(/[\*_`#]/g, "").trim();
+				foundTitle = clean;
+				break;
+			}
+			const mRom = linea.match(RE_CAP_ROMANO);
+			if (mRom) {
+				foundTitle = `${mRom[1].toUpperCase()}. ${mRom[2].replace(/[\*_`#]/g, "").trim()}`;
+				break;
+			}
+			if (linea.length >= 4 && linea.length <= 50 && linea === linea.toUpperCase() && !/[0-9]/.test(linea) && linea.includes(" ") && !/^[.,:;\-_—]+$/.test(linea)) {
+				const clean = linea.split(" ").map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" ");
+				foundTitle = clean;
+				break;
+			}
+		}
+		if (foundTitle) {
+			const base = foundTitle.toLowerCase();
+			if (base === basePrev && r.index - idxPrev <= 2) continue;
+			basePrev = base;
+			idxPrev = r.index;
+			caps.push({
+				id: "cap_h_" + (r.index + 1),
+				titulo: foundTitle.slice(0, 80),
+				inicio: r.index + 1,
+				auto: true
+			});
+		}
 	}
 	return caps;
 }
@@ -45326,7 +45357,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [marcador, setMarcador] = (0, import_react.useState)(null);
 	const [marcadores, setMarcadores] = (0, import_react.useState)([]);
 	const [palabrasLibro, setPalabrasLibro] = (0, import_react.useState)([]);
-	const [findCat, setFindCat] = (0, import_react.useState)("buscar");
+	const [findCat, setFindCat] = (0, import_react.useState)("capitulos");
 	const [pagTrad, setPagTrad] = (0, import_react.useState)(null);
 	const [tradModo, setTradModo] = (0, import_react.useState)("ambos");
 	// v197: mini-barra de traducción: compacta, con iconos y ARRASTRABLE (posición
@@ -45406,6 +45437,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const marcaRef = (0, import_react.useRef)(null);
 	const longPressT = (0, import_react.useRef)(null);
 	const voiceHold = (0, import_react.useRef)(null);
+	const antHold = (0, import_react.useRef)({ timer: null, fired: false });
+	const sigHold = (0, import_react.useRef)({ timer: null, fired: false });
 	// v195 (#5): mantener presionado Nota / IA / Lectura en la barra inferior
 	const noteHold = (0, import_react.useRef)(null);
 	const aiHold = (0, import_react.useRef)(null);
@@ -46534,6 +46567,84 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		settings,
 		toast
 	]);
+	const leerPaginaDesdeInicio = (0, import_react.useCallback)(async (targetPg) => {
+		const maxP = Math.max(0, (pageCount || 1) - 1);
+		if (targetPg < 0) {
+			haptic$1.warning?.();
+			toast?.("Ya estás en la primera página");
+			return;
+		}
+		if (targetPg > maxP) {
+			haptic$1.warning?.();
+			toast?.("Ya estás en la última página");
+			return;
+		}
+		setPage(targetPg);
+		ttsPageRef.current = targetPg;
+		setTtsPage(targetPg);
+		ttsSoloFraseRef.current = false;
+		try {
+			const np = await getPage(book.id || bookId, targetPg);
+			const txt = np?.text || "";
+			if (txt && mounted.current) {
+				prepararVozPagina();
+				speaker.rate = settings.ttsRate || 1;
+				speaker.pitch = settings.ttsPitch || 1;
+				try { speaker.voiceName = settings.ttsVoice || settings.ttsVoiceAuto || ""; } catch {}
+				speaker.speak(txt, { full: txt, offset: 0 });
+				haptic$1.success?.();
+				toast?.(`📖 Página ${targetPg + 1}: leyendo desde el inicio`);
+			} else {
+				toast?.(`Página ${targetPg + 1} sin texto para leer`);
+			}
+		} catch (e) {
+			console.warn("[tts] error cambiando página", e);
+		}
+	}, [book, bookId, pageCount, prepararVozPagina, settings, toast]);
+
+	const handleAntDown = () => {
+		antHold.current.fired = false;
+		clearTimeout(antHold.current.timer);
+		antHold.current.timer = setTimeout(() => {
+			antHold.current.fired = true;
+			haptic$1.tap?.();
+			leerPaginaDesdeInicio(page - 1);
+		}, 550);
+	};
+	const handleAntUp = () => {
+		clearTimeout(antHold.current.timer);
+		setTimeout(() => { antHold.current.fired = false; }, 300);
+	};
+	const handleAntClick = () => {
+		if (antHold.current.fired) {
+			antHold.current.fired = false;
+			return;
+		}
+		haptic$1.tap?.();
+		speaker.prev();
+	};
+
+	const handleSigDown = () => {
+		sigHold.current.fired = false;
+		clearTimeout(sigHold.current.timer);
+		sigHold.current.timer = setTimeout(() => {
+			sigHold.current.fired = true;
+			haptic$1.tap?.();
+			leerPaginaDesdeInicio(page + 1);
+		}, 550);
+	};
+	const handleSigUp = () => {
+		clearTimeout(sigHold.current.timer);
+		setTimeout(() => { sigHold.current.fired = false; }, 300);
+	};
+	const handleSigClick = () => {
+		if (sigHold.current.fired) {
+			sigHold.current.fired = false;
+			return;
+		}
+		haptic$1.tap?.();
+		speaker.next();
+	};
 	// v144: lee UNA frase (original o traducida), en su idioma, sin
 	// continuar con el resto del libro
 	const leerFrase = (0, import_react.useCallback)((texto, bcp) => {
@@ -50090,49 +50201,104 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					})]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "rd-tools",
-						children: [
-							// v176 (#3): la música de fondo NO crea nada en la barra inferior.
+						className: "rd-tools" + (ttsState.playing || ttsState.paused ? " rd-tools-voz" : ""),
+						children: (ttsState.playing || ttsState.paused) ? [
+							/* 1. Reanudar / Pausar */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool" + (ttsState.playing && !ttsState.paused ? " active" : ""),
+								onClick: toggleTts,
+								title: ttsState.paused ? "Reanudar lectura" : "Pausar lectura",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "i",
+										children: ttsState.paused ? "▶" : "⏸"
+									}),
+									ttsState.paused ? "Reanudar" : "Pausar"
+								]
+							}),
+							/* 2. Parar */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "tool detener",
+								onClick: () => {
+									speaker.stop();
+									try { borrarTtsPos(book.id || bookId); } catch {}
+									setUltimoLeido(null);
+									haptic$1.success?.();
+									toast?.("⏹️ Lectura en voz alta detenida");
+								},
+								title: "Detener la lectura en voz alta",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "i",
+										children: "⏹"
+									}),
+									"Parar"
+								]
+							}),
+							/* 3. Anterior párrafo / Anterior página */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "tool",
+								title: "Anterior párrafo · mantén presionado para ir a la página anterior",
+								onClick: handleAntClick,
+								onPointerDown: handleAntDown,
+								onPointerUp: handleAntUp,
+								onPointerLeave: handleAntUp,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "i",
+										children: "⏮"
+									}),
+									"Ant. párrafo"
+								]
+							}),
+							/* 4. Siguiente párrafo / Siguiente página */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "tool",
+								title: "Siguiente párrafo · mantén presionado para ir a la página siguiente",
+								onClick: handleSigClick,
+								onPointerDown: handleSigDown,
+								onPointerUp: handleSigUp,
+								onPointerLeave: handleSigUp,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "i",
+										children: "⏭"
+									}),
+									"Sig. párrafo"
+								]
+							}),
+							/* 5. Más */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "tool",
+								title: "Ajustes de voz y opciones",
+								onClick: () => setSheet("tts"),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "i",
+										children: "⋯"
+									}),
+									"Más"
+								]
+							})
+						] : [
+							/* Normal toolbar when not in TTS */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "tool",
 								onClick: toggleTts,
 								onPointerDown: () => {
 									clearTimeout(voiceHold.current);
 									voiceHold.current = setTimeout(() => {
 										voiceHold.fired = true;
-										// v151: mantener presionado 'Voz' más de 1 s = atajo rápido a los
-										// ajustes de audio y voz (en lo normal viven en el menú 'Más').
-										// Detener se hace con el botón 'Parar' de esta barra.
 										haptic$1.tap();
 										setSheet("tts");
 									}, 1000);
 								},
-								// v214 (#4): si el long-press abrió la hoja, el click de ese mismo
-								// gesto no siempre llega (la hoja queda encima) y `fired` se quedaba
-								// en true → el SIGUIENTE toque a Voz/Reanudar se tragaba. Se limpia
-								// el flag poco después de soltar.
 								onPointerUp: () => { clearTimeout(voiceHold.current); setTimeout(() => { voiceHold.fired = false; }, 350); },
 								onPointerLeave: () => { clearTimeout(voiceHold.current); setTimeout(() => { voiceHold.fired = false; }, 350); },
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "i",
-							children: ttsState.paused ? "▶" : ttsState.playing && !ttsState.paused ? "⏸" : "▶"
-						}), ttsState.paused ? "Reanudar" : ttsState.playing && !ttsState.paused ? "Pausar" : (speaker.queue.length > 0 && (speaker.i || 0) < speaker.queue.length && ttsPageRef.current === page ? "Reanudar" : "Voz")]
-							}),
-							(ttsState.playing || ttsState.paused) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								className: "tool detener",
-								onClick: () => {
-									speaker.stop();
-									// v176 (#4): NO se toca la música de fondo (solo speaker.stop).
-									try { borrarTtsPos(bookId); } catch {}
-									setUltimoLeido(null);
-									haptic$1.success();
-									toast?.("⏹️ Lectura en voz alta detenida (la música de fondo sigue)");
-								},
-								title: "Detener la lectura en voz alta",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "i",
-									children: "⏹"
-								}), "Parar"]
+									children: "▶"
+								}), (speaker.queue.length > 0 && (speaker.i || 0) < speaker.queue.length && ttsPageRef.current === page ? "Reanudar" : "Voz")]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool",
@@ -50145,7 +50311,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									clearTimeout(noteHold.current);
 									noteHold.current = setTimeout(() => {
 										noteHold.fired = true;
-										// v195 (#5): Nota + mantener = mensajes guardados
 										haptic$1.tap();
 										onOpenGuardados?.();
 									}, 1000);
@@ -50168,7 +50333,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									clearTimeout(aiHold.current);
 									aiHold.current = setTimeout(() => {
 										aiHold.fired = true;
-										// v195 (#5): IA + mantener = IA de toda la página (sin selección)
 										haptic$1.tap();
 										setFrozenSel("");
 										setSelection("");
@@ -50194,7 +50358,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									clearTimeout(lectHold.current);
 									lectHold.current = setTimeout(() => {
 										lectHold.fired = true;
-										// v195 (#5): Lectura + mantener = herramientas
 										haptic$1.tap();
 										setSheet("more");
 									}, 1000);
@@ -50209,7 +50372,6 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									})
 								}), "Lectura"]
 							}),
-
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "tool",
 								onClick: () => setSheet("more"),
@@ -50493,19 +50655,9 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							"traducir"
 						],
 						[
-							"💛",
-							"Resaltados",
-							"marks"
-						],
-						[
 							"📊",
 							"Progreso",
 							"stats"
-						],
-						[
-							"📖",
-							"Capítulos",
-							"capitulos"
 						],
 						[
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconSearch, {
@@ -50520,7 +50672,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							"Ajuste y export",
 							"tools"
 						],
-												[
+						[
 							"🎓",
 							"Asistente académico",
 							"asistente"
@@ -50543,7 +50695,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 			}),
 			/* v162: capítulos — detección automática, creación manual e ir directo */
 			(0, import_jsx_runtime.jsxs)(Sheet, {
-				open: sheet === "capitulos",
+				open: false && sheet === "capitulos",
 				onClose: closeSheet,
 				title: "📖 Capítulos",
 				children: [
@@ -50686,21 +50838,11 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
-				open: sheet === "find",
+				open: sheet === "find" || sheet === "capitulos" || sheet === "marks",
 				onClose: closeSheet,
 				title: "Buscar en el documento",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "chips",
-						style: { marginBottom: 6 },
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "chip" + (findCat === "buscar" ? " on" : ""), onClick: () => setFindCat("buscar"), children: "🔎 Buscar" }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "chip" + (findCat === "marcadores" ? " on" : ""), onClick: () => setFindCat("marcadores"), children: "🔖 Marcadores" + (marcadores.length ? " (" + marcadores.length + ")" : "") }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "chip" + (findCat === "favoritas" ? " on" : ""), onClick: () => setFindCat("favoritas"), children: "⭐ Favoritas" + (highs.length ? " (" + highs.length + ")" : "") }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "chip" + (findCat === "palabras" ? " on" : ""), onClick: () => setFindCat("palabras"), children: "❓ Palabras" + (palabrasLibro.length ? " (" + palabrasLibro.length + ")" : "") })
-						]
-					}),
-					findCat === "buscar" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+					/* Search bar at top */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "search-bar",
 						style: { marginBottom: 10 },
@@ -50713,12 +50855,17 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								})
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								autoFocus: true,
+								autoFocus: (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "buscar",
 								value: findQ,
-								placeholder: "Palabra o frase…",
+								placeholder: (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "capitulos" ? "Buscar o filtrar capítulos…" : (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "resaltados" ? "Filtrar resaltados…" : (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "marcadores" ? "Filtrar marcadores…" : (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "favoritas" ? "Filtrar favoritos…" : (sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "palabras" ? "Buscar palabra guardada…" : "Palabra o frase…",
 								onChange: (e) => setFindQ(e.target.value),
 								onKeyDown: async (e) => {
 									if (e.key !== "Enter") return;
+									const curCat = sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat;
+									if (curCat !== "buscar") {
+										setFindCat("buscar");
+										if (sheet !== "find") setSheet("find");
+									}
 									await runFind();
 								}
 							}),
@@ -50732,6 +50879,165 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							})
 						]
 					}),
+					/* Chips directly below search bar: Capítulos first, then Buscar, Marcadores, Favoritos, Palabras, Resaltados */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "chips rd-busq-chips",
+						style: { marginBottom: 10, overflowX: "auto", flexWrap: "nowrap", paddingBottom: 4 },
+						children: [
+							/* 1. Capítulos */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "capitulos" ? " on" : ""),
+								onClick: () => { setFindCat("capitulos"); if (sheet !== "find") setSheet("find"); },
+								children: "📖 Capítulos" + (caps.length ? " (" + caps.length + ")" : "")
+							}),
+							/* 2. Buscar */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "buscar" ? " on" : ""),
+								onClick: () => { setFindCat("buscar"); if (sheet !== "find") setSheet("find"); },
+								children: "🔎 Buscar" + (findRes ? " (" + findRes.length + ")" : "")
+							}),
+							/* 3. Marcadores */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "marcadores" ? " on" : ""),
+								onClick: () => { setFindCat("marcadores"); if (sheet !== "find") setSheet("find"); },
+								children: "🔖 Marcadores" + (marcadores.length ? " (" + marcadores.length + ")" : "")
+							}),
+							/* 4. Favoritos */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "favoritas" ? " on" : ""),
+								onClick: () => { setFindCat("favoritas"); if (sheet !== "find") setSheet("find"); },
+								children: "⭐ Favoritos" + (highs.length ? " (" + highs.length + ")" : "")
+							}),
+							/* 5. Palabras */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "palabras" ? " on" : ""),
+								onClick: () => { setFindCat("palabras"); if (sheet !== "find") setSheet("find"); },
+								children: "❓ Palabras" + (palabrasLibro.length ? " (" + palabrasLibro.length + ")" : "")
+							}),
+							/* 6. Resaltados */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "chip" + ((sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "resaltados" ? " on" : ""),
+								onClick: () => { setFindCat("resaltados"); if (sheet !== "find") setSheet("find"); },
+								children: "💛 Resaltados" + (highs.length ? " (" + highs.length + ")" : "")
+							})
+						]
+					}),
+					/* Contenido: Capítulos */
+					(sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "capitulos" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "chips",
+								style: { marginBottom: 10, marginTop: 4 },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										disabled: capsBusy,
+										onClick: () => detectarCapitulos(),
+										children: capsBusy ? "Detectando…" : "✨ Detectar automáticamente"
+									}),
+									caps.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm ghost",
+										onClick: () => { guardarCaps([]); setCapMsg("Todos los capítulos eliminados."); },
+										children: "🗑 Borrar todos"
+									})
+								]
+							}),
+							capMsg && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cap-msg",
+								children: capMsg
+							}),
+							caps.length === 0 && !capsBusy && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-sub",
+								style: { padding: "8px 2px" },
+								children: "Aún no hay capítulos. Pulsa «Detectar automáticamente» o añade uno nuevo abajo."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cap-list",
+								children: rangoCaps(caps.filter(c => !findQ.trim() || c.titulo.toLowerCase().includes(findQ.trim().toLowerCase()))).map((c, i) => {
+									const aqui = page + 1 >= c.inicio && page + 1 <= c.fin;
+									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cap-row-wrap",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+												className: "cap-row" + (aqui ? " on" : ""),
+												onClick: () => {
+													closeSheet();
+													irAPagina(c.inicio);
+												},
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "cap-row-t", children: [i + 1 + ". ", c.titulo] }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "cap-row-p", children: ["pág. ", c.inicio, "–", c.fin, aqui ? " · estás aquí" : ""] })
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "cap-del",
+												title: "Eliminar capítulo",
+												onClick: () => borrarCapitulo(c.id),
+												children: "✕"
+											})
+										]
+									}, c.id);
+								})
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "section-title",
+								style: { margin: "14px 4px 8px" },
+								children: "Nuevo capítulo (de una página a otra)"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "cap-in",
+								placeholder: "Título del capítulo…",
+								value: capTitulo,
+								onChange: (e) => setCapTitulo(e.target.value),
+								maxLength: 80
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cap-fila",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "cap-campo",
+										children: [
+											"Desde",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												type: "number",
+												min: 1,
+												max: pageCount || 1,
+												value: capDesde,
+												onChange: (e) => setCapDesde(e.target.value),
+												placeholder: String(page + 1)
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "cap-campo",
+										children: [
+											"Hasta",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												type: "number",
+												min: 1,
+												max: pageCount || 1,
+												value: capHasta,
+												onChange: (e) => setCapHasta(e.target.value),
+												placeholder: String(pageCount || page + 1)
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm",
+										onClick: () => agregarCapitulo(),
+										children: "➕ Agregar"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-sub",
+								style: { marginTop: 8, fontSize: 11.5 },
+								children: "Libro de " + pageCount + " páginas. «Desde» es la primera página del capítulo."
+							})
+						]
+					}),
+					/* Contenido: Buscar */
+					(sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "buscar" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "chips",
 						style: { marginBottom: 10 },
@@ -50884,6 +51190,143 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 							]
 						}, "pw" + i))
 					] })
+,
+					/* Contenido: Resaltados */
+					(sheet === "capitulos" ? "capitulos" : sheet === "marks" ? "resaltados" : findCat) === "resaltados" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							marcador && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "note-item marca-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: {
+											flex: 1,
+											minWidth: 0
+										},
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "note-text",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "marca-chip",
+													children: "🔖 Marcador"
+												}),
+												" «",
+												(marcador.muestra || "").slice(0, 70),
+												"…»"
+											]
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row-sub",
+											children: [
+												"Página ",
+												(marcador.page ?? 0) + 1,
+												" · dónde te quedaste"
+											]
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "icon-btn",
+										title: "Ir al marcador",
+										onClick: () => {
+											closeSheet();
+											if (marcador.page !== page) setPage(marcador.page);
+											setMode("text");
+											if (marcador.vista === "trad") setTradModo("trad");
+											else if (marcador.vista === "orig") setTradModo("orig");
+											irAlMarcador(marcador);
+										},
+										children: "↗"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "icon-btn",
+										title: "Quitar marcador",
+										onClick: async () => {
+											await patchBook(book.id, { marcador: null });
+											setMarcador(null);
+											setMarcadorAviso(null);
+											haptic$1.tap();
+											toast?.("Marcador quitado");
+										},
+										children: "🗑"
+									})
+								]
+							}),
+							highs.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "chips",
+								style: { marginBottom: 8 },
+								children: [
+									["usadas", "⭐ Más usadas"],
+									["chat", "🕒 Recientes"],
+									["pagina", "📄 Página"]
+								].map(([id, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "chip" + (ordenHL === id ? " on" : ""),
+									onClick: () => setOrdenHL(id),
+									children: et
+								}, id))
+							}),
+							highs.length === 0 && !marcador ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "empty",
+								style: { padding: "24px 8px" },
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "empty-emoji",
+									children: "💛"
+								}), "Selecciona texto y elige un color para guardarlo."]
+							}) : highsOrdenados
+								.filter(h => !findQ.trim() || (h.text || "").toLowerCase().includes(findQ.trim().toLowerCase()))
+								.map((h) => {
+								const c = colorOf(h.color);
+								const esDesconocida = h.color === "desconocida";
+								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "note-item",
+									style: { borderLeft: `4px solid ${c.hex}` },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											style: {
+												flex: 1,
+												minWidth: 0
+											},
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "note-text",
+													children: h.text
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "row-sub",
+													children: [
+														"Página ",
+														(h.page ?? 0) + 1,
+														" · ",
+														meanings[h.color] || c.label,
+														(h.uso || 0) > 0 && ` · ${h.uso} ${h.uso === 1 ? "uso" : "usos"}`
+													]
+												}),
+												esDesconocida && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "hl-def",
+													onClick: () => cargarInfoHL(h),
+													children: "📖 Ver significado y sinónimos"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "icon-btn",
+											onClick: () => {
+												closeSheet();
+												irAlResaltado(h);
+											},
+											title: "Ir al resaltado",
+											children: "↗"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "icon-btn",
+											onClick: async () => {
+												await deleteHighlight(h.id);
+												await reloadMarks();
+											},
+											children: "🗑"
+										})
+									]
+								}, h.id);
+							})
+						]
+					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -51493,11 +51936,11 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 								]
 							})
 						]
-					})
+					}),
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
-				open: sheet === "marks",
+				open: false && sheet === "marks",
 				onClose: closeSheet,
 				title: `💛 Resaltados (${highs.length + marcadores.length})`,
 				children: [
@@ -54488,7 +54931,6 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 			item("✨", "Auto detectar documentos", onAutoDetectar),
 			item("➕", "Añadir contenido", () => onSheet("importar")),
 			item("✍️", "Crear libro", () => onSheet("crear")),
-			item("🔎", "Buscar en la web", onAbrirBuscador),
 			item("🧲", "Torrent", onAbrirTorrent),
 			item("🌐", "Lumen Store 2", onAbrirCatalogo),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {

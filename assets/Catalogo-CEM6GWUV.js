@@ -365,9 +365,13 @@ const BIBLIOTECAS_INFO = [
 	["openlibrary", "Open Library", "📖"],
 	["archive", "Archive.org", "🏛️"],
 	["wikisource-es", "Wikisource (es)", "✒️"],
-	["wikisource-en", "Wikisource (en)", "🌐"]
+	["wikisource-en", "Wikisource (en)", "🌐"],
+	["royalroad", "Royal Road", "⚔️"],
+	["wattpad", "Wattpad", "🧡"],
+	["arxiv", "arXiv", "🔬"],
+	["annas", "Anna's Archive", "📕"]
 ];
-const BIB_DEFECTO = { gutendex: true, openlibrary: true, archive: true, "wikisource-es": true, "wikisource-en": true };
+const BIB_DEFECTO = { gutendex: true, openlibrary: true, archive: true, "wikisource-es": true, "wikisource-en": true, royalroad: true, wattpad: true, arxiv: true, annas: true };
 function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
@@ -401,6 +405,58 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [busqVisible, setBusqVisible] = (0, import_react.useState)(false);
 	const busqInputRef = (0, import_react.useRef)(null);
 	(0, import_react.useEffect)(() => { if (busqVisible) setTimeout(() => busqInputRef.current?.focus?.(), 60); }, [busqVisible]);
+	const [sugerencias, setSugerencias] = (0, import_react.useState)([]);
+	const [sugVisible, setSugVisible] = (0, import_react.useState)(false);
+	const [sugIdx, setSugIdx] = (0, import_react.useState)(-1);
+	const sugTimerRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		if (sugTimerRef.current) clearTimeout(sugTimerRef.current);
+		const q = (lgQ || "").trim();
+		if (lgUrlAbierto || q.length < 2) {
+			setSugerencias([]);
+			setSugVisible(false);
+			setSugIdx(-1);
+			return;
+		}
+		sugTimerRef.current = setTimeout(async () => {
+			const qNorm = q.toLowerCase();
+			const lista = [];
+			const seen = new Set();
+			const pool = [...(libros || []), ...(misLibros || []), ...(librosFeed || [])];
+			for (const b of pool) {
+				const tit = b.title || b.titulo || "";
+				const aut = b.author || b.autor || (b.authors || [])[0] || "";
+				if (tit && tit.toLowerCase().includes(qNorm) && !seen.has(tit.toLowerCase())) {
+					seen.add(tit.toLowerCase());
+					lista.push({ texto: tit, sub: aut ? `Libro · ${aut}` : "Lumen Store", origen: "Store", icono: "📖" });
+				}
+				if (lista.length >= 3) break;
+			}
+			try {
+				const res = await fetch(`https://es.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=6&namespace=0&format=json&origin=*`);
+				if (res.ok) {
+					const data = await res.json();
+					const terminos = data[1] || [];
+					for (const t of terminos) {
+						if (!t || seen.has(t.toLowerCase())) continue;
+						seen.add(t.toLowerCase());
+						lista.push({ texto: t, sub: "Sugerencia enciclopédica", origen: "Wiki", icono: "💡" });
+						if (lista.length >= 6) break;
+					}
+				}
+			} catch {}
+			if (lista.length > 0) {
+				lista.push({ texto: `Buscar «${q}» en la web`, sub: "Anna's Archive, Google, Sci-Hub y más", origen: "Web", icono: "🌐", web: true });
+				setSugerencias(lista);
+				setSugVisible(true);
+				setSugIdx(-1);
+			} else {
+				setSugerencias([]);
+				setSugVisible(false);
+			}
+		}, 150);
+		return () => { if (sugTimerRef.current) clearTimeout(sugTimerRef.current); };
+	}, [lgQ, lgUrlAbierto, libros, misLibros, librosFeed]);
 	const [lgUrlWeb, setLgUrlWeb] = (0, import_react.useState)("");
 	const [lgUrlBusy, setLgUrlBusy] = (0, import_react.useState)(false);
 	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
@@ -675,9 +731,15 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 												className: "plain cg-busq-input",
-												placeholder: lgUrlAbierto ? "Pega un enlace web (https://...) para extraer…" : "Buscar en la store y en las 5 bibliotecas…",
+												placeholder: lgUrlAbierto ? "Pega un enlace web (https://...) para extraer…" : "Buscar en la store y bibliotecas (sugiere mientras escribes)…",
 												ref: busqInputRef,
 												value: lgUrlAbierto ? lgUrlWeb : lgQ,
+												onFocus: () => {
+													if (!lgUrlAbierto && (lgQ || "").trim().length >= 2 && sugerencias.length > 0) setSugVisible(true);
+												},
+												onBlur: () => {
+													setTimeout(() => setSugVisible(false), 220);
+												},
 												onChange: (e) => {
 													const val = e.target.value;
 													if (lgUrlAbierto) setLgUrlWeb(val);
@@ -687,7 +749,31 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 													}
 												},
 												onKeyDown: (e) => {
+													if (sugVisible && sugerencias.length > 0) {
+														if (e.key === "ArrowDown") {
+															e.preventDefault();
+															setSugIdx((prev) => Math.min(prev + 1, sugerencias.length - 1));
+															return;
+														}
+														if (e.key === "ArrowUp") {
+															e.preventDefault();
+															setSugIdx((prev) => Math.max(prev - 1, -1));
+															return;
+														}
+														if (e.key === "Escape") {
+															setSugVisible(false);
+															return;
+														}
+														if (e.key === "Enter" && sugIdx >= 0 && sugerencias[sugIdx]) {
+															e.preventDefault();
+															if (sugerencias[sugIdx].web) onBuscarWeb?.(lgQ.trim());
+															else setLgQ(sugerencias[sugIdx].texto);
+															setSugVisible(false);
+															return;
+														}
+													}
 													if (e.key === "Enter") {
+														setSugVisible(false);
 														if (lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) {
 															if (!lgUrlWeb.trim() && /^https?:\/\//i.test((lgQ || "").trim())) setLgUrlWeb(lgQ.trim());
 															importarPaginaWeb();
@@ -699,10 +785,38 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 												className: "cg-busq-x",
 												onClick: () => {
 													if (lgUrlAbierto) setLgUrlWeb("");
-													else setLgQ("");
+													else {
+														setLgQ("");
+														setSugerencias([]);
+														setSugVisible(false);
+													}
 												},
 												"aria-label": "Limpiar búsqueda",
 												children: "✕"
+											}),
+											sugVisible && sugerencias.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "cg-sugerencias",
+												role: "listbox",
+												children: sugerencias.map((s, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "cg-sug-item" + (idx === sugIdx ? " active" : ""),
+													onMouseDown: (e) => {
+														e.preventDefault();
+														if (s.web) onBuscarWeb?.(lgQ.trim());
+														else setLgQ(s.texto);
+														setSugVisible(false);
+													},
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-icono", children: s.icono }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "cg-sug-cuerpo",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-texto", children: s.texto }),
+																s.sub && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-sub", children: s.sub })
+															]
+														}),
+														s.origen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-origen", children: s.origen })
+													]
+												}, idx))
 											})
 										]
 									}),
@@ -717,7 +831,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										children: lgUrlBusy ? (lgUrlPaso || "…") : "Extraer"
 									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "cg-busq-btn",
-										disabled: !lgQ.trim(),
 										title: "Buscar en la web (Anna's Archive, Gutenberg, Archive y más)",
 										"aria-label": "Buscar en la web",
 										onClick: () => onBuscarWeb?.(lgQ.trim()),

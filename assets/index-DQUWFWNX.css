@@ -13698,6 +13698,10 @@ mark.find-flash {
 .sigla-lum { background: #7c3aed; }
 .sigla-bne { background: #dc2626; }
 .sigla-sta { background: #059669; }
+.sigla-roy { background: #d97706; }
+.sigla-wat { background: #ea580c; }
+.sigla-arx { background: #b91c1c; }
+.sigla-ann { background: #e11d48; }
 .lg-sigla-desc { font-weight: 700; opacity: .88; letter-spacing: 0.3px; }
 .lg-badge { position: absolute; left: 4px; bottom: 4px; z-index: 2; width: 18px; height: 18px; border-radius: 50%; background: #2f8f4f; color: #fff; font-size: 11px; line-height: 18px; text-align: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .4); }
 .lg-prog { position: absolute; inset: 0; z-index: 2; border-radius: 8px; background: rgba(0, 0, 0, .55); overflow: hidden; }
@@ -14703,3 +14707,143 @@ body:has(.stories) .sidebar,
 
 
 
+
+/* Sugerencias de búsqueda inteligente en Lumen Store */
+.cg-sugerencias {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--bg-card, #1c1c24);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12));
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 10px -2px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  overflow: hidden;
+  max-height: 280px;
+  overflow-y: auto;
+  backdrop-filter: blur(12px);
+}
+.cg-sug-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.05));
+  transition: background 0.15s ease;
+  font-size: 13px;
+  color: var(--fg, #f0f0f4);
+}
+.cg-sug-item:last-child {
+  border-bottom: none;
+}
+.cg-sug-item:hover, .cg-sug-item.active {
+  background: var(--bg-hover, rgba(255, 255, 255, 0.08));
+  color: var(--accent, #6366f1);
+}
+.cg-sug-icono {
+  font-size: 13px;
+  opacity: 0.8;
+  flex: none;
+}
+.cg-sug-cuerpo {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.cg-sug-texto {
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cg-sug-sub {
+  font-size: 11px;
+  color: var(--fg-mute, rgba(255, 255, 255, 0.5));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cg-sug-origen {
+  font-size: 9.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--fg-mute, #a0a0b0);
+  flex: none;
+}
+
+/* ============ v232: Barra rd-tools adaptativa para Voz y búsqueda unificada ============ */
+.rd-tools-voz {
+  display: flex !important;
+  gap: 4px !important;
+  justify-content: space-between !important;
+}
+.rd-tools-voz .tool {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  padding: 8px 1px !important;
+  border-radius: 12px !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.2px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: manipulation !important;
+  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease !important;
+}
+.rd-tools-voz .tool span.i {
+  font-size: 17px !important;
+  line-height: 1 !important;
+}
+.rd-tools-voz .tool:active {
+  transform: scale(0.93) !important;
+  background: color-mix(in srgb, var(--accent, #7c5cff) 22%, transparent) !important;
+}
+.rd-tools-voz .tool.active {
+  color: var(--accent, #7c5cff) !important;
+  background: color-mix(in srgb, var(--accent, #7c5cff) 18%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent, #7c5cff) 35%, transparent) !important;
+}
+.rd-tools-voz .tool.detener {
+  color: #ef4444 !important;
+}
+.rd-tools-voz .tool.detener:active {
+  background: rgba(239, 68, 68, 0.22) !important;
+}
+
+/* Chips del panel de búsqueda y contenido */
+.rd-busq-chips {
+  display: flex !important;
+  gap: 6px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  flex-wrap: nowrap !important;
+  padding: 2px 2px 8px !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+}
+.rd-busq-chips::-webkit-scrollbar {
+  display: none !important;
+}
+.rd-busq-chips .chip {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+  padding: 6px 12px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  border-radius: 20px !important;
+  transition: all 0.15s ease !important;
+}
