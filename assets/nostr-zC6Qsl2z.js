@@ -2727,13 +2727,15 @@ var KIND_REPORTE = 30024;
 var KIND_VOTO = 30025;
 var RELAYS_DEFECTO = [
 	"wss://relay.damus.io",
-	"wss://relay.nostr.band",
-	"wss://relay.primal.net"
+	"wss://relay.primal.net",
+	"wss://nostr.mom",
+	"wss://relay.snort.social"
 ];
 var RELAY_NOMBRES = {
 	"wss://relay.damus.io": "Damus",
-	"wss://relay.nostr.band": "Nostr.band",
-	"wss://relay.primal.net": "Primal"
+	"wss://relay.primal.net": "Primal",
+	"wss://nostr.mom": "Nostr.mom",
+	"wss://relay.snort.social": "Snort"
 };
 var CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 function polymod(values) {
@@ -3206,6 +3208,49 @@ function npubCorto(npub, largo = 10) {
 	if (npub.length <= largo + 8) return npub;
 	return `${npub.slice(0, largo)}…${npub.slice(-4)}`;
 }
+function hashFnv32a(str) {
+	let hval = 0x811c9dc5;
+	for (let i = 0; i < str.length; i++) {
+		hval ^= str.charCodeAt(i);
+		hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
+	}
+	return hval >>> 0;
+}
+function generarFacehashUri(seed, size = 80) {
+	const s = String(seed || "anon").trim();
+	const h1 = hashFnv32a(s);
+	const h2 = hashFnv32a(s + "_lumen_salt2");
+	const h3 = hashFnv32a(s + "_lumen_salt3");
+	const hue = h1 % 360;
+	const sat = 70 + (h2 % 20);
+	const lit = 52 + (h3 % 14);
+	const color = `hsl(${hue},${sat}%,${lit}%)`;
+	const bg = `hsl(${hue},30%,12%)`;
+	const n = (h1 ^ (h2 << 5)) >>> 0;
+	const cellSize = 12;
+	const pad = 10;
+	const total = pad * 2 + cellSize * 5;
+	let rects = "";
+	for (let r = 0; r < 5; r++) {
+		for (let c = 0; c < 3; c++) {
+			const bitIndex = r * 3 + c;
+			if (((n >> bitIndex) & 1) === 1) {
+				const x1 = pad + c * cellSize;
+				const x2 = pad + (4 - c) * cellSize;
+				const y = pad + r * cellSize;
+				rects += `<rect x="${x1}" y="${y}" width="${cellSize}" height="${cellSize}" rx="3" fill="${color}"/>`;
+				if (c < 2) {
+					rects += `<rect x="${x2}" y="${y}" width="${cellSize}" height="${cellSize}" rx="3" fill="${color}"/>`;
+				}
+			}
+		}
+	}
+	if (!rects) {
+		rects = `<circle cx="40" cy="40" r="16" fill="${color}"/>`;
+	}
+	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${size}" height="${size}"><rect width="${total}" height="${total}" rx="${total/2}" fill="${bg}"/><g>${rects}</g></svg>`;
+	return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
 var tag = (ev, nombre) => {
 	const t = (ev.tags || []).find((x) => Array.isArray(x) && x[0] === nombre);
 	return t ? String(t[1] || "") : "";
@@ -3214,6 +3259,7 @@ var tag = (ev, nombre) => {
 function libroDeEvento(ev) {
 	ev.tags;
 	const cover = tag(ev, "cover") || tag(ev, "image");
+	const authorAvatar = tag(ev, "author_avatar") || generarFacehashUri(ev.pubkey || tag(ev, "author") || "anon");
 	const adRaw = tag(ev, "ad");
 	let ad = null;
 	if (adRaw) try {
@@ -3235,6 +3281,7 @@ function libroDeEvento(ev) {
 		d: tag(ev, "d") || ev.id,
 		titulo: tag(ev, "title") || "Sin título",
 		autor: tag(ev, "author") || "Autor desconocido",
+		authorAvatar,
 		categoria: tag(ev, "category") || "",
 		idioma: tag(ev, "language") || "es",
 		portada: cover,
@@ -3257,12 +3304,16 @@ function libroDeEvento(ev) {
 	};
 }
 /** Construye y firma el evento Kind 30023 de un libro. */
-function eventoDeLibro({ identidad, d, titulo, autor, categoria, idioma, descripcion, portada, cid, magnet, tamano, paginas, ad, donacion, zap, moderacion, rating, etiquetas, fileUrl, audioUrl, videoUrl }) {
+function eventoDeLibro({ identidad, d, titulo, autor, categoria, idioma, descripcion, portada, cid, magnet, tamano, paginas, ad, donacion, zap, moderacion, rating, etiquetas, fileUrl, audioUrl, videoUrl, authorAvatar }) {
+	const avatar = authorAvatar || generarFacehashUri(identidad.pubHex || autor || "anon");
 	const tags = [
 		["d", d],
 		["lumen", "1"],
+		["t", "lumen"],
+		["t", "lumenreader"],
 		["title", titulo],
 		["author", autor],
+		["author_avatar", avatar],
 		["category", categoria],
 		["language", idioma]
 	];
@@ -3369,11 +3420,10 @@ async function refrescarCatalogo({ onEstado = null } = {}) {
 	};
 	for (const url of relays) {
 		const subId = "lumen-cat-" + Math.random().toString(36).slice(2, 8);
-		const filtros = [{
-			kinds: [KIND_LIBRO],
-			"#lumen": ["1"],
-			limit: 200
-		}];
+		const filtros = [
+			{ kinds: [KIND_LIBRO], "#t": ["lumen"], limit: 200 },
+			{ kinds: [KIND_LIBRO], "#lumen": ["1"], limit: 200 }
+		];
 		const manejaEvento = (ev) => {
 			if (!verificarEvento(ev)) return;
 			if (ev.kind === 30023) {
@@ -3434,4 +3484,4 @@ async function publicarEnRelays(ev, { onEstado = null } = {}) {
 }
 var espera = (ms) => new Promise((r) => setTimeout(r, ms));
 //#endregion
-export { KIND_LIBRO, KIND_REPORTE, KIND_VOTO, RELAYS_DEFECTO, RELAY_NOMBRES, bech32Decode, bech32Encode, borrarIdentidad, buscarLibros, catalogoGuardado, categoriasDe, cierre, conectarRelay, contarReportes, crearEvento, descubrirRelays, espera, eventId, eventoDeLibro, eventoReporte, filtrarLibros, firmarEvento, generarIdentidad, guardarCatalogo, guardarIdentidad, guardarRelays, guardarReportes, hexDeNpub, hexDeNsec, bytesToHex as i, identidadGuardada, libroDeEvento, schnorr as n, npubCorto, npubDeHex, nsecDeHex, publicarEnRelays, publicarEvento, secp256k1 as r, refrescarCatalogo, relaysGuardados, reportesGuardados, suscribir, sha256 as t, verificarEvento };
+export { KIND_LIBRO, KIND_REPORTE, KIND_VOTO, RELAYS_DEFECTO, RELAY_NOMBRES, bech32Decode, bech32Encode, borrarIdentidad, buscarLibros, catalogoGuardado, categoriasDe, cierre, conectarRelay, contarReportes, crearEvento, descubrirRelays, espera, eventId, eventoDeLibro, eventoReporte, filtrarLibros, firmarEvento, generarFacehashUri, generarIdentidad, guardarCatalogo, guardarIdentidad, guardarRelays, guardarReportes, hexDeNpub, hexDeNsec, bytesToHex as i, identidadGuardada, libroDeEvento, schnorr as n, npubCorto, npubDeHex, nsecDeHex, publicarEnRelays, publicarEvento, secp256k1 as r, refrescarCatalogo, relaysGuardados, reportesGuardados, suscribir, sha256 as t, verificarEvento };

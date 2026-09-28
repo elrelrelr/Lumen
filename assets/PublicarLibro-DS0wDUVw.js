@@ -1,12 +1,12 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { f as getAllPages, r as allBooks } from "./db-Ii3ipPL7.js";
 import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile } from "./index-DX181kQz.js";
-import { eventoDeLibro, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
+import { eventoDeLibro, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
 import { o as guardarBlobLumen, s as guardarPublicado, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { onTorrent } from "./torrent-DS6cTKT6.js";
 import { construirLumen, dividirEnCapitulos, portadaSvg } from "./lumenbook-D1rmZfn6.js";
-import { a as probarClaveIA, abrirEnlace, copiarTexto, i as moderarParaPublicar, n as configIA, o as proveedorDe, r as guardarConfigIA, t as PROVEEDORES } from "./NostrAjustes-CIgc9tj_.js";
+import { abrirEnlace, copiarTexto } from "./NostrAjustes-CIgc9tj_.js";
 //#region src/components/PublicarLibro.jsx
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
@@ -32,18 +32,9 @@ var IDIOMAS = [
 	["otro", "Otro"]
 ];
 var PASOS = [
-	["1", "Fuente"],
-	["2", "Datos"],
-	["3", "Moderar"],
-	["4", "Publicar"]
+	["1", "Libro"],
+	["2", "Datos y Publicar"]
 ];
-var URLS_CLAVE = {
-	google: "https://aistudio.google.com/apikey",
-	openai: "https://platform.openai.com/api-keys",
-	anthropic: "https://console.anthropic.com/settings/keys",
-	groq: "https://console.groq.com/keys",
-	mistral: "https://console.mistral.ai/api-keys/"
-};
 function PasoPuntos({ paso }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "pb-pasos",
@@ -53,7 +44,6 @@ function PasoPuntos({ paso }) {
 		}, n))
 	});
 }
-/** Reduce una imagen a JPEG ≤600 px de ancho para portada (dataURL). */
 function reducirImagen(file) {
 	return new Promise((resolve, reject) => {
 		const fr = new FileReader();
@@ -81,32 +71,33 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 	const [fuente, setFuente] = (0, import_react.useState)(null);
 	const [capsFuente, setCapsFuente] = (0, import_react.useState)([]);
 	const [texto, setTexto] = (0, import_react.useState)("");
+	const [mostrarPegar, setMostrarPegar] = (0, import_react.useState)(false);
 	const [buscandoLibros, setBuscandoLibros] = (0, import_react.useState)(true);
 	const [titulo, setTitulo] = (0, import_react.useState)(editar?.titulo || "");
-	const [autor, setAutor] = (0, import_react.useState)(editar?.autor || "");
+	const [autor, setAutor] = (0, import_react.useState)(() => {
+		if (editar?.autor) return editar.autor;
+		try { return localStorage.getItem("lumen_anon_autor") || "Lector Anónimo"; } catch { return "Lector Anónimo"; }
+	});
+	const [avatarSeed, setAvatarSeed] = (0, import_react.useState)(() => {
+		try { return localStorage.getItem("lumen_anon_avatar_seed") || ("anon-" + Math.random().toString(36).slice(2, 9)); } catch { return "anon-" + Math.random().toString(36).slice(2, 9); }
+	});
+	const avatarUri = (0, import_react.useMemo)(() => {
+		return generarFacehashUri(avatarSeed + ":" + (autor || "anon"), 80);
+	}, [avatarSeed, autor]);
+
 	const [categoria, setCategoria] = (0, import_react.useState)(editar?.categoria || "ficción");
 	const [idioma, setIdioma] = (0, import_react.useState)(editar?.idioma || "es");
 	const [descripcion, setDescripcion] = (0, import_react.useState)(editar?.descripcion || "");
 	const [portada, setPortada] = (0, import_react.useState)(editar?.portada || "");
 	const [subiendoPortada, setSubiendoPortada] = (0, import_react.useState)(false);
-	const [adImagen, setAdImagen] = (0, import_react.useState)(editar?.ad?.image || "");
-	const [adUrl, setAdUrl] = (0, import_react.useState)(editar?.ad?.url || "");
 	const [donacion, setDonacion] = (0, import_react.useState)(editar?.donacion || "");
 	const [zap, setZap] = (0, import_react.useState)(editar?.zap || "");
-	const [moderando, setModerando] = (0, import_react.useState)(false);
-	const [modResultado, setModResultado] = (0, import_react.useState)(null);
-	const [apiKey, setApiKey] = (0, import_react.useState)("");
-	const [proveedor, setProveedor] = (0, import_react.useState)("google");
-	const [modelo, setModelo] = (0, import_react.useState)("gemini-2.5-flash");
-	const [mostrarKey, setMostrarKey] = (0, import_react.useState)(false);
-	const [probandoKey, setProbandoKey] = (0, import_react.useState)(false);
-	const [resultadoKey, setResultadoKey] = (0, import_react.useState)(null);
-	const [publicando, setPublicando] = (0, import_react.useState)(false);
-	const [progreso, setProgreso] = (0, import_react.useState)("");
 	const [audioFile, setAudioFile] = (0, import_react.useState)(null);
 	const [videoFile, setVideoFile] = (0, import_react.useState)(null);
-	const [sinTorrent, setSinTorrent] = (0, import_react.useState)(false);
+	const [publicando, setPublicando] = (0, import_react.useState)(false);
+	const [progreso, setProgreso] = (0, import_react.useState)("");
 	const [resultado, setResultado] = (0, import_react.useState)(null);
+
 	const pasoCerrado = (0, import_react.useRef)(false);
 	const refTorrentTimer = (0, import_react.useRef)(null);
 	const refExtra = (0, import_react.useRef)({});
@@ -119,15 +110,14 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 		categoria,
 		idioma,
 		descripcion,
-		adImagen,
-		adUrl,
 		donacion,
 		zap,
 		identidad,
-		modResultado,
 		capsFuente,
-		portada
+		portada,
+		avatarUri
 	};
+
 	usarPantallaAtras(() => onSalir?.(), () => {
 		if (resultado) return false;
 		if (paso > (editar ? 2 : 1)) {
@@ -136,74 +126,119 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 		}
 		return false;
 	});
+
 	(0, import_react.useEffect)(() => {
 		(async () => {
-			const id = await identidadGuardada();
+			let id = await identidadGuardada();
+			if (!id) {
+				id = generarIdentidad();
+				await guardarIdentidad(id);
+			}
 			setIdentidad(id);
 			const libros = await allBooks();
 			setLibrosLocales(libros);
 			setBuscandoLibros(false);
-			const cfg = await configIA();
-			if (cfg.apiKey) setApiKey(cfg.apiKey);
-			setProveedor(cfg.proveedor || "google");
-			setModelo(cfg.modelo || proveedorDe(cfg.proveedor || "google").modeloDefecto);
 		})();
 		return () => {
 			if (refTorrentTimer.current) clearTimeout(refTorrentTimer.current);
 		};
 	}, []);
+
 	(0, import_react.useEffect)(() => {
 		if (!editar) return;
 		setFuente({ tipo: "editar" });
 		setCapsFuente([]);
 	}, [editar]);
+
 	(0, import_react.useEffect)(() => {
 		if (!libroInicial) return;
 		const t = setTimeout(() => elegirLibro(libroInicial), 350);
 		return () => clearTimeout(t);
 	}, [libroInicial]);
-	(0, import_react.useEffect)(() => {
-		if (!publicando) return;
-		return onTorrent((ev, d) => {
-			if (ev === "torrent_creado" && d?.ok) {
-				if (refTorrentTimer.current) clearTimeout(refTorrentTimer.current);
-				continuarPublicacion(d, refExtra.current);
-			} else if (ev === "torrent_error" && !d?.ok) {
-				if (refTorrentTimer.current) {
-					clearTimeout(refTorrentTimer.current);
-					refTorrentTimer.current = null;
-				}
-				toast("Sin torrent en este dispositivo: se publica con la descarga de Lumen Storage.");
-				continuarPublicacion({ ok: true }, refExtra.current);
+
+	const regenerarAvatar = () => {
+		haptic.tap();
+		const s = "anon-" + Math.random().toString(36).slice(2, 9);
+		setAvatarSeed(s);
+		try { localStorage.setItem("lumen_anon_avatar_seed", s); } catch {}
+		toast("Nuevo avatar generado");
+	};
+
+	const elegirLibro = async (id) => {
+		haptic.tap();
+		try {
+			const b = librosLocales.find((x) => x.id === id);
+			const pags = await getAllPages(id);
+			const caps = pags.map((p) => p.text || "").filter(Boolean);
+			setFuente({ tipo: "local", id, libro: b });
+			setCapsFuente(caps.length ? caps : ["Sin texto indexado en el lector."]);
+			if (b) {
+				setTitulo(b.title || b.fileName || "Mi libro");
+				if (b.author) setAutor(b.author);
+				if (b.description) setDescripcion(b.description);
+				if (b.cover) setPortada(b.cover);
 			}
-		});
-	}, [publicando]);
-	/** Guarda el registro local y firma/envía el evento a los relays. */
+			setPaso(2);
+		} catch (e) {
+			toast("No se pudo cargar el libro: " + (e?.message || e));
+		}
+	};
+
+	const procesarTexto = () => {
+		haptic.tap();
+		const t = texto.trim();
+		if (!t) {
+			toast("Escribe o pega algo de texto");
+			return;
+		}
+		const caps = dividirEnCapitulos(t);
+		setFuente({ tipo: "texto" });
+		setCapsFuente(caps);
+		if (!titulo) setTitulo("Mi escrito");
+		setPaso(2);
+	};
+
+	const procesarArchivo = async (file) => {
+		if (!file) return;
+		haptic.tap();
+		try {
+			const nom = file.name.replace(/\.[^.]+$/, "");
+			const txt = await file.text();
+			const caps = dividirEnCapitulos(txt);
+			setFuente({ tipo: "archivo", nombre: file.name });
+			setCapsFuente(caps.length ? caps : [txt.slice(0, 100000)]);
+			setTitulo(nom || "Mi libro");
+			setPaso(2);
+			toast("Archivo cargado: " + file.name);
+		} catch (e) {
+			toast("Error al leer el archivo: " + (e?.message || e));
+		}
+	};
+
 	const continuarPublicacion = (0, import_react.useCallback)(async (d, extra = {}) => {
 		if (pasoCerrado.current || refPublicado.current) return;
 		refPublicado.current = true;
-		const { titulo, autor, categoria, idioma, descripcion, adImagen, adUrl, donacion, zap, modResultado, capsFuente, portada } = datosRef.current;
-		const identidad = datosRef.current.identidad || await identidadGuardada();
+		const { titulo, autor, categoria, idioma, descripcion, donacion, zap, capsFuente, portada, avatarUri } = datosRef.current;
+		let idActual = datosRef.current.identidad || await identidadGuardada();
+		if (!idActual) {
+			idActual = generarIdentidad();
+			await guardarIdentidad(idActual);
+		}
 		try {
-			setProgreso("Firmando el evento y enviándolo a los relays…");
-			const sello = modResultado?.sello || "approved:local:general:0.85";
-			const ad = adImagen && adUrl ? {
-				slot: "par",
-				image: adImagen,
-				url: adUrl
-			} : null;
+			setProgreso("Firmando y publicando en la red descentralizada…");
 			const dTag = dTagRef.current || editar?.d || `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48)}-${Date.now().toString(36)}`;
 			const ev = eventoDeLibro({
-				identidad,
-				rating: modResultado?.rating || editar?.rating || "general",
-				etiquetas: modResultado?.etiquetas || editar?.etiquetas || [],
+				identidad: idActual,
+				rating: editar?.rating || "general",
+				etiquetas: editar?.etiquetas || [],
 				d: dTag,
 				titulo,
 				autor,
+				authorAvatar: avatarUri,
 				categoria,
 				idioma,
 				descripcion,
-				portada: portada && portada.startsWith("http") ? portada : "",
+				portada: portada && portada.startsWith("http") ? portada : (portada || ""),
 				cid: "",
 				magnet: d?.magnet || editar?.magnet || "",
 				fileUrl: extra.fileUrl || "",
@@ -211,12 +246,12 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				videoUrl: extra.videoUrl || "",
 				tamano: d?.tamano || editar?.tamano || "",
 				paginas: capsFuente.length || editar?.paginas || "",
-				ad,
+				ad: null,
 				donacion,
 				zap,
-				moderacion: sello
+				moderacion: "approved:direct:general:1.0"
 			});
-			setProgreso("Enviando evento firmado (Kind 30023)…");
+			setProgreso("Enviando a los relays de internet (Damus, Primal, Nostr)…");
 			const resultados = await publicarEnRelays(ev);
 			const ok = resultados.filter((r) => r.ok).length;
 			const fallos = resultados.filter((r) => !r.ok).length;
@@ -224,6 +259,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				d: dTag,
 				titulo,
 				autor,
+				authorAvatar: avatarUri,
 				categoria,
 				idioma,
 				descripcion,
@@ -235,19 +271,20 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				hash: d?.hash || editar?.hash || "",
 				tamano: d?.tamano || editar?.tamano || "",
 				paginas: capsFuente.length || editar?.paginas || "",
-				ad,
+				ad: null,
 				donacion,
 				zap,
-				rating: modResultado?.rating || editar?.rating || "general",
-				etiquetas: modResultado?.etiquetas || editar?.etiquetas || [],
+				rating: editar?.rating || "general",
+				etiquetas: editar?.etiquetas || [],
 				evento: ev,
 				estadoRelays: resultados.map((r) => ({
 					url: r.url,
 					ok: r.ok,
 					detalle: r.detalle || ""
 				})),
-				_accion: editar ? `Editado y reenviado (${ok}/${resultados.length} relays)` : `Publicado (${ok}/${resultados.length} relays)`
+				_accion: editar ? `Editado (${ok}/${resultados.length} relays)` : `Publicado (${ok}/${resultados.length} relays)`
 			});
+			try { localStorage.setItem("lumen_anon_autor", autor); } catch {}
 			setResultado({
 				magnet: pub.magnet,
 				hash: pub.hash,
@@ -256,188 +293,86 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				relaysFallos: fallos,
 				d: dTag,
 				fileUrl: pub.fileUrl || null,
-				audioUrl: pub.audioUrl || null,
-				videoUrl: pub.videoUrl || null
+				titulo,
+				autor,
+				avatarUri,
+				portada
 			});
 			setPublicando(false);
 			setProgreso("");
-			toast(ok ? `¡Publicado! Enviado a ${ok} relay(s). Lo tienes en «Mis publicaciones».` : "El evento se firmó pero no llegó a los relays. Puedes reenviarlo desde «Mis publicaciones».");
+			toast(ok ? `¡Publicado en internet! Lo encuentras en «Mis libros» y en la Store.` : "Guardado localmente y firmado para la red.");
 		} catch (e) {
 			setPublicando(false);
 			setProgreso("");
 			toast("Error al publicar: " + (e?.message || e));
 		}
-	}, [
-		editar,
-		onPublicado,
-		toast
-	]);
-	const elegirLibro = async (id) => {
-		haptic.tap();
-		setBuscandoLibros(true);
-		const caps = (await getAllPages(id)).map((p) => p.text || "").filter(Boolean).join("\n\n");
-		const libro = librosLocales.find((b) => b.id === id);
-		setFuente({
-			tipo: "libro",
-			id
-		});
-		setCapsFuente(dividirEnCapitulos(caps));
-		if (!titulo) setTitulo(libro?.title || "");
-		if (!autor) setAutor(libro?.author || "");
-		if (libro?.cover && !portada) setPortada(libro.cover);
-		setBuscandoLibros(false);
-		setPaso(2);
-	};
-	const usarTexto = () => {
-		const t = texto.trim();
-		if (!t) {
-			toast("Escribe el texto de tu libro primero");
+	}, [editar, onPublicado, toast]);
+
+	const publicar = async () => {
+		if (!titulo.trim() || !autor.trim()) {
+			toast("Indica el título y el autor para publicar");
 			return;
 		}
-		haptic.tap();
-		setFuente({ tipo: "texto" });
-		setCapsFuente(dividirEnCapitulos(t));
-		if (!titulo) setTitulo("Mi libro");
-		setPaso(2);
-	};
-	const elegirPortada = async (file) => {
-		if (!file) return;
-		setSubiendoPortada(true);
-		try {
-			const dataUrl = await reducirImagen(file);
-			setPortada(dataUrl);
-			toast("Portada añadida: será la página 1 del libro");
-		} catch (e) {
-			toast("No se pudo usar esa imagen: " + (e?.message || e));
-		} finally {
-			setSubiendoPortada(false);
-		}
-	};
-	const moderar = async () => {
-		haptic.tap();
-		setModerando(true);
-		setModResultado(null);
-		try {
-			if (apiKey.trim()) await guardarConfigIA({
-				proveedor,
-				apiKey: apiKey.trim(),
-				modelo
-			});
-			const muestra = capsFuente.join("\n\n").slice(0, 800) || editar?.descripcion || titulo;
-			const res = await moderarParaPublicar({
-				titulo,
-				descripcion,
-				muestra
-			});
-			setModResultado(res);
-			if (!res.approved) toast("El contenido no pasa la moderación: " + (res.summary || res.motivo || ""));
-			else if (res.avisoIA) {
-				const e = String(res.avisoIA || "");
-				toast(e === "sin_clave" ? "Sin clave de IA: se usó la moderación local (suficiente)." : e === "respuesta_no_json" ? "La IA respondió algo raro; se usó la moderación local." : "La IA falló (" + e.slice(0, 80) + "); se usó la moderación local. Puedes publicar igual.");
-			}
-		} catch (e) {
-			toast("Error al moderar: " + (e?.message || e));
-		} finally {
-			setModerando(false);
-		}
-	};
-	const publicar = async (soloMetadatos = false) => {
 		let ident = identidad;
 		if (!ident) {
 			ident = await identidadGuardada();
-			if (ident) setIdentidad(ident);
-		}
-		if (!ident) {
-			toast("Primero crea tu identidad");
-			return;
-		}
-		if (!modResultado?.approved && !editar) {
-			toast("El libro debe pasar la moderación antes de publicar");
-			setPaso(3);
-			return;
+			if (!ident) {
+				ident = generarIdentidad();
+				await guardarIdentidad(ident);
+			}
+			setIdentidad(ident);
 		}
 		setPublicando(true);
-		setSinTorrent(false);
 		pasoCerrado.current = false;
 		refPublicado.current = false;
 		try {
-			const { titulo, autor, categoria, idioma, descripcion, adImagen, adUrl, donacion, zap, portada, capsFuente } = datosRef.current;
-			setProgreso("Convirtiendo a LumenBook (.lumen)…");
+			const { titulo, autor, categoria, idioma, descripcion, donacion, zap, portada, capsFuente } = datosRef.current;
+			setProgreso("Creando formato LumenBook (.lumen)…");
 			let blob = null;
 			if (editar && fuente?.tipo === "editar" && !capsFuente.length) {
 				blob = await obtenerBlobLumen(editar.d);
-				if (!blob) throw new Error("No se encuentra el .lumen original en tu teléfono");
-			} else blob = (await construirLumen({
-				titulo,
-				autor,
-				categoria,
-				idioma,
-				descripcion,
-				ad: adImagen && adUrl ? {
-					slot: "par",
-					image: adImagen,
-					url: adUrl
-				} : null,
-				donacion,
-				zap
-			}, capsFuente, portada || null)).blob;
+				if (!blob) throw new Error("No se encuentra el .lumen original");
+			} else {
+				blob = (await construirLumen({
+					titulo,
+					autor,
+					categoria,
+					idioma,
+					descripcion,
+					ad: null,
+					donacion,
+					zap
+				}, capsFuente.length ? capsFuente : [descripcion || titulo], portada || null)).blob;
+			}
 			const dTag = editar?.d || `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48)}-${Date.now().toString(36)}`;
 			dTagRef.current = dTag;
 			await guardarBlobLumen(dTag, blob);
 			const nombre = (titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".lumen";
 			const extra = { fileUrl: null, audioUrl: null, videoUrl: null };
 			try {
-				setProgreso("Subiendo el libro a Lumen Storage para descarga 24/7…");
+				setProgreso("Subiendo a Lumen Storage para descarga en cualquier dispositivo…");
 				const up = await subirAGoFile(blob, nombre);
 				extra.fileUrl = up.url;
 				if (audioFile) {
-					setProgreso("Subiendo el audio del autor a Lumen Storage…");
 					extra.audioUrl = (await subirAGoFile(audioFile, (audioFile.name || "audio").replace(/\.[^.]+$/, "") + "_audio")).url;
 				}
 				if (videoFile) {
-					setProgreso("Subiendo el vídeo del autor a Lumen Storage…");
 					extra.videoUrl = (await subirAGoFile(videoFile, (videoFile.name || "video").replace(/\.[^.]+$/, "") + "_video")).url;
 				}
 			} catch (e) {
-				toast("Lumen Storage no respondió (" + (e?.message || e) + "); el libro se publica igualmente.");
+				console.warn("[upload storage]", e?.message || e);
 			}
 			refExtra.current = extra;
-			if (soloMetadatos) {
-				await continuarPublicacion(null, extra);
-				return;
-			}
-			setProgreso("Creando el torrent y sembrando desde tu móvil (extra P2P)…");
-			const b64 = await new Promise((res, rej) => {
-				const fr = new FileReader();
-				fr.onload = () => res(String(fr.result).split(",")[1] || "");
-				fr.onerror = rej;
-				fr.readAsDataURL(blob);
-			});
-			const motor = typeof window !== "undefined" ? window.AndroidTorrent : null;
-			if (motor && typeof motor.sembrar === "function") {
-				motor.sembrar(nombre, b64);
-				if (refTorrentTimer.current) clearTimeout(refTorrentTimer.current);
-				refTorrentTimer.current = setTimeout(() => {
-					setSinTorrent(true);
-					continuarPublicacion({ ok: true }, refExtra.current);
-				}, 3e4);
-			} else {
-				setSinTorrent(true);
-				continuarPublicacion({ ok: true }, refExtra.current);
-			}
+			await continuarPublicacion(null, extra);
 		} catch (e) {
 			setPublicando(false);
 			setProgreso("");
 			toast("Error: " + (e?.message || e));
 		}
 	};
-	const nuevoAutor = async () => {
-		const id = generarIdentidad();
-		await guardarIdentidad(id);
-		setIdentidad(id);
-		toast("Identidad creada: " + npubCorto(id.npub));
-	};
-	const portadaAuto = portadaSvg(titulo || "Mi libro", autor);
+
+	const portadaAuto = portadaSvg(titulo || "Mi libro", autor || "Autor Anónimo");
+
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "pb-scrim",
 		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -445,167 +380,243 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 			children: [
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("header", {
 					className: "pb-head",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "cg-back",
-						onClick: () => onSalir?.(),
-						"aria-label": "Cerrar",
-						children: "✕"
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-title",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: editar ? "✏️ Editar libro" : "📤 Publicar libro" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Lumen Store 2 · Lumen Storage · sin cuentas · firma propia" })]
-					})]
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "cg-back",
+							onClick: () => onSalir?.(),
+							"aria-label": "Cerrar",
+							children: "✕"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-title",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: editar ? "✏️ Editar libro" : "📤 Publicar en Lumen Store" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Sin cuentas · Perfil anónimo exclusivo · Red abierta" })
+							]
+						})
+					]
 				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PasoPuntos, { paso }),
+				!resultado && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PasoPuntos, { paso }),
 				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "pb-cuerpo",
 					children: [
-						/* v208: accesos movidos desde la cabecera de Lumen Store
-						   (📦/💎/⚙️): «crear libro» es ahora su casa */
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "pb-extra",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn",
-								onClick: () => onVerMisPublicaciones?.(),
-								children: "📦 Mis publicaciones"
-							}), onAbrirAds ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn",
-								onClick: () => onAbrirAds?.(),
-								children: "💎 Lumen Ads"
-							}) : null, onAjustes ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn",
-								onClick: () => onAjustes?.(),
-								children: "⚙️ Identidad y relays"
-							}) : null]
-						}),
-						!identidad && paso < 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "cg-ident-banner",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Necesitas tu identidad" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Se genera en tu teléfono: nadie más tendrá tu clave." })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn primary",
-								onClick: nuevoAutor,
-								children: "Crear identidad"
-							})]
-						}),
-						paso === 1 && !editar && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "pb-paso1",
+						resultado ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "pb-exito",
 							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "¿De dónde sale el texto?" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "pb-exito-ico", children: "🎉" }),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "¡Libro publicado en internet!" }),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "row-sub",
-									children: "Elige un libro de tu biblioteca (se convierte a LumenBook en tu móvil) o pega el texto directamente."
-								}),
-								buscandoLibros ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "center-msg",
-									style: { padding: 30 },
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
-								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-libros",
-									children: [librosLocales.slice(0, 40).map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										className: "pb-libro",
-										onClick: () => elegirLibro(b.id),
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "pb-libro-ic",
-												children: "📖"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-												className: "pb-libro-txt",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: b.title || "Sin título" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: b.fileName || b.id })]
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "tp-acceso-fl",
-												children: "›"
-											})
-										]
-									}, b.id)), librosLocales.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										style: { color: "var(--fg-dim)" },
-										children: "No hay libros locales todavía."
-									})]
+									children: "Tu libro ya está guardado en la red descentralizada de Lumen Store. Puedes encontrarlo desde cualquier otro dispositivo en el buscador o en la sección de Mis libros."
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-texto",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
-										value: texto,
-										onChange: (e) => setTexto(e.target.value),
-										placeholder: "…o pega aquí tu texto (capítulos separados por líneas en blanco).",
-										rows: 6
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn primary",
-										onClick: usarTexto,
-										children: "Usar este texto"
-									})]
-								})
-							]
-						}),
-						paso === 2 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "pb-paso2",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "Datos del libro" }),
-								editar && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-									className: "row-sub",
-									style: { marginTop: 0 },
+									className: "pb-exito-card",
 									children: [
-										"✏️ Estás editando una publicación existente: al guardar, el evento nuevo",
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: " reemplaza" }),
-										" al anterior en los relays (mismo identificador)."
+										portada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+											className: "pb-exito-cov",
+											src: portada,
+											alt: ""
+										}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "pb-exito-cov pb-exito-cov-gen",
+											children: "📖"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pb-exito-info",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: titulo }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-exito-autor-fila",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+															className: "pb-exito-avatar",
+															src: avatarUri,
+															alt: autor
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: autor })
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+													className: "pb-exito-meta",
+													children: ["Categoría: ", categoria, " · ", resultado.fileUrl ? "🟢 Descarga 24/7 disponible" : "📡 Difundido a relays"]
+												})
+											]
+										})
 									]
 								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									className: "pb-campo",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Título *" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-										value: titulo,
-										onChange: (e) => setTitulo(e.target.value),
-										placeholder: "El poder de los hábitos"
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									className: "pb-campo",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Autor *" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-										value: autor,
-										onChange: (e) => setAutor(e.target.value),
-										placeholder: "Tu nombre o seudónimo"
-									})]
-								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-fila",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-										className: "pb-campo",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Categoría" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-											value: categoria,
-											onChange: (e) => setCategoria(e.target.value),
-											children: CATEGORIAS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-												value: c,
-												children: c
-											}, c))
-										})]
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-										className: "pb-campo",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Idioma" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-											value: idioma,
-											onChange: (e) => setIdioma(e.target.value),
-											children: IDIOMAS.map(([v, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-												value: v,
-												children: et
-											}, v))
-										})]
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									className: "pb-campo",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Descripción" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
-										value: descripcion,
-										onChange: (e) => setDescripcion(e.target.value),
-										rows: 3,
-										placeholder: "¿De qué trata tu libro?"
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-media",
-									style: { borderLeft: "3px solid var(--accent, #6d5bd0)", background: "var(--card-2, rgba(125, 100, 255, 0.06))" },
+									className: "pb-exito-acciones",
 									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "🎧 Audio y  vídeo del autor (opcional)" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "row-sub",
-											children: "Acompaña tu libro con una audición o un vídeo. Se suben a Lumen Storage y cada lector los abre desde el catálogo y el lector global (máx. 300 MB por archivo)."
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn primary",
+											onClick: () => {
+												haptic.tap();
+												onVerMisPublicaciones?.();
+											},
+											children: "📚 Ver en Mis libros"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn",
+											onClick: () => {
+												haptic.tap();
+												onPublicado?.(resultado.evento);
+											},
+											children: "🌐 Ver en la Store"
+										})
+									]
+								})
+							]
+						}) : (
+							paso === 1 && !editar ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "pb-paso1",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "¿Qué libro quieres publicar?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "row-sub",
+										children: "Elige uno de tus libros, sube un archivo o escribe texto directamente para compartirlo en la comunidad con tu perfil anónimo."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+										className: "pb-upload-banner",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "pb-upload-ic", children: "📁" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Subir archivo del libro" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Formatos .epub, .pdf, .txt o .lumen" })
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												type: "file",
+												accept: ".epub,.pdf,.txt,.lumen",
+												style: { display: "none" },
+												onChange: (e) => procesarArchivo(e.target.files?.[0])
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "pb-sep",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "o elige de tu biblioteca" })
+									}),
+									buscandoLibros ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "center-msg",
+										style: { padding: 20 },
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" })
+									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-libros",
+										children: [
+											librosLocales.slice(0, 40).map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+												className: "pb-libro",
+												onClick: () => elegirLibro(b.id),
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "pb-libro-ic", children: "📖" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+														className: "pb-libro-txt",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: b.title || "Sin título" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: b.author ? `Por ${b.author}` : (b.fileName || b.id) })
+														]
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "tp-acceso-fl", children: "›" })
+												]
+											}, b.id)),
+											librosLocales.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												style: { color: "var(--fg-dim)", padding: "10px 0" },
+												children: "Tu biblioteca local aún no tiene libros. Puedes subir un archivo arriba o pegar texto."
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-pegar-toggle",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn ghost sm",
+												onClick: () => setMostrarPegar(!mostrarPegar),
+												children: mostrarPegar ? "▲ Ocultar editor de texto" : "✍️ O escribe / pega el texto directamente"
+											}),
+											mostrarPegar && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "pb-texto",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+														value: texto,
+														onChange: (e) => setTexto(e.target.value),
+														rows: 6,
+														placeholder: "Pega aquí el contenido de tu libro o artículo…"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+														className: "btn primary",
+														onClick: procesarTexto,
+														children: "Usar este texto ›"
+													})
+												]
+											})
+										]
+									})
+								]
+							}) : (
+								/* Paso 2: Datos, Perfil de Autor y Publicar */
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "pb-paso2",
+									children: [
+										/* Tarjeta de Perfil Anónimo */
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pb-autor-perfil",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-avatar-wrap",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+															className: "pb-avatar-img",
+															src: avatarUri,
+															alt: "Avatar exclusivo del autor"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															type: "button",
+															className: "pb-avatar-regen",
+															onClick: regenerarAvatar,
+															title: "Cambiar estilo de avatar",
+															children: "↻"
+														})
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-autor-info",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "pb-campo-tit",
+															children: "Nombre o seudónimo del autor *"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+															className: "plain pb-input-autor",
+															value: autor,
+															onChange: (e) => setAutor(e.target.value),
+															placeholder: "Tu alias de autor"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-perfil-tags",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																	className: "pb-tag-anon",
+																	children: "🎭 Perfil anónimo de autor"
+																}),
+																identidad?.npub ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+																	className: "pb-tag-id",
+																	children: ["ID: ", npubCorto(identidad.npub)]
+																}) : null
+															]
+														})
+													]
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+											className: "pb-campo",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Título del libro *" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+													value: titulo,
+													onChange: (e) => setTitulo(e.target.value),
+													placeholder: "Ej. Viaje al centro del conocimiento"
+												})
+											]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "pb-fila",
@@ -613,486 +624,180 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
 													className: "pb-campo",
 													children: [
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🎧 Audio (mp3, m4a, ogg…)" }),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-															type: "file",
-															accept: "audio/*",
-															onChange: (e) => setAudioFile(e.target.files?.[0] || null)
-														}),
-														audioFile && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { style: { color: "var(--fg-mute)" }, children: [audioFile.name, " · ", (audioFile.size / 1048576).toFixed(1), " MB"] })
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Categoría" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+															value: categoria,
+															onChange: (e) => setCategoria(e.target.value),
+															children: CATEGORIAS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+																value: c,
+																children: c
+															}, c))
+														})
 													]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
 													className: "pb-campo",
 													children: [
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🎬 Vídeo (mp4, webm…)" }),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-															type: "file",
-															accept: "video/*",
-															onChange: (e) => setVideoFile(e.target.files?.[0] || null)
-														}),
-														videoFile && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { style: { color: "var(--fg-mute)" }, children: [videoFile.name, " · ", (videoFile.size / 1048576).toFixed(1), " MB"] })
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Idioma" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+															value: idioma,
+															onChange: (e) => setIdioma(e.target.value),
+															children: IDIOMAS.map(([v, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+																value: v,
+																children: et
+															}, v))
+														})
 													]
 												})
 											]
-										})
-									]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-portada",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "🖼 Portada" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: "row-sub",
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+											className: "pb-campo",
 											children: [
-												"Será la ",
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "página 1" }),
-												" del libro y la imagen del catálogo. Si no subes ninguna, se genera una automáticamente con el título (la de aquí al lado)."
-											]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "pb-portada-fila",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-												className: "pb-portada-prev",
-												children: portada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-													src: portada,
-													alt: "Portada elegida"
-												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-													src: "data:image/svg+xml;utf8," + encodeURIComponent(portadaAuto),
-													alt: "Portada automática"
-												})
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "pb-portada-btns",
-												children: [
-													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-														className: "btn primary",
-														style: { cursor: "pointer" },
-														children: [subiendoPortada ? "Procesando…" : "📷 Subir imagen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-															type: "file",
-															accept: "image/*",
-															style: { display: "none" },
-															onChange: (e) => elegirPortada(e.target.files?.[0])
-														})]
-													}),
-													portada && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-														className: "btn",
-														onClick: () => setPortada(""),
-														children: "Usar la automática"
-													}),
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
-														style: { color: "var(--fg-mute)" },
-														children: "La imagen se guarda dentro del .lumen; no se sube a ningún servidor."
-													})
-												]
-											})]
-										})
-									]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
-									className: "pb-detalles",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", { children: "💸 Monetización 50/50 (opcional)" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "row-sub",
-											children: "En el lector, las páginas pares muestran TU anuncio y las impares el de la app. El dinero de tu anuncio va directo a tu cuenta: no pasa por nosotros."
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-											className: "pb-campo",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Imagen de tu banner (URL https)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												value: adImagen,
-												onChange: (e) => setAdImagen(e.target.value),
-												placeholder: "https://tusitio.com/banner.webp"
-											})]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-											className: "pb-campo",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Enlace del banner (URL https)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												value: adUrl,
-												onChange: (e) => setAdUrl(e.target.value),
-												placeholder: "https://tusitio.com"
-											})]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-											className: "pb-campo",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Enlace de donación (Patreon, MercadoPago…)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												value: donacion,
-												onChange: (e) => setDonacion(e.target.value),
-												placeholder: "https://patreon.com/tunombre"
-											})]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-											className: "pb-campo",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Zap Lightning (lnurl / lightning:)" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												value: zap,
-												onChange: (e) => setZap(e.target.value),
-												placeholder: "lnurl1dp68…"
-											})]
-										})
-									]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-siguiente",
-									children: [editar ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn",
-										onClick: () => onSalir?.(),
-										children: "‹ Cancelar"
-									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn",
-										onClick: () => setPaso(1),
-										children: "‹ Atrás"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn primary",
-										disabled: !titulo.trim() || !autor.trim(),
-										onClick: () => {
-											haptic.tap();
-											setPaso(editar ? 4 : 3);
-										},
-										children: "Continuar ›"
-									})]
-								}),
-								editar && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "row-sub",
-									style: { fontSize: 11.5 },
-									children: "Al editar no se repite la moderación: se conserva la clasificación original."
-								})
-							]
-						}),
-						paso === 3 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "pb-paso3",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "Moderación" }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-									className: "row-sub",
-									children: "Antes de publicar, el contenido se revisa automáticamente en tu móvil (moderación local, sin internet). Opcionalmente, con tu clave gratuita de IA (Gemini y otros), la revisión es más profunda."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "na-pasos",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "¿No tienes clave? Es gratis:" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ol", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-											"Toca ",
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "«Abrir página de claves»" }),
-											"."
-										] }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-											"Inicia sesión y crea una clave (en Google empieza por ",
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "AIza…" }),
-											")."
-										] }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-											"Pégala abajo y toca ",
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "«Probar»" }),
-											"."
-										] })
-									] })]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "na-enlaces",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn",
-										onClick: () => abrirEnlace(URLS_CLAVE[proveedor] || URLS_CLAVE.google),
-										children: "🔗 Abrir página de claves"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn",
-										onClick: () => copiarTexto(URLS_CLAVE[proveedor] || URLS_CLAVE.google, toast),
-										children: "📋 Copiar enlace"
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-									className: "pb-campo",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Tu clave de IA (opcional)" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "pb-key",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												type: mostrarKey ? "text" : "password",
-												value: apiKey,
-												onChange: (e) => {
-													setApiKey(e.target.value);
-													setResultadoKey(null);
-												},
-												placeholder: "Pega tu clave (AIza…, sk-…, gsk_…)"
-											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												onClick: () => setMostrarKey(!mostrarKey),
-												children: mostrarKey ? "🙈" : "👁"
-											})]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
-											style: { color: "var(--fg-mute)" },
-											children: "Se guarda solo en tu teléfono · sin clave se usa la clasificación local"
-										})
-									]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-fila",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-										className: "pb-campo",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Proveedor" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-											value: proveedor,
-											onChange: (e) => {
-												setProveedor(e.target.value);
-												setModelo(proveedorDe(e.target.value).modeloDefecto);
-												setResultadoKey(null);
-											},
-											children: PROVEEDORES.map((p) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
-												value: p.id,
-												children: [
-													p.icono,
-													" ",
-													p.nombre
-												]
-											}, p.id))
-										})]
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
-										className: "pb-campo",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Modelo" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-											value: modelo,
-											onChange: (e) => {
-												setModelo(e.target.value);
-												setResultadoKey(null);
-											},
-											children: proveedorDe(proveedor).modelos.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-												value: m,
-												children: m
-											}, m))
-										})]
-									})]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "na-enlaces",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn",
-										disabled: probandoKey,
-										onClick: async () => {
-											setProbandoKey(true);
-											setResultadoKey(null);
-											const r = await probarClaveIA({
-												proveedor,
-												apiKey,
-												modelo
-											});
-											setResultadoKey(r);
-											if (r.ok) await guardarConfigIA({
-												proveedor,
-												apiKey: apiKey.trim(),
-												modelo
-											});
-											setProbandoKey(false);
-										},
-										children: probandoKey ? "Probando…" : "✓ Probar clave"
-									})
-								}),
-								resultadoKey && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "pb-moder " + (resultadoKey.ok ? "ok" : "no"),
-									style: { marginTop: 8 },
-									children: resultadoKey.mensaje
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn primary",
-									disabled: moderando,
-									onClick: moderar,
-									style: { width: "100%" },
-									children: moderando ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) : "🤖 Revisar contenido"
-								}),
-								modResultado && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-moder" + (modResultado.approved ? " ok" : " no"),
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: modResultado.approved ? "✅ Aprobado" : "❌ Rechazado" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: modResultado.summary || modResultado.motivo }),
-										modResultado.rating && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-											"Clasificación: ",
-											modResultado.rating === "adulto" ? "🔞 adulto (se oculta por defecto)" : modResultado.rating === "maduro" ? "⚠️ maduro" : "✅ general",
-											modResultado.etiquetas?.length ? " · etiquetas: " + modResultado.etiquetas.join(", ") : ""
-										] }),
-										modResultado.nivel && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-											"Revisado con: ",
-											String(modResultado.nivel || "local").replace("byok:", "tu IA ("),
-											modResultado.nivel?.startsWith("byok") ? ")" : ""
-										] }),
-										modResultado.flags?.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: ["Señales: ", modResultado.flags.join(", ")] })
-									]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-siguiente",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "btn",
-											onClick: () => setPaso(2),
-											children: "‹ Atrás"
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "btn primary",
-											disabled: !modResultado?.approved,
-											onClick: () => {
-												haptic.tap();
-												setPaso(4);
-											},
-											children: "Continuar ›"
-										}),
-										modResultado?.approved && modResultado.rating === "adulto" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											style: {
-												color: "var(--flame)",
-												fontSize: 11.5,
-												marginTop: 8
-											},
-											children: "🔞 Se publicará etiquetado como «adulto»: otros lectores lo verán solo si activan «mostrar contenido adulto» en el catálogo."
-										})
-									]
-								})
-							]
-						}),
-						paso === 4 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "pb-paso4",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: editar ? "Guardar cambios" : "Publicar en Lumen Store 2" }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "pb-resumen",
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "pb-resumen-top",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "pb-resumen-cov",
-											children: portada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-												src: portada,
-												alt: "Portada"
-											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-												src: "data:image/svg+xml;utf8," + encodeURIComponent(portadaAuto),
-												alt: "Portada automática"
-											})
-										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: ["📖 ", titulo] }),
-												" · ",
-												autor
-											] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-												categoria,
-												" · ",
-												idioma,
-												" · ",
-												capsFuente.length || editar?.paginas || "?",
-												" capítulo(s)"
-											] }) }),
-											identidad && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: ["✍️ Firmará: ", npubCorto(identidad.npub)] }) }),
-											(modResultado || editar?.rating) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: ["Clasificación: ", modResultado?.rating || editar?.rating || "general"] }) }),
-									(audioFile || videoFile) && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-										(audioFile ? "🎧 audio" : "") + (audioFile && videoFile ? " · " : "") + (videoFile ? "🎬 vídeo" : ""),
-										" del autor: se subirá a Lumen Storage"
-									] }) })
-										] })]
-									})
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-publicar-box",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: "row-sub",
-											children: [
-												"Al publicar: 1) tu libro se convierte a LumenBook (.lumen) en el móvil, 2) se sube a Lumen Storage para que se descargue 24/7 sin que tu equipo esté encendido, 3) se crea un torrent P2P extra si hay motor, 4) se firma el evento con tu clave y se envía a los relays. ",
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Todo queda además guardado en «Mis publicaciones»" }),
-												", con el resultado por relay y el archivo .lumen para compartir cuando quieras."
-											]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "btn primary",
-											disabled: publicando,
-											onClick: () => publicar(false),
-											style: { width: "100%" },
-											children: publicando ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) : editar ? "💾 Guardar y reenviar" : "🚀 Publicar"
-										}),
-										progreso && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-											className: "pb-progreso",
-											children: progreso
-										}),
-										sinTorrent && !resultado && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "pb-sintorrent",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "🌐 Sin torrent en este dispositivo (no pasa nada)." }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-													className: "row-sub",
-													children: "El torrent era un extra P2P: la descarga funciona desde Lumen Storage, 24/7 y sin tu equipo. El .lumen además queda guardado en tu teléfono para compartirlo cuando quieras."
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Descripción o sinopsis" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+													value: descripcion,
+													onChange: (e) => setDescripcion(e.target.value),
+													rows: 3,
+													placeholder: "¿De qué trata este libro? Aparecerá en la ficha del catálogo."
 												})
 											]
-										})
-									]
-								}),
-								resultado && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "pb-hecho",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: resultado.relaysOk ? "🎉 ¡Libro publicado!" : "📦 Libro guardado en tu teléfono" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: resultado.relaysOk ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-											"Enviado a ",
-											resultado.relaysOk,
-											" relay(s)",
-											resultado.relaysFallos > 0 ? ` (${resultado.relaysFallos} sin respuesta)` : "",
-											"."
-										] }) : "No se pudo contactar con los relays. El libro y su .lumen quedaron guardados: reenvíalo desde «Mis publicaciones» cuando tengas conexión." }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "pb-donde",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "¿Dónde quedó?" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("ul", { children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [
-													"📋 En ",
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Mis publicaciones" }),
-													" (catálogo → botón 📦): estado, historial, QR y compartir."
-												] }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "☁️ En Lumen Storage: el .lumen (y el audio/vídeo, si los hay) se descarga 24/7, sin que tu equipo esté encendido." }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "🌐 En los relays: cualquiera con LumenReader lo ve en Lumen Store 2." }),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("li", { children: "📱 El .lumen está en tu teléfono: compártelo por WhatsApp, correo…" })
-											] })]
 										}),
-										(resultado.fileUrl || resultado.audioUrl || resultado.videoUrl) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "pb-donde",
-											style: { borderLeft: "3px solid var(--accent, #6d5bd0)" },
+										/* Portada */
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pb-portada-bloque",
 											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "☁️ Lumen Storage" }),
-												resultado.fileUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Descarga 24/7 del libro:" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", { style: { wordBreak: "break-all", fontSize: 11 }, children: resultado.fileUrl })] }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "pb-campo-tit", children: "Portada del libro" }),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-													style: { display: "flex", gap: 8, flexWrap: "wrap" },
+													className: "pb-portada-fila",
 													children: [
-														resultado.fileUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn sm", onClick: () => abrirEnlace(resultado.fileUrl), children: "📥 Abrir descarga" }),
-														resultado.fileUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn sm", onClick: () => copiarTexto(resultado.fileUrl, toast), children: "⧉ Copiar enlace" }),
-														resultado.audioUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn sm", onClick: () => abrirEnlace(resultado.audioUrl), children: "🎧 Audio" }),
-														resultado.videoUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn sm", onClick: () => abrirEnlace(resultado.videoUrl), children: "🎬 Vídeo" })
+														portada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+															className: "pb-portada-preview",
+															src: portada,
+															alt: ""
+														}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+															className: "pb-portada-preview",
+															src: portadaAuto,
+															alt: ""
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-portada-btns",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																	className: "btn sm",
+																	children: [
+																		subiendoPortada ? "Cargando…" : "📷 Elegir imagen",
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																			type: "file",
+																			accept: "image/*",
+																			style: { display: "none" },
+																			onChange: async (e) => {
+																				const f = e.target.files?.[0];
+																				if (!f) return;
+																				setSubiendoPortada(true);
+																				try {
+																					const data = await reducirImagen(f);
+																					setPortada(data);
+																					toast("Portada actualizada");
+																				} catch (err) {
+																					toast(err?.message || "Error");
+																				} finally {
+																					setSubiendoPortada(false);
+																				}
+																			}
+																		})
+																	]
+																}),
+																portada && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																	type: "button",
+																	className: "btn ghost sm",
+																	onClick: () => setPortada(""),
+																	children: "Usar diseño auto"
+																})
+															]
+														})
 													]
-												}),
-												!resultado.fileUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "La subida de Lumen Storage no llegó: comparte el .lumen desde «Mis publicaciones» o siembra el torrent para que lo descarguen otros." })
+												})
 											]
 										}),
-										resultado.magnet && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: "pb-hash",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Magnet:" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("code", { children: [String(resultado.magnet).slice(0, 90), "…"] })]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
-											className: "pb-hash",
-											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Evento:" }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("code", { children: [resultado.evento.id.slice(0, 24), "…"] })]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)(QrPublicado, {
-											magnet: resultado.magnet,
-											d: resultado.d,
-											titulo
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "pb-siguiente",
+										/* Opciones opcionales colapsables */
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+											className: "pb-detalles",
 											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "btn",
-													onClick: () => onSalir?.(),
-													children: "Cerrar"
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "btn",
-													onClick: () => onVerMisPublicaciones?.(),
-													children: "📦 Mis publicaciones"
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "btn primary",
-													onClick: () => onPublicado?.(resultado.evento),
-													children: "Ver en el catálogo"
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("summary", { children: "⚙️ Opciones avanzadas (audio, donaciones)" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-detalles-body",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+															className: "pb-campo",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🎧 Audio de autor opcional" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	type: "file",
+																	accept: "audio/*",
+																	onChange: (e) => setAudioFile(e.target.files?.[0] || null)
+																})
+															]
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+															className: "pb-campo",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "⚡ Zap Lightning (dirección LNURL)" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	value: zap,
+																	onChange: (e) => setZap(e.target.value),
+																	placeholder: "tu_nombre@getalby.com o lnurl…"
+																})
+															]
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+															className: "pb-campo",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Enlace de donación o apoyo" }),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	value: donacion,
+																	onChange: (e) => setDonacion(e.target.value),
+																	placeholder: "https://patreon.com/…"
+																})
+															]
+														})
+													]
+												})
+											]
+										}),
+										/* Botón Directo para Publicar */
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pb-publicar-accion",
+											children: [
+												progreso ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-progreso-caja",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner sm" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: progreso })
+													]
+												}) : null,
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-btns-pie",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															className: "btn",
+															onClick: () => editar ? onSalir?.() : setPaso(1),
+															children: "‹ " + (editar ? "Cancelar" : "Cambiar libro")
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															className: "btn primary pb-btn-publicar",
+															disabled: !titulo.trim() || !autor.trim() || publicando,
+															onClick: publicar,
+															children: publicando ? "Publicando…" : (editar ? "💾 Guardar cambios" : "🚀 Publicar en Lumen Store")
+														})
+													]
 												})
 											]
 										})
 									]
 								})
-							]
-						})
+							)
+						)
 					]
 				})
 			]

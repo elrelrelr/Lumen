@@ -56108,7 +56108,8 @@ async function nodosGoFile() {
 		const r = await fetch("https://api.gofile.io/servers", { signal: AbortSignal.timeout(15000) });
 		const j = await r.json();
 		const nombres = (j?.data?.servers || []).map((x) => (typeof x === "string" ? x : x?.name)).filter(Boolean);
-		return [GOFILE_UPLOAD_URL, ...nombres.slice(0, 3).map((n) => "https://" + n + "/uploadfile")];
+		const dinamicos = nombres.map((n) => `https://${n.includes(".") ? n : n + ".gofile.io"}/contents/uploadfile`);
+		return [...dinamicos.slice(0, 4), GOFILE_UPLOAD_URL];
 	} catch {
 		return [GOFILE_UPLOAD_URL];
 	}

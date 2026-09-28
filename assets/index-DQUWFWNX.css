@@ -14847,3 +14847,133 @@ body:has(.stories) .sidebar,
   border-radius: 20px !important;
   transition: all 0.15s ease !important;
 }
+
+/* v233: Estilos modernos de Publicar Libro, Perfil Anónimo con Facehash y Mis Libros */
+.pb-autor-perfil {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 14px; padding: 12px 14px; margin-bottom: 14px;
+}
+.pb-avatar-wrap {
+  position: relative; display: inline-flex; width: 64px; height: 64px; flex: none;
+}
+.pb-avatar-img {
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 2px solid var(--accent, #7c3aed); object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+}
+.pb-avatar-regen {
+  position: absolute; bottom: -2px; right: -2px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--bg-soft); border: 1px solid var(--line);
+  color: var(--fg); font-size: 13px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  transition: transform 0.15s ease;
+}
+.pb-avatar-regen:active { transform: scale(0.9); }
+.pb-autor-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pb-campo-tit { font-size: 11.5px; font-weight: 600; color: var(--fg-dim); }
+.pb-input-autor {
+  font-size: 14.5px; font-weight: 700; color: var(--fg);
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 10px; padding: 7px 11px; width: 100%;
+}
+.pb-perfil-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px; }
+.pb-tag-anon {
+  font-size: 11px; font-weight: 600; color: var(--accent, #8b5cf6);
+  background: rgba(139, 92, 246, 0.12); padding: 2px 8px; border-radius: 999px;
+}
+.pb-tag-id { font-size: 10.5px; color: var(--fg-mute); font-family: monospace; }
+.pb-upload-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-elev); border: 1.5px dashed var(--accent, #7c3aed);
+  border-radius: 14px; padding: 14px 16px; cursor: pointer; margin-bottom: 12px;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.pb-upload-banner:hover { background: rgba(124, 58, 237, 0.08); }
+.pb-upload-ic { font-size: 26px; flex: none; }
+.pb-sep {
+  text-align: center; margin: 12px 0 10px; color: var(--fg-mute); font-size: 11.5px;
+  position: relative;
+}
+.pb-portada-bloque { margin-bottom: 14px; }
+.pb-portada-fila { display: flex; gap: 14px; align-items: center; margin-top: 6px; }
+.pb-portada-preview {
+  width: 62px; height: 86px; border-radius: 8px; object-fit: cover;
+  border: 1px solid var(--line); box-shadow: 0 2px 8px rgba(0,0,0,0.15); flex: none;
+}
+.pb-portada-btns { display: flex; flex-direction: column; gap: 6px; }
+.pb-publicar-accion { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.pb-progreso-caja {
+  display: flex; align-items: center; gap: 10px; justify-content: center;
+  padding: 10px 14px; background: rgba(124, 58, 237, 0.08); border-radius: 12px;
+  color: var(--fg); font-size: 13px; font-weight: 500;
+}
+.pb-btns-pie { display: flex; gap: 10px; }
+.pb-btn-publicar {
+  flex: 1 !important; min-height: 48px !important; font-size: 15px !important;
+  font-weight: 800 !important; border-radius: 12px !important;
+  background: linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%) !important;
+  color: #fff !important; box-shadow: 0 4px 16px rgba(124, 58, 237, 0.35) !important;
+  border: none !important; cursor: pointer !important;
+}
+.pb-btn-publicar:active { transform: scale(0.98); }
+.pb-exito { text-align: center; padding: 24px 12px; }
+.pb-exito-ico { font-size: 48px; margin-bottom: 8px; }
+.pb-exito-card {
+  display: flex; gap: 14px; align-items: center;
+  background: var(--bg-elev); border: 1px solid var(--line);
+  border-radius: 14px; padding: 14px 16px; margin: 20px 0; text-align: left;
+}
+.pb-exito-cov { width: 56px; height: 78px; border-radius: 8px; object-fit: cover; flex: none; }
+.pb-exito-cov-gen {
+  background: var(--bg-soft); display: flex; align-items: center; justify-content: center;
+  font-size: 26px; border: 1px solid var(--line);
+}
+.pb-exito-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pb-exito-info b { font-size: 15px; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pb-exito-autor-fila { display: flex; align-items: center; gap: 8px; margin: 2px 0; }
+.pb-exito-avatar { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--accent); }
+.pb-exito-meta { font-size: 11px; color: var(--fg-mute); }
+.pb-exito-acciones { display: flex; gap: 12px; justify-content: center; }
+
+/* Mis Libros en Catalogo Store */
+.cg-mis-pubs {
+  padding: 7px 12px; border-radius: 999px; font-weight: 700; font-size: 12px;
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--chip-bg); color: var(--fg); border: 1px solid var(--line);
+  cursor: pointer; transition: all 0.15s ease;
+}
+.cg-mis-pubs.on, .cg-cat-mis.on {
+  background: var(--accent) !important; color: #fff !important; border-color: var(--accent) !important;
+}
+.cg-seccion-mis-libros { margin-top: 14px; }
+.cg-mis-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.cg-mis-vacio {
+  padding: 36px 20px; text-align: center; background: var(--bg-elev);
+  border-radius: 16px; border: 1.5px dashed var(--line); margin: 16px 0;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+
+/* Ficha de autor y Facehash en detalle */
+.cg-bloque-autor {
+  margin: 14px 0 10px; padding: 12px 14px; border-radius: 12px;
+  background: var(--bg-elev); border: 1px solid var(--line);
+}
+.cg-h-autor {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; color: var(--fg-mute); margin-bottom: 8px;
+}
+.cg-autor-card { display: flex; align-items: center; gap: 12px; }
+.cg-autor-avatar {
+  width: 48px; height: 48px; border-radius: 50%;
+  border: 2px solid var(--accent, #7c3aed); flex: none; object-fit: cover;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.cg-autor-meta { display: flex; flex-direction: column; gap: 2px; }
+.cg-autor-nom { font-size: 14.5px; font-weight: 700; color: var(--fg); }
+.cg-autor-anon-badge { font-size: 11px; font-weight: 600; color: var(--accent, #8b5cf6); }
+.cg-autor-npub { font-size: 10.5px; color: var(--fg-mute); font-family: monospace; }
+.fx-foto-facehash { border-radius: 50% !important; object-fit: cover !important; }
+

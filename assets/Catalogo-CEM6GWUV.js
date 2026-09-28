@@ -15,7 +15,7 @@ var __vitePreload = (fn, deps) => {
 	return fn();
 };
 import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, A as importarDesdeUrl, B as paginate } from "./index-DX181kQz.js";
-import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados } from "./nostr-zC6Qsl2z.js";
+import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados } from "./nostr-zC6Qsl2z.js";
 import { n as disponibilidad, t as descargarLumenPorGateway } from "./streaming-CGdx3ecV.js";
 import { c as libroDePublicado, l as listarPublicados } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
@@ -91,6 +91,7 @@ function normalizarBookCard(raw) {
 		fileUrl: urlSegura(raw.file_url || raw.lumen_file) ? String(raw.file_url || raw.lumen_file) : null,
 		audioUrl: urlSegura(raw.lumen_audio) ? String(raw.lumen_audio) : null,
 		videoUrl: urlSegura(raw.lumen_video) ? String(raw.lumen_video) : null,
+		authorAvatar: raw.authorAvatar || raw.author_avatar || (author ? generarFacehashUri(author) : null),
 		chapters,
 		content_type,
 		license,
@@ -712,7 +713,15 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 									title: "Buscar",
 									onClick: () => { haptic.tap(); setBusqVisible((v) => !v); },
 									children: "🔍"
-								}), /* v208: solo «＋ Publicar»: 📦// se movieron a «crear libro» y 📡 feeds se eliminó */ (0, import_jsx_runtime.jsx)("button", {
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "cg-mis-pubs" + (categoria === "__mis_libros__" ? " on" : ""),
+									title: "Ver mis libros publicados",
+									onClick: () => {
+										haptic.tap();
+										setCategoria((c) => c === "__mis_libros__" ? "" : "__mis_libros__");
+									},
+									children: ["📚 ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-pub-txt", children: "Mis libros" })]
+								}), (0, import_jsx_runtime.jsx)("button", {
 									className: "cg-publicar",
 									onClick: () => {
 										haptic.tap();
@@ -906,13 +915,17 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						]
 					}),
 					/* v208: el banner de identidad vive en «crear libro» (PublicarLibro) */
-					categorias.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-cats",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "cg-cat" + (categoria === "" ? " on" : ""),
 							onClick: () => setCategoria(""),
 							children: "Todas"
-						}), categorias.slice(0, 12).map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							className: "cg-cat cg-cat-mis" + (categoria === "__mis_libros__" ? " on" : ""),
+							onClick: () => setCategoria(categoria === "__mis_libros__" ? "" : "__mis_libros__"),
+							children: "📚 Mis libros" + (misLibros.length ? ` (${misLibros.length})` : "")
+						}), (categorias.length > 0 ? categorias : ["ficción", "no-ficción", "ciencia", "historia", "poesía"]).slice(0, 12).map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: "cg-cat" + (categoria === c ? " on" : ""),
 							onClick: () => setCategoria(categoria === c ? "" : c),
 							children: c
@@ -983,8 +996,40 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 								})]
 							}),
 							/* v208: lgSeccion SIEMPRE en la MISMA posicion del arbol (si se movia segun buscandoStore, React la remontaba y se perdian las cargas en vuelo); en busqueda queda antes que Resultados porque ese bloque va debajo */
-						lgSeccion,
-						(lgQ.trim() || categoria) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						categoria !== "__mis_libros__" && lgSeccion,
+						categoria === "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion cg-seccion-mis-libros",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-mis-head",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: `📚 Mis libros publicados (${misLibros.length})` }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn mini primary",
+										onClick: () => onPublicar?.({ modo: "nuevo" }),
+										children: "＋ Publicar otro"
+									})]
+								}), misLibros.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "cg-grid",
+									children: misLibros.map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro: { ...libro, esMio: true },
+										reportes,
+										onAbrir: () => {
+											haptic.tap();
+											setDetalle({ ...libro, esMio: true });
+										}
+									}, libro.id || libro.d))
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-mis-vacio",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "📖 Aún no has publicado ningún libro con tu perfil anónimo." }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "row-sub", children: "Los libros que publiques quedarán guardados en la red descentralizada de Lumen Store para que puedas encontrarlos y leerlos desde cualquier dispositivo." }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn primary",
+											onClick: () => onPublicar?.({ modo: "nuevo" }),
+											children: "＋ Publicar mi primer libro"
+										})
+									]
+								})]
+							}),
+						(lgQ.trim() || (categoria && categoria !== "__mis_libros__")) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: lgQ.trim() ? `Resultados de «${lgQ.trim()}»` : categoria }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "cg-grid",
@@ -1133,6 +1178,43 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										onAbrirMisPublicaciones?.();
 									},
 									children: "Abrir 📦"
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-bloque-autor",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "cg-h-autor",
+									children: "Sobre el autor"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-autor-card",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+											className: "cg-autor-avatar",
+											src: detalle.authorAvatar || generarFacehashUri(detalle.pubkey || detalle.autor || "anon"),
+											alt: detalle.autor,
+											draggable: false
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "cg-autor-meta",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+													className: "cg-autor-nom",
+													children: detalle.autor || "Autor anónimo"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "cg-autor-anon-badge",
+													children: "🎭 Perfil anónimo de autor"
+												}),
+												detalle.npub ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+													className: "cg-autor-npub",
+													children: ["ID: ", npubCorto(detalle.npub)]
+												}) : null
+											]
+										})
+									]
 								})
 							]
 						}),
