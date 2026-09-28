@@ -9392,38 +9392,40 @@ html[data-fuente-app='antigua'] textarea {
 /* vista de Lumo: tamaño COMPACTO, igual que la tarjeta de racha, con fondo
    brillante propio (nada de negro) y el oso contenido para que quepa igual. */
 .sw-lumo-tarjeta {
-  /* v174 (P5): sin tinte morado — MISMO fondo neutro por tema que la tarjeta
-     de racha, para que el oso no aparezca en un rectángulo morado en los temas claros. */
+  /* v174 / v231: tarjeta de Lumo limpia, centrada y sin exceso de botones */
   background: transparent;
   border: 1px solid var(--line);
   border-radius: 22px;
   padding: 12px 14px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
   box-sizing: border-box;
   height: 100%;
   min-height: 100%;
+  cursor: pointer;
+  user-select: none;
 }
-/* El bloque de Lumo debe tener la MISMA altura que el de racha: el oso se
-   adapta al espacio disponible sin agrandar el bloque. */
-.sw-lumo-cab { display: flex; align-items: center; gap: 8px; width: 100%; }
-.sw-lumo-cab-etapa { font-size: 17px; flex-shrink: 0; }
-.sw-lumo-cab-txt { font-size: 14px; font-weight: 900; color: var(--fg); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sw-lumo-cab .sw-level { flex-shrink: 0; transform: scale(.9); }
+/* Cabecera centrada y limpia */
+.sw-lumo-cab { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+.sw-lumo-cab-etapa { font-size: 16px; flex-shrink: 0; }
+.sw-lumo-cab-txt { font-size: 14px; font-weight: 900; color: var(--fg); }
+.sw-lumo-cab .sw-level { display: none !important; }
 .sw-lumo-oso {
-  flex: 0 0 auto;
-  height: 66px;
+  flex: 1;
+  width: 100%;
   display: grid;
   place-items: center;
-  padding: 0;
+  padding: 2px 0;
   overflow: visible;
 }
 .sw-lumo-oso img, .sw-lumo-oso svg {
   width: auto;
-  height: 100%;
-  max-height: 64px;
+  height: 74px;
+  max-height: 78px;
   object-fit: contain;
   -webkit-user-drag: none;
   filter: drop-shadow(0 5px 12px rgba(0,0,0,.35));
@@ -9581,12 +9583,22 @@ html[data-fuente-app='antigua'] textarea {
   overflow: hidden;
 }
 .lumo-edit-toolbar {
-  position: absolute;
-  top: 10px;
-  right: 10px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
+  align-items: center;
   z-index: 25;
+}
+.lumo-toolbar-top {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  width: min(84vw, 700px);
+  margin: 0 auto 10px auto;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
 }
 .lumo-edit-btn {
   background: var(--bg-elev, rgba(30, 30, 35, 0.85));
@@ -9594,26 +9606,73 @@ html[data-fuente-app='antigua'] textarea {
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--line);
   color: var(--fg);
-  border-radius: 10px;
-  padding: 6px 10px;
-  font-size: 11.5px;
+  border-radius: 12px;
+  height: 38px;
+  min-width: 38px;
+  padding: 0 12px;
+  font-size: 12.5px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
+  gap: 6px;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
-  transition: all 0.15s ease;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  transition: all 0.16s ease;
   user-select: none;
+  flex-shrink: 0;
 }
 .lumo-edit-btn:hover {
   background: var(--bg-hover, rgba(255, 255, 255, 0.15));
   transform: translateY(-1px);
+  box-shadow: 0 5px 12px rgba(0,0,0,0.28);
+}
+.lumo-edit-btn:active {
+  transform: scale(0.95);
 }
 .lumo-edit-btn.on {
   background: var(--accent, #60a78e);
   color: #fff;
   border-color: var(--accent, #60a78e);
+}
+.lumo-edit-btn-main {
+  background: color-mix(in srgb, var(--accent, #60a78e) 18%, var(--bg-elev, #232328));
+  border-color: var(--accent, #60a78e);
+}
+.lumo-btn-ico {
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.lumo-btn-txt {
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .lumo-toolbar-top {
+    width: min(92vw, 440px);
+    margin: 0 auto 8px auto;
+    gap: 8px;
+    justify-content: center;
+  }
+  .lumo-edit-btn {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    padding: 0;
+    border-radius: 13px;
+    justify-content: center;
+  }
+  .lumo-edit-btn .lumo-btn-ico {
+    font-size: 21px;
+  }
+  .lumo-edit-btn .lumo-btn-txt {
+    display: none !important;
+  }
 }
 .lumo-edit-badge {
   position: absolute;

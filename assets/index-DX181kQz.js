@@ -25805,34 +25805,50 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "lumo-edit-toolbar lumo-fs-actions",
 											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 													className: "lumo-edit-btn lumo-btn-compartir lumo-btn-guardar-jpg",
 													onClick: guardarFotoCasaLumo,
 													title: "Guardar foto limpia de la casa de Lumo en formato JPG con el tema actual",
-													children: "📸 Guardar JPG"
+													"aria-label": "Guardar foto",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-ico", children: "📸" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-txt", children: "Guardar JPG" })
+													]
 												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 													className: "lumo-edit-btn lumo-btn-guia" + (mostrarGuia ? " on" : ""),
 													onClick: () => {
 														setMostrarGuia((v) => !v);
 														haptic$1?.tap?.();
 													},
 													title: mostrarGuia ? "Ocultar guía de encuadre" : "Mostrar guía de encuadre de vista normal",
-													children: "📐 Guía"
+													"aria-label": "Guía",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-ico", children: "📐" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-txt", children: "Guía" })
+													]
 												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 													className: "lumo-edit-btn" + (animLumo ? " on" : ""),
 													onClick: handleToggleAnim,
 													title: animLumo ? "Desactivar animaciones de Lumo" : "Activar animaciones de Lumo",
-													children: animLumo ? "✨ Animado" : "⏸️ Estático"
+													"aria-label": animLumo ? "Desactivar animaciones" : "Activar animaciones",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-ico", children: animLumo ? "✨" : "⏸️" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-txt", children: animLumo ? "Animado" : "Estático" })
+													]
 												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 													className: "lumo-edit-btn",
 													onClick: handleResetOffsets,
 													title: "Volver al diseño predeterminado",
-													children: "🔄 Predeterminado"
+													"aria-label": "Volver al diseño predeterminado",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-ico", children: "🔄" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-txt", children: "Predeterminado" })
+													]
 												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 													className: "lumo-edit-btn lumo-edit-btn-save on",
 													onClick: () => {
 														setEditandoPos(false);
@@ -25840,7 +25856,11 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 														toast?.("¡Diseño guardado! ✓");
 													},
 													title: "Guardar cambios y volver",
-													children: "✓ Guardar"
+													"aria-label": "Guardar cambios",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-ico", children: "✓" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "lumo-btn-txt", children: "Guardar" })
+													]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 													className: "lumo-close lumo-fs-close-btn",
@@ -25989,43 +26009,83 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "lumo-scena lumo-scena-preview",
-							style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
+							className: "lumo-edit-toolbar lumo-toolbar-top",
 							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "lumo-edit-toolbar",
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "lumo-edit-btn lumo-edit-btn-main",
+									onClick: () => {
+										setEditandoPos(true);
+										setElemSeleccionado("base");
+										haptic$1?.tap?.();
+										toast?.("Pantalla completa: mueve y ajusta el tamaño de cualquier elemento");
+									},
+									title: "Personalizar habitación en pantalla completa",
+									"aria-label": "Editar habitación",
 									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn lumo-edit-btn-main",
-											onClick: () => {
-												setEditandoPos(true);
-												setElemSeleccionado("base");
-												haptic$1?.tap?.();
-												toast?.("Pantalla completa: mueve y ajusta el tamaño de cualquier elemento");
-											},
-											title: "Personalizar habitación en pantalla completa",
-											children: "✏️ Editar"
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-ico",
+											children: "✏️"
 										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn",
-											onClick: handleResetOffsets,
-											title: "Volver al diseño predeterminado",
-											children: "🔄 Predeterminado"
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn lumo-btn-compartir lumo-btn-guardar-jpg",
-											onClick: guardarFotoCasaLumo,
-											title: "Guardar foto limpia de la casa de Lumo en formato JPG con el tema actual",
-											children: "📸 Guardar JPG"
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "lumo-edit-btn" + (animLumo ? " on" : ""),
-											onClick: handleToggleAnim,
-											title: animLumo ? "Desactivar animaciones de Lumo" : "Activar animaciones de Lumo",
-											children: animLumo ? "✨ Animado" : "⏸️ Estático"
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-txt",
+											children: "Editar"
 										})
 									]
 								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "lumo-edit-btn",
+									onClick: handleResetOffsets,
+									title: "Volver al diseño predeterminado",
+									"aria-label": "Volver al diseño predeterminado",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-ico",
+											children: "🔄"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-txt",
+											children: "Predeterminado"
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "lumo-edit-btn lumo-btn-compartir lumo-btn-guardar-jpg",
+									onClick: guardarFotoCasaLumo,
+									title: "Guardar foto limpia de la casa de Lumo en formato JPG con el tema actual",
+									"aria-label": "Guardar foto",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-ico",
+											children: "📸"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-txt",
+											children: "Foto"
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "lumo-edit-btn" + (animLumo ? " on" : ""),
+									onClick: handleToggleAnim,
+									title: animLumo ? "Desactivar animaciones de Lumo" : "Activar animaciones de Lumo",
+									"aria-label": animLumo ? "Desactivar animaciones" : "Activar animaciones",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-ico",
+											children: animLumo ? "✨" : "⏸️"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "lumo-btn-txt",
+											children: animLumo ? "Animado" : "Estático"
+										})
+									]
+								})
+							]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "lumo-scena lumo-scena-preview",
+							style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
+							children: [
 								ICONO_BG[d.equipped.bg] && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									style: {
 										fontSize: "clamp(60px, 13vmin, 140px)",
@@ -38202,14 +38262,6 @@ const toquesDev = (0, import_react.useRef)(0);
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 										className: "sw-lumo-cab-txt",
 										children: "Lumo"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										className: "sw-level",
-										onClick: (e) => {
-											e.stopPropagation();
-											setLumoOpen(true);
-										},
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "⚙️" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Ver" })]
 									})
 								]
 							}),
@@ -38221,48 +38273,6 @@ const toquesDev = (0, import_react.useRef)(0);
 									offsets: obtenerLumoOffsets(),
 									anim: typeof localStorage !== "undefined" ? localStorage.getItem("lumen_lumo_anim_active") !== "0" : true
 								})
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "sw-lumo-barras",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "sw-lumo-fila",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "⚡ Energía" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "sw-bar sw-lumo-bar",
-											children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-												className: "sw-fill",
-												style: {
-													width: (lumoMini?.energy ?? 100) + "%",
-													background: (lumoMini?.energy ?? 100) < 40 ? "var(--danger,#e05350)" : void 0
-												}
-											})
-										})]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "sw-lumo-stats",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: ["🪙 ", lumoMini?.coins ?? 0] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-												"🔥 ",
-												progress.streak,
-												" días"
-											] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [
-												"📚 ",
-												progress.total,
-												" pág."
-											] })
-										]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "sw-lumo-opts",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🎯 Misiones" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🛍️ Tienda" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🏠 Habitación" })
-										]
-									})
-								]
 							})
 						]
 					})
