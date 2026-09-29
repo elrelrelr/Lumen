@@ -1083,10 +1083,22 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
 	// v208: bibliotecas activables/desactivables (persistidas en catalogo_filtros)
 	const [bibActivas, setBibActivas] = (0, import_react.useState)(null);
+	const [catPool, setCatPool] = (0, import_react.useState)(null);
+	const [semillaPool, setSemillaPool] = (0, import_react.useState)(null);
+	const [paginas, setPaginas] = (0, import_react.useState)({});
+	const obtenerPagina = (k) => paginas[k] || 1;
+	const avanzarPagina = (k) => {
+		haptic.tap();
+		setPaginas((prev) => ({ ...prev, [k]: (prev[k] || 1) + 1 }));
+	};
 	(0, import_react.useEffect)(() => {
 		let vivo = true;
 		__vitePreload(() => import("./LibrosGratis-K7x2Mq4P.js").then((m) => {
-			if (vivo) setLGComp(() => m.L); // el componente va como updater para que React no lo invoque
+			if (vivo) {
+				setLGComp(() => m.L);
+				if (m.C) setCatPool(m.C);
+				if (m.S) setSemillaPool(m.S);
+			}
 		}).catch(() => {}), void 0);
 		return () => { vivo = false; };
 	}, []);
@@ -1560,22 +1572,115 @@ const cargar = (0, import_react.useCallback)(async () => {
 	const buscandoStore = lgQ.trim().length >= 2;
 	const destacado = recientes[0];
 
-	// Top más descargados global consolidado entre todas las bibliotecas y Lumen
-	const listaPopulares = [
-		...LIBROS_TOP_DESCARGAS,
-		...visibles.map((b) => ({
-			...b,
-			downloads: b.downloads || Math.round((ratingDe(b).estrellas || 4.5) * 3200)
-		}))
-	].sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+	const normalizarLibroGenerico = (b, catDef = "general") => {
+		if (!b) return null;
+		const tit = (b.titulo || b.title || "").trim() || "Libro";
+		const aut = (b.autor || (Array.isArray(b.authors) ? b.authors.map((a) => typeof a === "string" ? a : (a?.name || "")).filter(Boolean).join(", ") : b.authors) || "").trim() || "Autor";
+		const dl = Number(b.downloads) || (b.rating ? Math.round((ratingDe(b).estrellas || 4.5) * 3200) : 1200);
+		const cat = b.categoria || (b.bookshelves && b.bookshelves[0]) || catDef;
+		const cov = b.portada || b.cover || "assets/icon-192.png";
+		return {
+			id: b.id || b.bookId || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
+			d: b.d || b.id || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
+			titulo: tit,
+			autor: aut,
+			portada: cov,
+			categoria: cat,
+			downloads: dl,
+			fuente: b.fuente || "gutenberg",
+			epub: b.epub || null,
+			fileUrl: b.fileUrl || b.epub || null,
+			esMio: !!b.esMio,
+			rating: b.rating
+		};
+	};
 
-	const librosPolitica = [
-		...LIBROS_TOP_DESCARGAS.filter((b) => b.categoria === "politica" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo)),
-		...visibles.filter((b) => b.categoria === "politica" || b.categoria === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo))
+	const obtenerLibrosDeCategoria = (catId) => {
+		const cNorm = (catId || "").toLowerCase();
+		const seen = new Set();
+		const resultado = [];
+
+		for (const b of visibles) {
+			const bCat = (b.categoria || "").toLowerCase();
+			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo)))) {
+				const n = normalizarLibroGenerico(b, catId);
+				const k = (n.titulo + "|" + n.autor).toLowerCase();
+				if (!seen.has(k)) {
+					seen.add(k);
+					resultado.push(n);
+				}
+			}
+		}
+
+		for (const b of LIBROS_TOP_DESCARGAS) {
+			const bCat = (b.categoria || "").toLowerCase();
+			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || /polit|gobiern|rebel|estado|guerra|republic|principe|contrato|manifiesto|riqueza|democracia/i.test(b.titulo)))) {
+				const n = normalizarLibroGenerico(b, catId);
+				const k = (n.titulo + "|" + n.autor).toLowerCase();
+				if (!seen.has(k)) {
+					seen.add(k);
+					resultado.push(n);
+				}
+			}
+		}
+
+		if (catPool) {
+			const claveCat = MAPA_TEMA_LG[catId];
+			if (claveCat && catPool[claveCat]) {
+				for (const b of catPool[claveCat]) {
+					const n = normalizarLibroGenerico(b, catId);
+					const k = (n.titulo + "|" + n.autor).toLowerCase();
+					if (!seen.has(k)) {
+						seen.add(k);
+						resultado.push(n);
+					}
+				}
+			} else if (cNorm === "__populares__" || cNorm === "__recientes__") {
+				for (const bks of Object.values(catPool)) {
+					if (Array.isArray(bks)) {
+						for (const b of bks) {
+							const n = normalizarLibroGenerico(b, "general");
+							const k = (n.titulo + "|" + n.autor).toLowerCase();
+							if (!seen.has(k)) {
+								seen.add(k);
+								resultado.push(n);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (semillaPool && (cNorm === "__populares__" || cNorm === "__recientes__")) {
+			for (const b of semillaPool) {
+				const n = normalizarLibroGenerico(b, "general");
+				const k = (n.titulo + "|" + n.autor).toLowerCase();
+				if (!seen.has(k)) {
+					seen.add(k);
+					resultado.push(n);
+				}
+			}
+		}
+
+		return resultado;
+	};
+
+	const listaPopulares = obtenerLibrosDeCategoria("__populares__").sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+
+	const listaRecientes = [
+		...visibles.map((b) => normalizarLibroGenerico(b, "lumen")),
+		...obtenerLibrosDeCategoria("__recientes__").filter((b) => !visibles.some((v) => (v.titulo || v.title) === b.titulo))
 	];
 
-	const librosCatFiltrados = visibles.filter((b) => (b.categoria || "").toLowerCase() === (categoria || "").toLowerCase());
-	const todos = recientes.filter((b) => b.id !== destacado?.id);
+	const pagActual = obtenerPagina(categoria || "__todas__");
+	const librosPantallaPop = listaPopulares.slice(0, pagActual * 40);
+	const librosPantallaRec = listaRecientes.slice(0, pagActual * 40);
+
+	const poolCategoriaActual = categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
+		? obtenerLibrosDeCategoria(categoria)
+		: [];
+	const librosPantallaCat = poolCategoriaActual.slice(0, pagActual * 40);
+	const top10Categoria = [...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 10);
 	const categorias = categoriasDe(libros);
 
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -1598,7 +1703,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-title",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-ico", children: "📚" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-txt", children: "Lumen Store 2" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h2", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-ico", children: "📚" }), " ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-titulo-txt", children: "Lumen Store" })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Libros de toda la red · sin servidor central" })]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-acciones",
@@ -1848,6 +1953,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 						className: "chips lg-temas cg-cats-unificadas",
 						role: "tablist",
 						"aria-label": "Categorías de libros",
+						onWheel: onWheelHorizontal,
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								role: "tab",
@@ -1908,6 +2014,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* Carril horizontal con scroll */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-fila cg-fila-top",
+								onWheel: onWheelHorizontal,
 								children: listaPopulares.slice(0, 14).map((b, idx) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro: b,
@@ -1919,10 +2026,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}, b.id || idx)
 								))
 							}),
-							/* Grid vertical completo con scroll */
+							/* Grid vertical completo con scroll y paginación 40 en 40 */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-top-grid",
-								children: listaPopulares.map((b, idx) => {
+								children: librosPantallaPop.map((b, idx) => {
 									const pos = idx + 1;
 									const tit = b.titulo || b.title;
 									const aut = b.autor || (Array.isArray(b.authors) ? b.authors[0] : b.authors) || "Autor";
@@ -1972,6 +2079,16 @@ const cargar = (0, import_react.useCallback)(async () => {
 										]
 									}, b.id || idx);
 								})
+							}),
+							listaPopulares.length > librosPantallaPop.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-paginacion-wrap",
+								style: { textAlign: "center", margin: "20px 0 30px" },
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "btn primary",
+									onClick: () => avanzarPagina("__populares__"),
+									children: ["🏆 Siguientes 40 libros populares (", Math.min(listaPopulares.length, librosPantallaPop.length + 40), " de ", listaPopulares.length, ")"]
+								})
 							})
 						]
 					}),
@@ -1984,13 +2101,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 								className: "cg-seccion-head",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "✨ Recién publicados" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras publicadas por la comunidad en la red descentralizada." })
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras publicadas por la comunidad en la red descentralizada y novedades de bibliotecas abiertas." })
 								]
 							}),
 							/* Carril horizontal con scroll */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-fila",
-								children: todos.slice(0, 14).map((libro) => (
+								onWheel: onWheelHorizontal,
+								children: listaRecientes.slice(0, 14).map((libro) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro,
 										reportes,
@@ -1999,11 +2117,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}, libro.id)
 								))
 							}),
-							/* Grid con scroll */
+							/* Grid con scroll y paginación 40 en 40 */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-grid",
 								style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, padding: "10px 0" },
-								children: todos.map((libro) => (
+								children: librosPantallaRec.map((libro) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro,
 										reportes,
@@ -2011,40 +2129,90 @@ const cargar = (0, import_react.useCallback)(async () => {
 										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
 									}, libro.id)
 								))
+							}),
+							listaRecientes.length > librosPantallaRec.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-paginacion-wrap",
+								style: { textAlign: "center", margin: "20px 0 30px" },
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "btn primary",
+									onClick: () => avanzarPagina("__recientes__"),
+									children: ["✨ Siguientes 40 libros recientes (", Math.min(listaRecientes.length, librosPantallaRec.length + 40), " de ", listaRecientes.length, ")"]
+								})
 							})
 						]
 					}),
 
-					/* Vista dedicada de POLÍTICA */
-					categoria === "politica" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-seccion cg-seccion-politica",
+					/* Vista de categoría con Top 10 Popular Rail + Catálogo Completo (40 en 40) */
+					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion cg-seccion-categoria" + (categoria === "politica" ? " cg-seccion-politica" : ""),
 						children: [
+							/* Carril de los 10 más populares de esta categoría entre los 40 en pantalla */
+							top10Categoria.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-cat-top",
+								style: { marginBottom: 18 },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-seccion-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { children: ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria)] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Títulos más descargados y leídos de esta categoría." })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-fila cg-fila-top",
+										onWheel: onWheelHorizontal,
+										children: top10Categoria.map((b, idx) => (
+											(0, import_jsx_runtime.jsx)(Tarjeta, {
+												libro: b,
+												ranking: idx + 1,
+												descargas: formatearDescargas(b.downloads) + " descargas",
+												reportes,
+												onAbrir: () => { haptic.tap(); setDetalle(b); },
+												onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+											}, b.id || idx)
+										))
+									})
+								]
+							}),
+
+							/* Cuadrícula completa de libros de esta categoría (40 en 40) */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion-head",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🏛️ Obras de Política, Sociedad y Pensamiento Universal" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Grandes tratados y clásicos del pensamiento político: Maquiavelo, Platón, Rousseau, Marx, Adam Smith, Locke y más." })
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+										style: { textTransform: "capitalize" },
+										children: ["📚 Catálogo de ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
+									})
 								]
 							}),
-							/* Carril horizontal con scroll */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "cg-fila",
-								children: librosPolitica.slice(0, 14).map((b, idx) => (
+								className: "cg-grid",
+								style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, padding: "10px 0" },
+								children: librosPantallaCat.map((libro) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
-										libro: b,
-										ranking: idx + 1,
-										descargas: formatearDescargas(b.downloads) + " descargas",
+										libro,
 										reportes,
-										onAbrir: () => { haptic.tap(); setDetalle(b); },
-										onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
-									}, b.id || idx)
+										onAbrir: () => { haptic.tap(); setDetalle(libro); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+									}, libro.id)
 								))
+							}),
+							poolCategoriaActual.length > librosPantallaCat.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-paginacion-wrap",
+								style: { textAlign: "center", margin: "20px 0 30px" },
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "btn primary",
+									onClick: () => avanzarPagina(categoria),
+									children: ["📖 Siguientes 40 libros de ", nombreBonitoCat(categoria), " (", Math.min(poolCategoriaActual.length, librosPantallaCat.length + 40), " de ", poolCategoriaActual.length, ")"]
+								})
 							}),
 							lgSeccion
 						]
 					}),
 
-					/* Vista estándar ("Todas") con banner destacado, Top Descargas rail, Recién publicados rail y lgSeccion */
+					/* Vista estándar ("Todas") con banner destacado, Top Descargas rail, Recién publicados rail, Política rail y lgSeccion */
 					categoria === "" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
 						children: [
 							destacado && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -2095,6 +2263,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "cg-fila cg-fila-top",
+										onWheel: onWheelHorizontal,
 										children: listaPopulares.slice(0, 14).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
@@ -2108,19 +2277,20 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							}),
-							!buscandoStore && todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							!lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "cg-seccion-head",
 										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🆕 Recién publicados" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras añadidas por autores independientes." })
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "✨ Recién publicados" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Nuevas incorporaciones de la comunidad y lectores independientes." })
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "cg-fila",
-										children: todos.slice(0, 14).map((libro) => (
+										onWheel: onWheelHorizontal,
+										children: listaRecientes.slice(0, 14).map((libro) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro,
 												reportes,
@@ -2131,31 +2301,31 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							}),
-							lgSeccion
-						]
-					}),
-
-					/* Vista de categoría estándar (ficción, ciencia, etc.) */
-					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "politica" && categoria !== "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-seccion",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "cg-seccion-head",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-									style: { textTransform: "capitalize" },
-									children: ["📚 ", categoria]
-								})
-							}),
-							librosCatFiltrados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "cg-fila",
-								children: librosCatFiltrados.map((libro) => (
-									(0, import_jsx_runtime.jsx)(Tarjeta, {
-										libro,
-										reportes,
-										onAbrir: () => { haptic.tap(); setDetalle(libro); },
-										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
-									}, libro.id)
-								))
+							!lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-seccion-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🏛️ Política y Pensamiento Universal" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Grandes obras políticas y tratados fundamentales de la sociedad." })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-fila",
+										onWheel: onWheelHorizontal,
+										children: obtenerLibrosDeCategoria("politica").slice(0, 14).map((b, idx) => (
+											(0, import_jsx_runtime.jsx)(Tarjeta, {
+												libro: b,
+												ranking: idx + 1,
+												descargas: formatearDescargas(b.downloads) + " descargas",
+												reportes,
+												onAbrir: () => { haptic.tap(); setDetalle(b); },
+												onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+											}, b.id || idx)
+										))
+									})
+								]
 							}),
 							lgSeccion
 						]
@@ -2655,25 +2825,437 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 }
 
 const LIBROS_TOP_DESCARGAS = [
-	{ id: "top-1", d: "top-1984", titulo: "1984", autor: "George Orwell", fuente: "archive", downloads: 35400, portada: "https://covers.openlibrary.org/b/id/12629471-M.jpg", categoria: "politica", fileUrl: "https://ia800100.us.archive.org/view_archive.php?archive=/28/items/1984_orwell/1984.zip" },
-	{ id: "top-2", d: "top-rebelion", titulo: "Rebelión en la Granja", autor: "George Orwell", fuente: "archive", downloads: 28900, portada: "https://covers.openlibrary.org/b/id/11153210-M.jpg", categoria: "politica" },
-	{ id: "top-3", d: "top-arte-guerra", titulo: "El Arte de la Guerra", autor: "Sun Tzu", fuente: "gutenberg", downloads: 25300, portada: "https://covers.openlibrary.org/b/id/8231940-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/132.epub3.images" },
-	{ id: "top-4", d: "top-orgullo", titulo: "Orgullo y Prejuicio", autor: "Jane Austen", fuente: "gutenberg", downloads: 22400, portada: "https://covers.openlibrary.org/b/id/8231850-M.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/1342.epub3.images" },
-	{ id: "top-5", d: "top-manifiesto", titulo: "El Manifiesto Comunista", autor: "Karl Marx y Friedrich Engels", fuente: "gutenberg", downloads: 22100, portada: "https://covers.openlibrary.org/b/id/8235114-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/61.epub3.images" },
-	{ id: "top-6", d: "top-sherlock", titulo: "Estudio en Escarlata", autor: "Arthur Conan Doyle", fuente: "gutenberg", downloads: 21000, portada: "https://covers.openlibrary.org/b/id/8231990-M.jpg", categoria: "misterio", epub: "https://www.gutenberg.org/ebooks/244.epub3.images" },
-	{ id: "top-7", d: "top-republica", titulo: "La República", autor: "Platón", fuente: "gutenberg", downloads: 19800, portada: "https://covers.openlibrary.org/b/id/8431950-M.jpg", categoria: "filosofía", epub: "https://www.gutenberg.org/ebooks/1497.epub3.images" },
-	{ id: "top-8", d: "top-alicia", titulo: "Alicia en el País de las Maravillas", autor: "Lewis Carroll", fuente: "gutenberg", downloads: 19500, portada: "https://covers.openlibrary.org/b/id/8231960-M.jpg", categoria: "infantil", epub: "https://www.gutenberg.org/ebooks/11.epub3.images" },
-	{ id: "top-9", d: "top-principe", titulo: "El Príncipe", autor: "Nicolás Maquiavelo", fuente: "gutenberg", downloads: 18500, portada: "https://covers.openlibrary.org/b/id/10512450-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/1232.epub3.images" },
-	{ id: "top-10", d: "top-metamorfosis", titulo: "La Metamorfosis", autor: "Franz Kafka", fuente: "gutenberg", downloads: 16200, portada: "https://covers.openlibrary.org/b/id/8231970-M.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/5200.epub3.images" },
-	{ id: "top-11", d: "top-riqueza", titulo: "La Riqueza de las Naciones", autor: "Adam Smith", fuente: "gutenberg", downloads: 16400, portada: "https://covers.openlibrary.org/b/id/7268840-M.jpg", categoria: "economía", epub: "https://www.gutenberg.org/ebooks/3300.epub3.images" },
-	{ id: "top-12", d: "top-desobediencia", titulo: "Desobediencia Civil", autor: "Henry David Thoreau", fuente: "gutenberg", downloads: 15800, portada: "https://covers.openlibrary.org/b/id/8271920-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/71.epub3.images" },
-	{ id: "top-13", d: "top-quijote", titulo: "Don Quijote de la Mancha", autor: "Miguel de Cervantes", fuente: "gutenberg", downloads: 15420, portada: "https://www.gutenberg.org/cache/epub/2000/pg2000.cover.medium.jpg", categoria: "clásicos", epub: "https://www.gutenberg.org/ebooks/2000.epub3.images" },
-	{ id: "top-14", d: "top-frankenstein", titulo: "Frankenstein", autor: "Mary Shelley", fuente: "gutenberg", downloads: 14500, portada: "https://www.gutenberg.org/cache/epub/56834/pg56834.cover.medium.jpg", categoria: "ciencia-ficción", epub: "https://www.gutenberg.org/ebooks/56834.epub3.images" },
-	{ id: "top-15", d: "top-dracula", titulo: "Drácula", autor: "Bram Stoker", fuente: "gutenberg", downloads: 13200, portada: "https://www.gutenberg.org/cache/epub/58820/pg58820.cover.medium.jpg", categoria: "misterio", epub: "https://www.gutenberg.org/ebooks/58820.epub3.images" },
-	{ id: "top-16", d: "top-cumbres", titulo: "Cumbres Borrascosas", autor: "Emily Brontë", fuente: "gutenberg", downloads: 9800, portada: "https://www.gutenberg.org/cache/epub/49836/pg49836.cover.medium.jpg", categoria: "romance", epub: "https://www.gutenberg.org/ebooks/49836.epub3.images" },
-	{ id: "top-17", d: "top-fortunata", titulo: "Fortunata y Jacinta", autor: "Benito Pérez Galdós", fuente: "gutenberg", downloads: 7400, portada: "https://www.gutenberg.org/cache/epub/17955/pg17955.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/17955.epub3.images" },
-	{ id: "top-18", d: "top-perfecta", titulo: "Doña Perfecta", autor: "Benito Pérez Galdós", fuente: "gutenberg", downloads: 6500, portada: "https://www.gutenberg.org/cache/epub/17358/pg17358.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/17358.epub3.images" },
-	{ id: "top-19", d: "top-pazos", titulo: "Los Pazos de Ulloa", autor: "Emilia Pardo Bazán", fuente: "gutenberg", downloads: 5900, portada: "https://www.gutenberg.org/cache/epub/15353/pg15353.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/15353.epub3.images" }
+ {
+  "id": "top-1",
+  "d": "top-1984",
+  "titulo": "1984",
+  "autor": "George Orwell",
+  "fuente": "archive",
+  "downloads": 35400,
+  "portada": "https://covers.openlibrary.org/b/id/12629471-M.jpg",
+  "categoria": "politica",
+  "fileUrl": "https://ia800100.us.archive.org/view_archive.php?archive=/28/items/1984_orwell/1984.zip"
+ },
+ {
+  "id": "top-2",
+  "d": "top-rebelion",
+  "titulo": "Rebelión en la Granja",
+  "autor": "George Orwell",
+  "fuente": "archive",
+  "downloads": 28900,
+  "portada": "https://covers.openlibrary.org/b/id/11153210-M.jpg",
+  "categoria": "politica"
+ },
+ {
+  "id": "top-3",
+  "d": "top-arte-guerra",
+  "titulo": "El Arte de la Guerra",
+  "autor": "Sun Tzu",
+  "fuente": "gutenberg",
+  "downloads": 25300,
+  "portada": "https://covers.openlibrary.org/b/id/8231940-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/132.epub3.images"
+ },
+ {
+  "id": "top-4",
+  "d": "top-orgullo",
+  "titulo": "Orgullo y Prejuicio",
+  "autor": "Jane Austen",
+  "fuente": "gutenberg",
+  "downloads": 22400,
+  "portada": "https://covers.openlibrary.org/b/id/8231850-M.jpg",
+  "categoria": "ficción",
+  "epub": "https://www.gutenberg.org/ebooks/1342.epub3.images"
+ },
+ {
+  "id": "top-5",
+  "d": "top-manifiesto",
+  "titulo": "El Manifiesto Comunista",
+  "autor": "Karl Marx y Friedrich Engels",
+  "fuente": "gutenberg",
+  "downloads": 22100,
+  "portada": "https://covers.openlibrary.org/b/id/8235114-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/61.epub3.images"
+ },
+ {
+  "id": "top-6",
+  "d": "top-sherlock",
+  "titulo": "Estudio en Escarlata",
+  "autor": "Arthur Conan Doyle",
+  "fuente": "gutenberg",
+  "downloads": 21000,
+  "portada": "https://covers.openlibrary.org/b/id/8231990-M.jpg",
+  "categoria": "misterio",
+  "epub": "https://www.gutenberg.org/ebooks/244.epub3.images"
+ },
+ {
+  "id": "top-7",
+  "d": "top-republica",
+  "titulo": "La República",
+  "autor": "Platón",
+  "fuente": "gutenberg",
+  "downloads": 19800,
+  "portada": "https://covers.openlibrary.org/b/id/8431950-M.jpg",
+  "categoria": "filosofía",
+  "epub": "https://www.gutenberg.org/ebooks/1497.epub3.images"
+ },
+ {
+  "id": "top-8",
+  "d": "top-alicia",
+  "titulo": "Alicia en el País de las Maravillas",
+  "autor": "Lewis Carroll",
+  "fuente": "gutenberg",
+  "downloads": 19500,
+  "portada": "https://covers.openlibrary.org/b/id/8231960-M.jpg",
+  "categoria": "infantil",
+  "epub": "https://www.gutenberg.org/ebooks/11.epub3.images"
+ },
+ {
+  "id": "top-9",
+  "d": "top-principe",
+  "titulo": "El Príncipe",
+  "autor": "Nicolás Maquiavelo",
+  "fuente": "gutenberg",
+  "downloads": 18500,
+  "portada": "https://covers.openlibrary.org/b/id/10512450-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/1232.epub3.images"
+ },
+ {
+  "id": "top-10",
+  "d": "top-metamorfosis",
+  "titulo": "La Metamorfosis",
+  "autor": "Franz Kafka",
+  "fuente": "gutenberg",
+  "downloads": 16200,
+  "portada": "https://covers.openlibrary.org/b/id/8231970-M.jpg",
+  "categoria": "ficción",
+  "epub": "https://www.gutenberg.org/ebooks/5200.epub3.images"
+ },
+ {
+  "id": "top-11",
+  "d": "top-riqueza",
+  "titulo": "La Riqueza de las Naciones",
+  "autor": "Adam Smith",
+  "fuente": "gutenberg",
+  "downloads": 16400,
+  "portada": "https://covers.openlibrary.org/b/id/7268840-M.jpg",
+  "categoria": "economía",
+  "epub": "https://www.gutenberg.org/ebooks/3300.epub3.images"
+ },
+ {
+  "id": "top-12",
+  "d": "top-desobediencia",
+  "titulo": "Desobediencia Civil",
+  "autor": "Henry David Thoreau",
+  "fuente": "gutenberg",
+  "downloads": 15800,
+  "portada": "https://covers.openlibrary.org/b/id/8271920-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/71.epub3.images"
+ },
+ {
+  "id": "top-13",
+  "d": "top-quijote",
+  "titulo": "Don Quijote de la Mancha",
+  "autor": "Miguel de Cervantes",
+  "fuente": "gutenberg",
+  "downloads": 15420,
+  "portada": "https://www.gutenberg.org/cache/epub/2000/pg2000.cover.medium.jpg",
+  "categoria": "clásicos",
+  "epub": "https://www.gutenberg.org/ebooks/2000.epub3.images"
+ },
+ {
+  "id": "top-14",
+  "d": "top-frankenstein",
+  "titulo": "Frankenstein",
+  "autor": "Mary Shelley",
+  "fuente": "gutenberg",
+  "downloads": 14500,
+  "portada": "https://www.gutenberg.org/cache/epub/56834/pg56834.cover.medium.jpg",
+  "categoria": "ciencia-ficción",
+  "epub": "https://www.gutenberg.org/ebooks/56834.epub3.images"
+ },
+ {
+  "id": "top-15",
+  "d": "top-contrato",
+  "titulo": "El Contrato Social",
+  "autor": "Jean-Jacques Rousseau",
+  "fuente": "gutenberg",
+  "downloads": 14200,
+  "portada": "https://covers.openlibrary.org/b/id/8314120-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/46333.epub3.images"
+ },
+ {
+  "id": "top-16",
+  "d": "top-mosqueteros",
+  "titulo": "Los Tres Mosqueteros",
+  "autor": "Alexandre Dumas",
+  "fuente": "gutenberg",
+  "downloads": 13400,
+  "portada": "https://covers.openlibrary.org/b/id/8231980-M.jpg",
+  "categoria": "aventura",
+  "epub": "https://www.gutenberg.org/ebooks/1257.epub3.images"
+ },
+ {
+  "id": "top-17",
+  "d": "top-dracula",
+  "titulo": "Drácula",
+  "autor": "Bram Stoker",
+  "fuente": "gutenberg",
+  "downloads": 13200,
+  "portada": "https://www.gutenberg.org/cache/epub/58820/pg58820.cover.medium.jpg",
+  "categoria": "misterio",
+  "epub": "https://www.gutenberg.org/ebooks/58820.epub3.images"
+ },
+ {
+  "id": "top-18",
+  "d": "top-montecristo",
+  "titulo": "El Conde de Montecristo",
+  "autor": "Alexandre Dumas",
+  "fuente": "gutenberg",
+  "downloads": 15100,
+  "portada": "https://covers.openlibrary.org/b/id/8231900-M.jpg",
+  "categoria": "aventura",
+  "epub": "https://www.gutenberg.org/ebooks/1184.epub3.images"
+ },
+ {
+  "id": "top-19",
+  "d": "top-libertad",
+  "titulo": "Sobre la Libertad",
+  "autor": "John Stuart Mill",
+  "fuente": "gutenberg",
+  "downloads": 12800,
+  "portada": "https://covers.openlibrary.org/b/id/8271930-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/34901.epub3.images"
+ },
+ {
+  "id": "top-20",
+  "d": "top-gobierno",
+  "titulo": "Dos Tratados sobre el Gobierno Civil",
+  "autor": "John Locke",
+  "fuente": "gutenberg",
+  "downloads": 12500,
+  "portada": "https://covers.openlibrary.org/b/id/8271940-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/7370.epub3.images"
+ },
+ {
+  "id": "top-21",
+  "d": "top-utopia",
+  "titulo": "Utopía",
+  "autor": "Tomás Moro",
+  "fuente": "gutenberg",
+  "downloads": 12100,
+  "portada": "https://covers.openlibrary.org/b/id/8271950-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/2130.epub3.images"
+ },
+ {
+  "id": "top-22",
+  "d": "top-democracia",
+  "titulo": "La Democracia en América",
+  "autor": "Alexis de Tocqueville",
+  "fuente": "gutenberg",
+  "downloads": 11800,
+  "portada": "https://covers.openlibrary.org/b/id/8271960-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/815.epub3.images"
+ },
+ {
+  "id": "top-23",
+  "d": "top-leviatan",
+  "titulo": "Leviatán",
+  "autor": "Thomas Hobbes",
+  "fuente": "gutenberg",
+  "downloads": 11500,
+  "portada": "https://covers.openlibrary.org/b/id/8271970-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/3207.epub3.images"
+ },
+ {
+  "id": "top-24",
+  "d": "top-aristoteles-politica",
+  "titulo": "Política",
+  "autor": "Aristóteles",
+  "fuente": "gutenberg",
+  "downloads": 11200,
+  "portada": "https://covers.openlibrary.org/b/id/8271980-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/6762.epub3.images"
+ },
+ {
+  "id": "top-25",
+  "d": "top-sentido-comun",
+  "titulo": "Sentido Común",
+  "autor": "Thomas Paine",
+  "fuente": "gutenberg",
+  "downloads": 10900,
+  "portada": "https://covers.openlibrary.org/b/id/8271990-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/147.epub3.images"
+ },
+ {
+  "id": "top-26",
+  "d": "top-federalista",
+  "titulo": "El Federalista",
+  "autor": "Alexander Hamilton y James Madison",
+  "fuente": "gutenberg",
+  "downloads": 10600,
+  "portada": "https://covers.openlibrary.org/b/id/8272000-M.jpg",
+  "categoria": "politica",
+  "epub": "https://www.gutenberg.org/ebooks/18.epub3.images"
+ },
+ {
+  "id": "top-27",
+  "d": "top-cumbres",
+  "titulo": "Cumbres Borrascosas",
+  "autor": "Emily Brontë",
+  "fuente": "gutenberg",
+  "downloads": 9800,
+  "portada": "https://www.gutenberg.org/cache/epub/49836/pg49836.cover.medium.jpg",
+  "categoria": "romance",
+  "epub": "https://www.gutenberg.org/ebooks/49836.epub3.images"
+ },
+ {
+  "id": "top-28",
+  "d": "top-iliada",
+  "titulo": "La Ilíada",
+  "autor": "Homero",
+  "fuente": "gutenberg",
+  "downloads": 8750,
+  "portada": "https://covers.openlibrary.org/b/id/8232010-M.jpg",
+  "categoria": "clásicos",
+  "epub": "https://www.gutenberg.org/ebooks/6130.epub3.images"
+ },
+ {
+  "id": "top-29",
+  "d": "top-odisea",
+  "titulo": "La Odisea",
+  "autor": "Homero",
+  "fuente": "gutenberg",
+  "downloads": 8600,
+  "portada": "https://covers.openlibrary.org/b/id/8232020-M.jpg",
+  "categoria": "clásicos",
+  "epub": "https://www.gutenberg.org/ebooks/1727.epub3.images"
+ },
+ {
+  "id": "top-30",
+  "d": "top-fortunata",
+  "titulo": "Fortunata y Jacinta",
+  "autor": "Benito Pérez Galdós",
+  "fuente": "gutenberg",
+  "downloads": 7400,
+  "portada": "https://www.gutenberg.org/cache/epub/17955/pg17955.cover.medium.jpg",
+  "categoria": "ficción",
+  "epub": "https://www.gutenberg.org/ebooks/17955.epub3.images"
+ },
+ {
+  "id": "top-31",
+  "d": "top-perfecta",
+  "titulo": "Doña Perfecta",
+  "autor": "Benito Pérez Galdós",
+  "fuente": "gutenberg",
+  "downloads": 6500,
+  "portada": "https://www.gutenberg.org/cache/epub/17358/pg17358.cover.medium.jpg",
+  "categoria": "ficción",
+  "epub": "https://www.gutenberg.org/ebooks/17358.epub3.images"
+ },
+ {
+  "id": "top-32",
+  "d": "top-pazos",
+  "titulo": "Los Pazos de Ulloa",
+  "autor": "Emilia Pardo Bazán",
+  "fuente": "gutenberg",
+  "downloads": 5900,
+  "portada": "https://www.gutenberg.org/cache/epub/15353/pg15353.cover.medium.jpg",
+  "categoria": "ficción",
+  "epub": "https://www.gutenberg.org/ebooks/15353.epub3.images"
+ },
+ {
+  "id": "top-33",
+  "d": "top-soledad",
+  "titulo": "Cien Años de Soledad",
+  "autor": "Gabriel García Márquez",
+  "fuente": "lumen",
+  "downloads": 28500,
+  "portada": "https://covers.openlibrary.org/b/id/8232030-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-34",
+  "d": "top-colera",
+  "titulo": "El Amor en los Tiempos del Cólera",
+  "autor": "Gabriel García Márquez",
+  "fuente": "lumen",
+  "downloads": 22400,
+  "portada": "https://covers.openlibrary.org/b/id/8232040-M.jpg",
+  "categoria": "romance"
+ },
+ {
+  "id": "top-35",
+  "d": "top-rayuela",
+  "titulo": "Rayuela",
+  "autor": "Julio Cortázar",
+  "fuente": "lumen",
+  "downloads": 18700,
+  "portada": "https://covers.openlibrary.org/b/id/8232050-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-36",
+  "d": "top-ficciones",
+  "titulo": "Ficciones",
+  "autor": "Jorge Luis Borges",
+  "fuente": "lumen",
+  "downloads": 24100,
+  "portada": "https://covers.openlibrary.org/b/id/8232060-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-37",
+  "d": "top-aleph",
+  "titulo": "El Aleph",
+  "autor": "Jorge Luis Borges",
+  "fuente": "lumen",
+  "downloads": 21900,
+  "portada": "https://covers.openlibrary.org/b/id/8232070-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-38",
+  "d": "top-paramo",
+  "titulo": "Pedro Páramo",
+  "autor": "Juan Rulfo",
+  "fuente": "lumen",
+  "downloads": 19200,
+  "portada": "https://covers.openlibrary.org/b/id/8232080-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-39",
+  "d": "top-perros",
+  "titulo": "La Ciudad y los Perros",
+  "autor": "Mario Vargas Llosa",
+  "fuente": "lumen",
+  "downloads": 17800,
+  "portada": "https://covers.openlibrary.org/b/id/8232090-M.jpg",
+  "categoria": "ficción"
+ },
+ {
+  "id": "top-40",
+  "d": "top-cronica",
+  "titulo": "Crónica de una Muerte Anunciada",
+  "autor": "Gabriel García Márquez",
+  "fuente": "lumen",
+  "downloads": 16500,
+  "portada": "https://covers.openlibrary.org/b/id/8232100-M.jpg",
+  "categoria": "misterio"
+ }
 ];
 const formatearDescargas = (num) => {
 	if (!num) return "1.2k";
@@ -2715,6 +3297,17 @@ const MAPA_TEMA_LG = {
 	"aventura": "Category: Adventure",
 	"arte": "Category: Art",
 	"cómics": "Category: Comic and Graphic Books"
+};
+const onWheelHorizontal = (e) => {
+	if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+		e.currentTarget.scrollLeft += e.deltaY;
+	}
+};
+const nombreBonitoCat = (c) => {
+	const item = LISTA_CATS_UNIFICADAS.find((x) => x.id === c);
+	if (item) return item.label;
+	if (c === "politica") return "Política";
+	return c ? c.charAt(0).toUpperCase() + c.slice(1) : "Categoría";
 };
 function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {
 	const disp = disponibilidad(libro);

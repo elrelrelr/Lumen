@@ -684,7 +684,7 @@ function NostrAjustes({ onSalir, toast }) {
 					children: "‹"
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "cg-title",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "🛠 Lumen Store 2" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Lumen Storage · identidad · relays · tu IA" })]
+					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h2", { children: "🛠 Lumen Store" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Lumen Storage · identidad · relays · tu IA" })]
 				})]
 			}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "na-cuerpo",

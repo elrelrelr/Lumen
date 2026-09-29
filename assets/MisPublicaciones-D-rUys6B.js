@@ -170,7 +170,7 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 		}
 	};
 	const compartirApp = (pub) => {
-		const texto = `📚 «${pub.titulo}» de ${pub.autor} — léelo en Lumen Reader\n` + enlaceDe(pub) + (pub.magnet ? `\n\n🧲 Torrent (siembra el libro):\n${pub.magnet}` : "") + "\n\n(Si no tienes Lumen Reader, instala la app y escanea este enlace o abre Lumen Store 2.)";
+		const texto = `📚 «${pub.titulo}» de ${pub.autor} — léelo en Lumen Reader\n` + enlaceDe(pub) + (pub.magnet ? `\n\n🧲 Torrent (siembra el libro):\n${pub.magnet}` : "") + "\n\n(Si no tienes Lumen Reader, instala la app y escanea este enlace o abre Lumen Store.)";
 		if (window.AndroidShare?.shareText) {
 			window.AndroidShare.shareText(pub.titulo, texto);
 			setCompartir(null);
@@ -399,7 +399,7 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn primary",
 									onClick: () => onAbrirCatalogo?.(),
-									children: "Ir a Lumen Store 2"
+									children: "Ir a Lumen Store"
 								})
 							})
 						]

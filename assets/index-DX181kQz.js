@@ -40523,7 +40523,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Lumen Store 2" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo sin dueño: Nostr + P2P, publica y lee" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Lumen Store" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo sin dueño: Nostr + P2P, publica y lee" })]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "tp-acceso-fl",
@@ -41691,10 +41691,42 @@ const toquesDev = (0, import_react.useRef)(0);
 								},
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "lm-ic",
-									children: "🗂"
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("svg", {
+	viewBox: "0 0 24 24",
+	width: "20",
+	height: "20",
+	fill: "none",
+	stroke: "currentColor",
+	strokeWidth: "2.1",
+	strokeLinecap: "round",
+	strokeLinejoin: "round",
+	style: { display: "inline-block", verticalAlign: "middle", color: "var(--accent, #7c5cff)" },
+	children: [
+		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "3", y: "3", width: "7", height: "7", rx: "2" }),
+		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "14", y: "3", width: "7", height: "7", rx: "2" }),
+		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "14", y: "14", width: "7", height: "7", rx: "2" }),
+		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("rect", { x: "3", y: "14", width: "7", height: "7", rx: "2" })
+	]
+})
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "lm-txt",
 									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Categorías" }), /* v197: muestra las categorías a las que pertenece */ /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: (() => { const enGrupos = grupos.filter((g) => (g.libros || []).includes(longPress?.id)); return enGrupos.length ? "Está en: " + enGrupos.map((g) => g.icono + " " + g.nombre).join(" · ") : "Meterlo en Psicología, Tareas, Novela…"; })() })]
+								})]
+							}),
+							/* v236: Publicar este libro en Lumen Store */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "lm-fila",
+								onClick: () => {
+									const b = longPress;
+									setLongPress(null);
+									onPublicarLibro?.(b.id || b);
+								},
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "lm-ic",
+									children: "🚀"
+								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "lm-txt",
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Publicar este libro" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Compartir en la red descentralizada Lumen Store" })]
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
@@ -54932,7 +54964,7 @@ function Sidebar({ enLectura, onInicio, onSheet, onAbrirBuscador, onAbrirTorrent
 			item("➕", "Añadir contenido", () => onSheet("importar")),
 			item("✍️", "Crear libro", () => onSheet("crear")),
 			item("🧲", "Torrent", onAbrirTorrent),
-			item("🌐", "Lumen Store 2", onAbrirCatalogo),
+			item("🌐", "Lumen Store", onAbrirCatalogo),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "side-label",
 				children: "Comunidad"

@@ -2106,4 +2106,4 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 	});
 }
 //#endregion
-export { LibrosGratis as default, LibrosGratis as L, paraTi as p, nombreArchivo as n };
+export { LibrosGratis as default, LibrosGratis as L, paraTi as p, nombreArchivo as n, CATALOG_CATEGORIES as C, SEMILLA_40 as S };
