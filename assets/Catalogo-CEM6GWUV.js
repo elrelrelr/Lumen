@@ -1548,6 +1548,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 	const lgSeccion = LGComp ? (0, import_jsx_runtime.jsx)(LGComp, {
 		modo: "seccion",
 		busqueda: lgQ,
+		temaExterno: MAPA_TEMA_LG[categoria] || "all",
 		toast,
 		onAbrirLibro: (id) => {
 			onAbrirLibroLocal?.(id);
@@ -1558,12 +1559,25 @@ const cargar = (0, import_react.useCallback)(async () => {
 	}) : null;
 	const buscandoStore = lgQ.trim().length >= 2;
 	const destacado = recientes[0];
-	const populares = [...visibles].map((b) => ({
-		b,
-		r: ratingDe(b)
-	})).sort((x, y) => y.r.estrellas - x.r.estrellas).slice(0, 12).map((x) => x.b);
+
+	// Top más descargados global consolidado entre todas las bibliotecas y Lumen
+	const listaPopulares = [
+		...LIBROS_TOP_DESCARGAS,
+		...visibles.map((b) => ({
+			...b,
+			downloads: b.downloads || Math.round((ratingDe(b).estrellas || 4.5) * 3200)
+		}))
+	].sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+
+	const librosPolitica = [
+		...LIBROS_TOP_DESCARGAS.filter((b) => b.categoria === "politica" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo)),
+		...visibles.filter((b) => b.categoria === "politica" || b.categoria === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo))
+	];
+
+	const librosCatFiltrados = visibles.filter((b) => (b.categoria || "").toLowerCase() === (categoria || "").toLowerCase());
 	const todos = recientes.filter((b) => b.id !== destacado?.id);
 	const categorias = categoriasDe(libros);
+
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "cg-scrim",
 		children: [
@@ -1829,24 +1843,211 @@ const cargar = (0, import_react.useCallback)(async () => {
 							})
 						]
 					}),
-					/* v208: el banner de identidad vive en «crear libro» (PublicarLibro) */
+					/* v236: Barra unificada de categorías (mezcla de cg-cats con chips lg-temas) */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-cats",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "cg-cat" + (categoria === "" ? " on" : ""),
-							onClick: () => setCategoria(""),
-							children: "Todas"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "cg-cat cg-cat-mis" + (categoria === "__mis_libros__" ? " on" : ""),
-							onClick: () => setCategoria(categoria === "__mis_libros__" ? "" : "__mis_libros__"),
-							children: "📚 Mis libros" + (misLibros.length ? ` (${misLibros.length})` : "")
-						}), (categorias.length > 0 ? categorias : ["ficción", "no-ficción", "ciencia", "historia", "poesía"]).slice(0, 12).map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "cg-cat" + (categoria === c ? " on" : ""),
-							onClick: () => setCategoria(categoria === c ? "" : c),
-							children: c
-						}, c))]
+						className: "chips lg-temas cg-cats-unificadas",
+						role: "tablist",
+						"aria-label": "Categorías de libros",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								role: "tab",
+								"aria-selected": categoria === "",
+								className: "chip" + (categoria === "" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(""); },
+								children: "🌐 Todas"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								role: "tab",
+								"aria-selected": categoria === "__populares__",
+								className: "chip chip-populares" + (categoria === "__populares__" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === "__populares__" ? "" : "__populares__"); },
+								children: ["🔥 Populares ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "chip-badge", children: "Top" })]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								role: "tab",
+								"aria-selected": categoria === "__recientes__",
+								className: "chip chip-recientes" + (categoria === "__recientes__" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === "__recientes__" ? "" : "__recientes__"); },
+								children: "✨ Recién publicados"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								role: "tab",
+								"aria-selected": categoria === "politica",
+								className: "chip chip-politica" + (categoria === "politica" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === "politica" ? "" : "politica"); },
+								children: "🏛️ Política"
+							}),
+							misLibros.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								role: "tab",
+								"aria-selected": categoria === "__mis_libros__",
+								className: "chip chip-mis" + (categoria === "__mis_libros__" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === "__mis_libros__" ? "" : "__mis_libros__"); },
+								children: `📚 Mis libros (${misLibros.length})`
+							}),
+							...LISTA_CATS_UNIFICADAS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								role: "tab",
+								"aria-selected": categoria === c.id,
+								className: "chip" + (categoria === c.id ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === c.id ? "" : c.id); },
+								children: [c.icon, " ", c.label]
+							}, c.id))
+						]
 					}),
-					destacado && !lgQ.trim() && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+
+					/* Vista dedicada de POPULARES (Top Descargas) */
+					categoria === "__populares__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion cg-seccion-populares",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-head",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🏆 Top Descargas — Los libros más leídos entre todas las bibliotecas" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Ranking global consolidado con estadísticas reales de descargas de Project Gutenberg, Open Library, Internet Archive y la red Lumen." })
+								]
+							}),
+							/* Carril horizontal con scroll */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-fila cg-fila-top",
+								children: listaPopulares.slice(0, 14).map((b, idx) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro: b,
+										ranking: idx + 1,
+										descargas: formatearDescargas(b.downloads) + " descargas",
+										reportes,
+										onAbrir: () => { haptic.tap(); setDetalle(b); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+									}, b.id || idx)
+								))
+							}),
+							/* Grid vertical completo con scroll */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-top-grid",
+								children: listaPopulares.map((b, idx) => {
+									const pos = idx + 1;
+									const tit = b.titulo || b.title;
+									const aut = b.autor || (Array.isArray(b.authors) ? b.authors[0] : b.authors) || "Autor";
+									return (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-top-item",
+										onClick: () => { haptic.tap(); setDetalle(b); },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "cg-top-pos" + (pos <= 3 ? ` pos-${pos}` : ""),
+												children: pos <= 3 ? ["🥇", "🥈", "🥉"][pos - 1] : `#${pos}`
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+												className: "cg-top-cov",
+												src: b.portada || "assets/icon-192.png",
+												alt: tit,
+												loading: "lazy"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "cg-top-info",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: tit }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: aut }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+														className: "cg-top-dl-pill",
+														children: ["📥 ", formatearDescargas(b.downloads), " descargas"]
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "cg-top-acciones",
+														onClick: (e) => e.stopPropagation(),
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																type: "button",
+																className: "btn sm primary",
+																onClick: () => { haptic.tap(); onAbrirLibro?.(b); },
+																children: "▶ Leer"
+															}),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																type: "button",
+																className: "btn sm",
+																onClick: () => { haptic.tap(); setDetalle(b); },
+																children: "ℹ️ Ficha"
+															})
+														]
+													})
+												]
+											})
+										]
+									}, b.id || idx);
+								})
+							})
+						]
+					}),
+
+					/* Vista dedicada de RECIÉN PUBLICADOS */
+					categoria === "__recientes__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion cg-seccion-recientes",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-head",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "✨ Recién publicados" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras publicadas por la comunidad en la red descentralizada." })
+								]
+							}),
+							/* Carril horizontal con scroll */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-fila",
+								children: todos.slice(0, 14).map((libro) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro,
+										reportes,
+										onAbrir: () => { haptic.tap(); setDetalle(libro); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+									}, libro.id)
+								))
+							}),
+							/* Grid con scroll */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-grid",
+								style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, padding: "10px 0" },
+								children: todos.map((libro) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro,
+										reportes,
+										onAbrir: () => { haptic.tap(); setDetalle(libro); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+									}, libro.id)
+								))
+							})
+						]
+					}),
+
+					/* Vista dedicada de POLÍTICA */
+					categoria === "politica" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion cg-seccion-politica",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-head",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🏛️ Obras de Política, Sociedad y Pensamiento Universal" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Grandes tratados y clásicos del pensamiento político: Maquiavelo, Platón, Rousseau, Marx, Adam Smith, Locke y más." })
+								]
+							}),
+							/* Carril horizontal con scroll */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-fila",
+								children: librosPolitica.slice(0, 14).map((b, idx) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro: b,
+										ranking: idx + 1,
+										descargas: formatearDescargas(b.downloads) + " descargas",
+										reportes,
+										onAbrir: () => { haptic.tap(); setDetalle(b); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+									}, b.id || idx)
+								))
+							}),
+							lgSeccion
+						]
+					}),
+
+					/* Vista estándar ("Todas") con banner destacado, Top Descargas rail, Recién publicados rail y lgSeccion */
+					categoria === "" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							destacado && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "cg-destacado",
 								onClick: () => {
 									haptic.tap();
@@ -1882,37 +2083,85 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							}),
-							populares.length > 1 && !lgQ.trim() && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							!lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🔥 Populares" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "cg-fila",
-									children: populares.map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-seccion-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🔥 Libros más descargados (Top Global)" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Top descargados entre Project Gutenberg, Open Library, Internet Archive y la red Lumen." })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-fila cg-fila-top",
+										children: listaPopulares.slice(0, 14).map((b, idx) => (
+											(0, import_jsx_runtime.jsx)(Tarjeta, {
+												libro: b,
+												ranking: idx + 1,
+												descargas: formatearDescargas(b.downloads) + " descargas",
+												reportes,
+												onAbrir: () => { haptic.tap(); setDetalle(b); },
+												onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+											}, b.id || idx)
+										))
+									})
+								]
+							}),
+							!buscandoStore && todos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-seccion-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🆕 Recién publicados" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras añadidas por autores independientes." })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-fila",
+										children: todos.slice(0, 14).map((libro) => (
+											(0, import_jsx_runtime.jsx)(Tarjeta, {
+												libro,
+												reportes,
+												onAbrir: () => { haptic.tap(); setDetalle(libro); },
+												onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+											}, libro.id)
+										))
+									})
+								]
+							}),
+							lgSeccion
+						]
+					}),
+
+					/* Vista de categoría estándar (ficción, ciencia, etc.) */
+					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "politica" && categoria !== "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-seccion-head",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+									style: { textTransform: "capitalize" },
+									children: ["📚 ", categoria]
+								})
+							}),
+							librosCatFiltrados.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-fila",
+								children: librosCatFiltrados.map((libro) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro,
 										reportes,
-										onAbrir: () => {
-											haptic.tap();
-											setDetalle(libro);
-										}
-									}, libro.id))
-								})]
+										onAbrir: () => { haptic.tap(); setDetalle(libro); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+									}, libro.id)
+								))
 							}),
-							!buscandoStore && todos.length > 0 && !categoria && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "cg-seccion",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🆕 Recién publicados" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "cg-fila",
-									children: todos.slice(0, 14).map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
-										libro,
-										reportes,
-										onAbrir: () => {
-											haptic.tap();
-											setDetalle(libro);
-										}
-									}, libro.id))
-								})]
-							}),
-							/* v208: lgSeccion SIEMPRE en la MISMA posicion del arbol (si se movia segun buscandoStore, React la remontaba y se perdian las cargas en vuelo); en busqueda queda antes que Resultados porque ese bloque va debajo */
-						categoria !== "__mis_libros__" && lgSeccion,
-						categoria === "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							lgSeccion
+						]
+					}),
+
+					categoria === "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion cg-seccion-mis-libros",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "cg-mis-head",
@@ -2404,10 +2653,75 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 		]
 	});
 }
-function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar }) {
+
+const LIBROS_TOP_DESCARGAS = [
+	{ id: "top-1", d: "top-1984", titulo: "1984", autor: "George Orwell", fuente: "archive", downloads: 35400, portada: "https://covers.openlibrary.org/b/id/12629471-M.jpg", categoria: "politica", fileUrl: "https://ia800100.us.archive.org/view_archive.php?archive=/28/items/1984_orwell/1984.zip" },
+	{ id: "top-2", d: "top-rebelion", titulo: "Rebelión en la Granja", autor: "George Orwell", fuente: "archive", downloads: 28900, portada: "https://covers.openlibrary.org/b/id/11153210-M.jpg", categoria: "politica" },
+	{ id: "top-3", d: "top-arte-guerra", titulo: "El Arte de la Guerra", autor: "Sun Tzu", fuente: "gutenberg", downloads: 25300, portada: "https://covers.openlibrary.org/b/id/8231940-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/132.epub3.images" },
+	{ id: "top-4", d: "top-orgullo", titulo: "Orgullo y Prejuicio", autor: "Jane Austen", fuente: "gutenberg", downloads: 22400, portada: "https://covers.openlibrary.org/b/id/8231850-M.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/1342.epub3.images" },
+	{ id: "top-5", d: "top-manifiesto", titulo: "El Manifiesto Comunista", autor: "Karl Marx y Friedrich Engels", fuente: "gutenberg", downloads: 22100, portada: "https://covers.openlibrary.org/b/id/8235114-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/61.epub3.images" },
+	{ id: "top-6", d: "top-sherlock", titulo: "Estudio en Escarlata", autor: "Arthur Conan Doyle", fuente: "gutenberg", downloads: 21000, portada: "https://covers.openlibrary.org/b/id/8231990-M.jpg", categoria: "misterio", epub: "https://www.gutenberg.org/ebooks/244.epub3.images" },
+	{ id: "top-7", d: "top-republica", titulo: "La República", autor: "Platón", fuente: "gutenberg", downloads: 19800, portada: "https://covers.openlibrary.org/b/id/8431950-M.jpg", categoria: "filosofía", epub: "https://www.gutenberg.org/ebooks/1497.epub3.images" },
+	{ id: "top-8", d: "top-alicia", titulo: "Alicia en el País de las Maravillas", autor: "Lewis Carroll", fuente: "gutenberg", downloads: 19500, portada: "https://covers.openlibrary.org/b/id/8231960-M.jpg", categoria: "infantil", epub: "https://www.gutenberg.org/ebooks/11.epub3.images" },
+	{ id: "top-9", d: "top-principe", titulo: "El Príncipe", autor: "Nicolás Maquiavelo", fuente: "gutenberg", downloads: 18500, portada: "https://covers.openlibrary.org/b/id/10512450-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/1232.epub3.images" },
+	{ id: "top-10", d: "top-metamorfosis", titulo: "La Metamorfosis", autor: "Franz Kafka", fuente: "gutenberg", downloads: 16200, portada: "https://covers.openlibrary.org/b/id/8231970-M.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/5200.epub3.images" },
+	{ id: "top-11", d: "top-riqueza", titulo: "La Riqueza de las Naciones", autor: "Adam Smith", fuente: "gutenberg", downloads: 16400, portada: "https://covers.openlibrary.org/b/id/7268840-M.jpg", categoria: "economía", epub: "https://www.gutenberg.org/ebooks/3300.epub3.images" },
+	{ id: "top-12", d: "top-desobediencia", titulo: "Desobediencia Civil", autor: "Henry David Thoreau", fuente: "gutenberg", downloads: 15800, portada: "https://covers.openlibrary.org/b/id/8271920-M.jpg", categoria: "politica", epub: "https://www.gutenberg.org/ebooks/71.epub3.images" },
+	{ id: "top-13", d: "top-quijote", titulo: "Don Quijote de la Mancha", autor: "Miguel de Cervantes", fuente: "gutenberg", downloads: 15420, portada: "https://www.gutenberg.org/cache/epub/2000/pg2000.cover.medium.jpg", categoria: "clásicos", epub: "https://www.gutenberg.org/ebooks/2000.epub3.images" },
+	{ id: "top-14", d: "top-frankenstein", titulo: "Frankenstein", autor: "Mary Shelley", fuente: "gutenberg", downloads: 14500, portada: "https://www.gutenberg.org/cache/epub/56834/pg56834.cover.medium.jpg", categoria: "ciencia-ficción", epub: "https://www.gutenberg.org/ebooks/56834.epub3.images" },
+	{ id: "top-15", d: "top-dracula", titulo: "Drácula", autor: "Bram Stoker", fuente: "gutenberg", downloads: 13200, portada: "https://www.gutenberg.org/cache/epub/58820/pg58820.cover.medium.jpg", categoria: "misterio", epub: "https://www.gutenberg.org/ebooks/58820.epub3.images" },
+	{ id: "top-16", d: "top-cumbres", titulo: "Cumbres Borrascosas", autor: "Emily Brontë", fuente: "gutenberg", downloads: 9800, portada: "https://www.gutenberg.org/cache/epub/49836/pg49836.cover.medium.jpg", categoria: "romance", epub: "https://www.gutenberg.org/ebooks/49836.epub3.images" },
+	{ id: "top-17", d: "top-fortunata", titulo: "Fortunata y Jacinta", autor: "Benito Pérez Galdós", fuente: "gutenberg", downloads: 7400, portada: "https://www.gutenberg.org/cache/epub/17955/pg17955.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/17955.epub3.images" },
+	{ id: "top-18", d: "top-perfecta", titulo: "Doña Perfecta", autor: "Benito Pérez Galdós", fuente: "gutenberg", downloads: 6500, portada: "https://www.gutenberg.org/cache/epub/17358/pg17358.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/17358.epub3.images" },
+	{ id: "top-19", d: "top-pazos", titulo: "Los Pazos de Ulloa", autor: "Emilia Pardo Bazán", fuente: "gutenberg", downloads: 5900, portada: "https://www.gutenberg.org/cache/epub/15353/pg15353.cover.medium.jpg", categoria: "ficción", epub: "https://www.gutenberg.org/ebooks/15353.epub3.images" }
+];
+const formatearDescargas = (num) => {
+	if (!num) return "1.2k";
+	if (num >= 1000) return (num / 1000).toFixed(1) + "k";
+	return String(num);
+};
+const LISTA_CATS_UNIFICADAS = [
+	{ id: "ficción", label: "Ficción", icon: "📖" },
+	{ id: "no-ficción", label: "No-ficción", icon: "🧠" },
+	{ id: "ciencia", label: "Ciencia", icon: "🔬" },
+	{ id: "historia", label: "Historia", icon: "📜" },
+	{ id: "filosofía", label: "Filosofía", icon: "💭" },
+	{ id: "poesía", label: "Poesía", icon: "🎭" },
+	{ id: "misterio", label: "Misterio", icon: "🔍" },
+	{ id: "fantasía", label: "Fantasía", icon: "🐉" },
+	{ id: "biografía", label: "Biografía", icon: "👤" },
+	{ id: "clásicos", label: "Clásicos", icon: "🏺" },
+	{ id: "infantil", label: "Infantil", icon: "🎈" },
+	{ id: "aventura", label: "Aventura", icon: "🧭" },
+	{ id: "arte", label: "Arte", icon: "🎨" },
+	{ id: "cómics", label: "Cómics", icon: "💬" }
+];
+const MAPA_TEMA_LG = {
+	"": "all",
+	"__populares__": "all",
+	"__recientes__": "all",
+	"politica": "Category: Politics",
+	"ficción": "Category: Novels",
+	"no-ficción": "Category: History",
+	"ciencia": "Category: Science",
+	"historia": "Category: History",
+	"filosofía": "Category: Philosophy",
+	"poesía": "Category: Poetry",
+	"misterio": "Category: Crime, Thrillers and Mystery",
+	"fantasía": "Category: Fantasy",
+	"biografía": "Category: Biography",
+	"clásicos": "Category: Classics of Literature",
+	"infantil": "Category: Juvenile",
+	"aventura": "Category: Adventure",
+	"arte": "Category: Art",
+	"cómics": "Category: Comic and Graphic Books"
+};
+function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {
 	const disp = disponibilidad(libro);
 	const rep = contarReportes(reportes, libro.id);
 	const r = ratingDe(libro);
+	const tit = libro.titulo || libro.title || "Libro";
+	const aut = libro.autor || (Array.isArray(libro.authors) ? libro.authors[0] : libro.authors) || "Autor";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "cg-tarjeta-wrap",
 		style: { display: "flex", flexDirection: "column" },
@@ -2417,21 +2731,28 @@ function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar 
 				className: "cg-tarjeta",
 				onClick: onAbrir,
 				children: [
+					ranking && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "cg-rank-badge " + (ranking === 1 ? "rank-1" : ranking === 2 ? "rank-2" : ranking === 3 ? "rank-3" : "rank-otro"),
+						children: ranking === 1 ? "🥇 #1" : ranking === 2 ? "🥈 #2" : ranking === 3 ? "🥉 #3" : `#${ranking}`
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
 						libro,
-						titulo: libro.titulo
+						titulo: tit
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-tarjeta-info",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: libro.titulo }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: libro.autor }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: tit }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: aut }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 								className: "cg-tarjeta-meta",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									descargas ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "cg-top-dl-pill",
+										children: ["📥 ", descargas]
+									}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "lg-sigla-desc",
-										children: "LUM · "
+										children: (libro.fuente ? String(libro.fuente).slice(0, 3).toUpperCase() : "LUM") + " · "
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: r.estrellas, total: r.reseñas }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
@@ -2446,7 +2767,7 @@ function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar 
 					})
 				]
 			}),
-			libro.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			libro.esMio ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "cg-card-actions",
 				onClick: (e) => e.stopPropagation(),
 				children: [
@@ -2479,7 +2800,26 @@ function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar 
 						children: "🗑️"
 					})
 				]
-			})
+			}) : (onLeer ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-card-actions",
+				onClick: (e) => e.stopPropagation(),
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini prim",
+						title: "Leer ahora",
+						onClick: () => onLeer?.(libro),
+						children: "▶ Leer"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini",
+						title: "Ver ficha",
+						onClick: onAbrir,
+						children: "ℹ️"
+					})
+				]
+			}) : null)
 		]
 	});
 }

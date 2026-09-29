@@ -3473,14 +3473,19 @@ async function refrescarCatalogo({ onEstado = null } = {}) {
 /** Publica un evento en todos los relays y devuelve el resumen por relay. */
 async function publicarEnRelays(ev, { onEstado = null } = {}) {
 	const relays = await relaysGuardados();
-	const resultados = [];
-	for (const url of relays) {
+	const promesas = relays.map(async (url) => {
 		onEstado?.("enviando", url);
-		const r = await publicarEvento(ev, url, 12e3);
-		resultados.push(r);
-		onEstado?.(r.ok ? "publicado" : "fallo", url, r.detalle);
-	}
-	return resultados;
+		try {
+			const r = await publicarEvento(ev, url, 6000);
+			onEstado?.(r.ok ? "publicado" : "fallo", url, r.detalle);
+			return r;
+		} catch (e) {
+			const fail = { url, ok: false, detalle: e?.message || "error de conexión" };
+			onEstado?.("fallo", url, fail.detalle);
+			return fail;
+		}
+	});
+	return await Promise.all(promesas);
 }
 var espera = (ms) => new Promise((r) => setTimeout(r, ms));
 //#endregion

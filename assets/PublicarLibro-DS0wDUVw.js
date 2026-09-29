@@ -13,9 +13,11 @@ var import_jsx_runtime = require_jsx_runtime();
 var CATEGORIAS = [
 	"ficción",
 	"no-ficción",
+	"política",
 	"desarrollo-personal",
 	"ciencia",
 	"historia",
+	"filosofía",
 	"poesía",
 	"infantil",
 	"académico",
@@ -252,7 +254,12 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				moderacion: "approved:direct:general:1.0"
 			});
 			setProgreso("Enviando a los relays de internet (Damus, Primal, Nostr)…");
-			const resultados = await publicarEnRelays(ev);
+			let resultados = [];
+			try {
+				resultados = await publicarEnRelays(ev);
+			} catch (eRel) {
+				console.warn("[relays publicación offline fallback]", eRel);
+			}
 			const ok = resultados.filter((r) => r.ok).length;
 			const fallos = resultados.filter((r) => !r.ok).length;
 			const pub = await guardarPublicado({
@@ -277,12 +284,13 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				rating: editar?.rating || "general",
 				etiquetas: editar?.etiquetas || [],
 				evento: ev,
+				enInternet: ok > 0,
 				estadoRelays: resultados.map((r) => ({
 					url: r.url,
 					ok: r.ok,
 					detalle: r.detalle || ""
 				})),
-				_accion: editar ? `Editado (${ok}/${resultados.length} relays)` : `Publicado (${ok}/${resultados.length} relays)`
+				_accion: editar ? `Editado (${ok}/${resultados.length} relays)` : (ok > 0 ? `Publicado (${ok}/${resultados.length} relays)` : `Guardado en dispositivo (sin conexión)`)
 			});
 			try { localStorage.setItem("lumen_anon_autor", autor); } catch {}
 			setResultado({
