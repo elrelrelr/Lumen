@@ -998,6 +998,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [reportes, setReportes] = (0, import_react.useState)([]);
 	const [categoria, setCategoria] = (0, import_react.useState)("");
 	const [ocultarAdultos, setOcultarAdultos] = (0, import_react.useState)(true);
+	const [filtroIdioma, setFiltroIdioma] = (0, import_react.useState)("todos");
 	const [filtrosAbiertos, setFiltrosAbiertos] = (0, import_react.useState)(false);
 	const [estado, setEstado] = (0, import_react.useState)("cargando");
 	const [detalle, setDetalle] = (0, import_react.useState)(null);
@@ -1373,6 +1374,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 		try {
 			const pref = await getMeta("catalogo_filtros", null);
 			if (pref && typeof pref.ocultarAdultos === "boolean") setOcultarAdultos(pref.ocultarAdultos);
+			if (pref && typeof pref.filtroIdioma === "string") setFiltroIdioma(pref.filtroIdioma);
 			if (pref && pref.bibliotecas && typeof pref.bibliotecas === "object") setBibActivas({ ...BIB_DEFECTO, ...pref.bibliotecas });
 		} catch {}
 		const id = await identidadGuardada();
@@ -1545,10 +1547,73 @@ const cargar = (0, import_react.useCallback)(async () => {
 			toast?.("No se pudo compartir: " + (e?.message || e));
 		}
 	};
-	const delRelay = buscarLibros(filtrarLibros(libros, { categoria }), lgQ).filter((b) => !ocultarAdultos || b.rating !== "adulto");
-	const miosFiltrados = buscarLibros(misLibros, lgQ).filter((b) => !categoria || b.categoria === categoria);
+	const copiarLinkLumen = async (libro) => {
+		try {
+			const idLibro = libro.d || libro.id;
+			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
+			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
+			const titParam = encodeURIComponent(libro.titulo || libro.title || "");
+			const autParam = encodeURIComponent(libro.autor || "");
+			const fileParam = encodeURIComponent(libro.fileUrl || "");
+			const covParam = encodeURIComponent(libro.portada || "");
+			const magParam = encodeURIComponent(libro.magnet || "");
+			const catParam = encodeURIComponent(libro.categoria || "");
+			const descParam = encodeURIComponent(libro.descripcion || "");
+			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&cat=${catParam}&desc=${descParam}`;
+
+			let copiado = false;
+			if (navigator?.clipboard?.writeText) {
+				try {
+					await navigator.clipboard.writeText(enlaceWeb);
+					copiado = true;
+				} catch {}
+			}
+			if (!copiado) {
+				const { copyText } = await __vitePreload(async () => {
+					const { copyText } = await import("./index-DX181kQz.js").then((n) => n.o);
+					return { copyText };
+				}, __vite__mapDeps([3,2,4,1,5,6,7,8]), import.meta.url);
+				await copyText(enlaceWeb);
+			}
+			toast?.("📋 Link de Lumen copiado. ¡Pégalo en el buscador de Lumen Store para abrir el libro!");
+			haptic.tap();
+		} catch (e) {
+			toast?.("No se pudo copiar el enlace: " + (e?.message || e));
+		}
+	};
+
+	const esContenidoAdulto = (b) => {
+		if (!b) return false;
+		const r = String(b.rating || "").toLowerCase().trim();
+		if (r === "adulto" || r === "adult" || r === "nsfw" || r === "18+" || r === "nc-17" || r === "r" || r === "mature") return true;
+		if (b.evento?.tags && Array.isArray(b.evento.tags)) {
+			for (const t of b.evento.tags) {
+				if (!Array.isArray(t) || !t[0]) continue;
+				const tagNom = String(t[0]).toLowerCase();
+				const tagVal = String(t[1] || "").toLowerCase();
+				if (tagNom === "content-warning") return true;
+				if (tagNom === "rating" && (tagVal === "adulto" || tagVal === "adult" || tagVal === "nsfw" || tagVal === "18+" || tagVal === "r" || tagVal === "nc-17" || tagVal === "mature")) return true;
+				if (tagNom === "nsfw" && tagVal !== "false" && tagVal !== "0") return true;
+				if (tagNom === "adult" && tagVal !== "false" && tagVal !== "0") return true;
+				if (tagNom === "t" && /^(adulto|adult|nsfw|erotica|erotico|erótica|erótico|porno|porn|xxx|hentai|18\+|gore|sexo|nude)$/i.test(tagVal)) return true;
+			}
+		}
+		const cat = String(b.categoria || "").toLowerCase();
+		if (/adulto|nsfw|erotica|erótica|erotico|erótico|porno|porn|xxx|hentai|18\+|gore/i.test(cat)) return true;
+		if (Array.isArray(b.etiquetas)) {
+			for (const etq of b.etiquetas) {
+				if (/adulto|adult|nsfw|erotica|erotico|erótica|erótico|porno|porn|xxx|hentai|18\+|gore|sexo/i.test(String(etq))) return true;
+			}
+		}
+		const txtMeta = `${b.titulo || ""} ${b.descripcion || ""} ${b.moderacion || ""}`.toLowerCase();
+		if (/\b(nsfw|xxx|porno|pornografía|pornografia|hentai|erotismo explícito|gore extremo)\b/i.test(txtMeta)) return true;
+		return false;
+	};
+
+	const delRelay = buscarLibros(filtrarLibros(libros, { categoria }), lgQ).filter((b) => !ocultarAdultos || !esContenidoAdulto(b));
+	const miosFiltrados = buscarLibros(misLibros, lgQ).filter((b) => !categoria || b.categoria === categoria).filter((b) => !ocultarAdultos || !esContenidoAdulto(b));
 	const idsRelay = new Set(delRelay.map((b) => b.d));
-	const feedsFiltrados = buscarLibros(librosFeed, lgQ).filter((b) => !categoria || b.categoria === categoria).filter((b) => !ocultarAdultos || b.rating !== "adulto");
+	const feedsFiltrados = buscarLibros(librosFeed, lgQ).filter((b) => !categoria || b.categoria === categoria).filter((b) => !ocultarAdultos || !esContenidoAdulto(b));
 	const visibles = [
 		...miosFiltrados.filter((b) => !idsRelay.has(b.d) && !feedsFiltrados.some((f) => f.d === b.d)),
 		...feedsFiltrados,
@@ -1570,7 +1635,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 		bibliotecas: bibActivas
 	}) : null;
 	const buscandoStore = lgQ.trim().length >= 2;
-	const destacado = recientes[0];
+	const destacado = recientes.find((b) => !ocultarAdultos || !esContenidoAdulto(b)) || (ocultarAdultos ? null : recientes[0]);
 
 	const normalizarLibroGenerico = (b, catDef = "general") => {
 		if (!b) return null;
@@ -1600,9 +1665,23 @@ const cargar = (0, import_react.useCallback)(async () => {
 		const seen = new Set();
 		const resultado = [];
 
+		// Curated pool for religion
+		if (cNorm === "religion" || cNorm === "religión") {
+			for (const b of LIBROS_RELIGION_CURADOS) {
+				if (!matchesIdioma(b, filtroIdioma)) continue;
+				const n = normalizarLibroGenerico(b, "religion");
+				const k = (n.titulo + "|" + n.autor).toLowerCase();
+				if (!seen.has(k)) {
+					seen.add(k);
+					resultado.push(n);
+				}
+			}
+		}
+
 		for (const b of visibles) {
+			if (!matchesIdioma(b, filtroIdioma)) continue;
 			const bCat = (b.categoria || "").toLowerCase();
-			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo)))) {
+			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				if (!seen.has(k)) {
@@ -1613,8 +1692,9 @@ const cargar = (0, import_react.useCallback)(async () => {
 		}
 
 		for (const b of LIBROS_TOP_DESCARGAS) {
+			if (!matchesIdioma(b, filtroIdioma)) continue;
 			const bCat = (b.categoria || "").toLowerCase();
-			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || /polit|gobiern|rebel|estado|guerra|republic|principe|contrato|manifiesto|riqueza|democracia/i.test(b.titulo)))) {
+			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "politica" && (bCat === "politica" || /polit|gobiern|rebel|estado|guerra|republic|principe|contrato|manifiesto|riqueza|democracia/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				if (!seen.has(k)) {
@@ -1628,6 +1708,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const claveCat = MAPA_TEMA_LG[catId];
 			if (claveCat && catPool[claveCat]) {
 				for (const b of catPool[claveCat]) {
+					if (!matchesIdioma(b, filtroIdioma)) continue;
 					const n = normalizarLibroGenerico(b, catId);
 					const k = (n.titulo + "|" + n.autor).toLowerCase();
 					if (!seen.has(k)) {
@@ -1639,6 +1720,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				for (const bks of Object.values(catPool)) {
 					if (Array.isArray(bks)) {
 						for (const b of bks) {
+							if (!matchesIdioma(b, filtroIdioma)) continue;
 							const n = normalizarLibroGenerico(b, "general");
 							const k = (n.titulo + "|" + n.autor).toLowerCase();
 							if (!seen.has(k)) {
@@ -1653,6 +1735,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 
 		if (semillaPool && (cNorm === "__populares__" || cNorm === "__recientes__")) {
 			for (const b of semillaPool) {
+				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "general");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				if (!seen.has(k)) {
@@ -1901,12 +1984,12 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "cg-filtros-bar",
 						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "cg-filtros-btn" + (filtrosAbiertos || !ocultarAdultos ? " on" : ""),
+							className: "cg-filtros-btn" + (filtrosAbiertos || !ocultarAdultos || filtroIdioma !== "todos" ? " on" : ""),
 							onClick: () => setFiltrosAbiertos(!filtrosAbiertos),
 							"aria-label": "Filtros del catálogo",
-							children: ["⚙︎ Filtros ", !ocultarAdultos && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							children: ["⚙︎ Filtros ", (!ocultarAdultos || filtroIdioma !== "todos") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "cg-filtros-dot",
-								title: "Mostrando contenido adulto"
+								title: filtroIdioma !== "todos" ? `Filtrando por ${filtroIdioma}` : "Filtros activos"
 							})]
 						})
 					}),
@@ -1946,13 +2029,54 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})]
 								}, id))]
 							})
-						]
+						,
+							/* v240: Selector de Idioma funcional */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-filtro-grupo",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "cg-filtro-tit",
+										children: "🌐 Idioma del catálogo"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+										className: "cg-filtro-sub",
+										children: "Filtra todas las categorías y recomendaciones por tu idioma preferido."
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-filtro-idiomas-chips",
+										style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 },
+										children: [
+											{ id: "todos", label: "🌐 Todos" },
+											{ id: "es", label: "🇪🇸 Español" },
+											{ id: "en", label: "🇬🇧 English" },
+											{ id: "fr", label: "🇫🇷 Français" },
+											{ id: "de", label: "🇩🇪 Deutsch" },
+											{ id: "it", label: "🇮🇹 Italiano" },
+											{ id: "pt", label: "🇵🇹 Português" }
+										].map((idiomaOpt) => (
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "chip" + (filtroIdioma === idiomaOpt.id ? " on" : ""),
+												onClick: () => {
+													haptic.tap();
+													setFiltroIdioma(idiomaOpt.id);
+													try {
+														setMeta({ id: "catalogo_filtros", ocultarAdultos, bibliotecas: bibActivas, filtroIdioma: idiomaOpt.id });
+													} catch {}
+												},
+												children: idiomaOpt.label
+											}, idiomaOpt.id)
+										))
+									})
+								]
+							})]
 					}),
 					/* v236: Barra unificada de categorías (mezcla de cg-cats con chips lg-temas) */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "chips lg-temas cg-cats-unificadas",
 						role: "tablist",
 						"aria-label": "Categorías de libros",
+						ref: carrilRefCallback,
 						onWheel: onWheelHorizontal,
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -2147,60 +2271,67 @@ const cargar = (0, import_react.useCallback)(async () => {
 					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "cg-seccion cg-seccion-categoria" + (categoria === "politica" ? " cg-seccion-politica" : ""),
 						children: [
-							/* Carril de los 10 más populares de esta categoría entre los 40 en pantalla */
-							top10Categoria.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "cg-seccion-cat-top",
-								style: { marginBottom: 18 },
+							/* Encabezado de la categoría */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-head",
+								style: { marginBottom: 16 },
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "cg-seccion-head",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { children: ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria)] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Títulos más descargados y leídos de esta categoría." })
-										]
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+										style: { textTransform: "capitalize", margin: "0 0 6px" },
+										children: ["📚 ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "cg-fila cg-fila-top",
-										onWheel: onWheelHorizontal,
-										children: top10Categoria.map((b, idx) => (
-											(0, import_jsx_runtime.jsx)(Tarjeta, {
-												libro: b,
-												ranking: idx + 1,
-												descargas: formatearDescargas(b.downloads) + " descargas",
-												reportes,
-												onAbrir: () => { haptic.tap(); setDetalle(b); },
-												onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
-											}, b.id || idx)
-										))
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+										className: "cg-seccion-sub",
+										children: "Organizado en 4 filas horizontales de 10 libros por lote. Desliza horizontalmente cada carril para explorar."
 									})
 								]
 							}),
 
-							/* Cuadrícula completa de libros de esta categoría (40 en 40) */
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "cg-seccion-head",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-										style: { textTransform: "capitalize" },
-										children: ["📚 Catálogo de ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
-									})
-								]
+							/* Cuatro filas de 10 libros con scroll horizontal exclusivo */
+							...Array.from({ length: Math.ceil(librosPantallaCat.length / 10) }, (_, filaIdx) => {
+								const filaLibros = librosPantallaCat.slice(filaIdx * 10, (filaIdx + 1) * 10);
+								const numFila = filaIdx + 1;
+								return (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-seccion cg-seccion-fila-cat",
+									style: { marginBottom: 18 },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "cg-seccion-head",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
+													style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
+													children: filaIdx === 0 ? ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria), ` (${filaIdx * 10 + 1}–${filaIdx * 10 + filaLibros.length})`] : [`Fila ${numFila} • ${nombreBonitoCat(categoria)}`, ` (${filaIdx * 10 + 1}–${filaIdx * 10 + filaLibros.length})`]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "cg-seccion-sub",
+													style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
+													children: filaIdx === 0 ? "Títulos más descargados y leídos de esta categoría con desplazamiento horizontal." : `Selección curada • ${filaLibros.length} títulos con desplazamiento horizontal`
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "cg-fila " + (filaIdx === 0 ? "cg-fila-top " : "") + "cg-scroll-x-only",
+											ref: carrilRefCallback,
+											onWheel: onWheelHorizontal,
+											children: filaLibros.map((libro, idx) => (
+												(0, import_jsx_runtime.jsx)(Tarjeta, {
+													libro,
+													ranking: filaIdx === 0 ? idx + 1 : null,
+													descargas: libro.downloads ? formatearDescargas(libro.downloads) + " descargas" : null,
+													reportes,
+													onAbrir: () => { haptic.tap(); setDetalle(libro); },
+													onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+												}, libro.id || (filaIdx * 10 + idx))
+											))
+										})
+									]
+								}, `fila-cat-${categoria}-${filaIdx}`);
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "cg-grid",
-								style: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))", gap: 12, padding: "10px 0" },
-								children: librosPantallaCat.map((libro) => (
-									(0, import_jsx_runtime.jsx)(Tarjeta, {
-										libro,
-										reportes,
-										onAbrir: () => { haptic.tap(); setDetalle(libro); },
-										onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
-									}, libro.id)
-								))
-							}),
+
+							/* Paginación de 40 en 40 libros */
 							poolCategoriaActual.length > librosPantallaCat.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-paginacion-wrap",
-								style: { textAlign: "center", margin: "20px 0 30px" },
+								style: { textAlign: "center", margin: "24px 0 32px" },
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
 									className: "btn primary",
@@ -2212,45 +2343,9 @@ const cargar = (0, import_react.useCallback)(async () => {
 						]
 					}),
 
-					/* Vista estándar ("Todas") con banner destacado, Top Descargas rail, Recién publicados rail, Política rail y lgSeccion */
+					/* Vista estándar ("Todas") reorganizada: sin cg-destacado, 10 libros en Top y Recientes, y fila de 10 libros para cada categoría unificada */
 					categoria === "" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
 						children: [
-							destacado && !lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								className: "cg-destacado",
-								onClick: () => {
-									haptic.tap();
-									setDetalle(destacado);
-								},
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
-										libro: destacado,
-										titulo: destacado.titulo,
-										grande: true
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "cg-destacado-info",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
-												className: "cg-etq",
-												children: "🆕 Recién publicado"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: destacado.titulo }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: destacado.autor }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-												className: "cg-destacado-meta",
-												children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: ratingDe(destacado).estrellas }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
-													libro: destacado,
-													reportes
-												})]
-											})
-										]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "cg-destacado-go",
-										children: "›"
-									})
-								]
-							}),
 							!lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [
@@ -2262,9 +2357,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "cg-fila cg-fila-top",
+										className: "cg-fila cg-fila-top cg-scroll-x-only",
+										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: listaPopulares.slice(0, 14).map((b, idx) => (
+										children: listaPopulares.slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -2288,9 +2384,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "cg-fila",
+										className: "cg-fila cg-scroll-x-only",
+										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: listaRecientes.slice(0, 14).map((libro) => (
+										children: listaRecientes.slice(0, 10).map((libro) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro,
 												reportes,
@@ -2308,13 +2405,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-seccion-head",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "🏛️ Política y Pensamiento Universal" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Grandes obras políticas y tratados fundamentales de la sociedad." })
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Grandes obras políticas y tratados fundamentales de la sociedad (10 libros)." })
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "cg-fila",
+										className: "cg-fila cg-scroll-x-only",
+										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: obtenerLibrosDeCategoria("politica").slice(0, 14).map((b, idx) => (
+										children: obtenerLibrosDeCategoria("politica").slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -2326,6 +2424,45 @@ const cargar = (0, import_react.useCallback)(async () => {
 										))
 									})
 								]
+							}),
+							!lgQ.trim() && LISTA_CATS_UNIFICADAS.filter(c => c.id !== "politica").map((catItem) => {
+								const poolCat = obtenerLibrosDeCategoria(catItem.id);
+								if (!poolCat || poolCat.length === 0) return null;
+								const librosDiez = poolCat.slice(0, 10);
+								return (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-seccion",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "cg-seccion-head",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+													children: [catItem.icon, " ", catItem.label]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													className: "btn mini",
+													style: { fontSize: "11px", padding: "4px 10px", borderRadius: "8px", background: "var(--bg-soft)", color: "var(--fg)", border: "1px solid var(--line)" },
+													onClick: () => { haptic.tap(); setCategoria(catItem.id); },
+													children: "Ver todos ›"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "cg-fila cg-scroll-x-only",
+											ref: carrilRefCallback,
+											onWheel: onWheelHorizontal,
+											children: librosDiez.map((b, idx) => (
+												(0, import_jsx_runtime.jsx)(Tarjeta, {
+													libro: b,
+													descargas: b.downloads ? formatearDescargas(b.downloads) + " descargas" : null,
+													reportes,
+													onAbrir: () => { haptic.tap(); setDetalle(b); },
+													onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+												}, b.id || idx)
+											))
+										})
+									]
+								}, `todas-cat-${catItem.id}`);
 							}),
 							lgSeccion
 						]
@@ -2445,15 +2582,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 				children: detalle && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "cg-detalle",
 					children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(BookCard, {
-							libro: detalle,
-							grande: true,
-							onAbrir: (b) => {
-								haptic.tap();
-								onAbrirLibro?.(b);
-								setDetalle(null);
-							}
-						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "cg-detalle-top",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
@@ -2513,6 +2641,54 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							})]
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "bc-info",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+									className: "bc-titulo",
+									title: detalle.titulo,
+									children: detalle.titulo
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									className: "bc-autor",
+									children: detalle.autor
+								}),
+								detalle.descripcion ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "bc-desc",
+									children: textoLimpio(detalle.descripcion)
+								}) : null,
+								(() => {
+									const meta = [];
+									if (detalle.tamano) meta.push(`${(Number(detalle.tamano) / 1048576).toFixed(1)} MB`);
+									if (detalle.categoria) meta.push(detalle.categoria);
+									if (detalle.license) meta.push(detalle.license);
+									return meta.length ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "bc-meta",
+										children: meta.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { children: m }, m))
+									}) : null;
+								})(),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+									className: "bc-acciones",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "bc-btn-leer",
+											role: "button",
+											tabIndex: 0,
+											onClick: () => {
+												haptic.tap();
+												onAbrirLibro?.(detalle);
+												setDetalle(null);
+											},
+											children: "Leer →"
+										}),
+										(detalle.descargas || detalle.downloads) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "bc-descargas",
+											children: ["↓ ", detalle.descargas || detalle.downloads]
+										}) : null
+									]
+								})
+							]
 						}),
 						detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "cg-mio-note",
@@ -2697,6 +2873,11 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn danger",
 									onClick: () => confirmarEliminar(detalle),
 									children: "🗑️ Eliminar"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn cg-btn-copiar-link",
+									onClick: () => copiarLinkLumen(detalle),
+									children: "📋 Copiar link de Lumen"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn",
@@ -3262,12 +3443,44 @@ const formatearDescargas = (num) => {
 	if (num >= 1000) return (num / 1000).toFixed(1) + "k";
 	return String(num);
 };
+
+const LIBROS_RELIGION_CURADOS = [{"id": "rel-1", "d": "rel-biblia", "titulo": "La Sagrada Biblia", "autor": "Varios Autores", "fuente": "gutenberg", "downloads": 48500, "portada": "https://covers.openlibrary.org/b/id/8231991-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/10.epub3.images", "descripcion": "Texto fundacional de la tradición judeocristiana, compuesto por el Antiguo y Nuevo Testamento."}, {"id": "rel-2", "d": "rel-coran", "titulo": "El Sagrado Corán", "autor": "Profeta Mahoma (Trad. Julio Cortés)", "fuente": "archive", "downloads": 39200, "portada": "https://covers.openlibrary.org/b/id/8315120-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800200.us.archive.org/coran.pdf", "descripcion": "El libro sagrado del Islam, revelación divina y código de vida espiritual y moral."}, {"id": "rel-3", "d": "rel-bhagavad-gita", "titulo": "Bhagavad Gita: El Canto del Señor", "autor": "Vyasa", "fuente": "gutenberg", "downloads": 36100, "portada": "https://covers.openlibrary.org/b/id/8234850-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/2388.epub3.images", "descripcion": "Diálogo fundamental entre el príncipe Arjuna y Krishna sobre el deber, la devoción y el alma."}, {"id": "rel-4", "d": "rel-tao-te-ching", "titulo": "Tao Te Ching: El Libro del Camino y la Virtud", "autor": "Lao Tse", "fuente": "gutenberg", "downloads": 34800, "portada": "https://covers.openlibrary.org/b/id/8233910-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/216.epub3.images", "descripcion": "Obra esencial del taoísmo sobre la armonía con el universo y el principio del no-hacer (wu wei)."}, {"id": "rel-5", "d": "rel-dhammapada", "titulo": "Dhammapada: La Senda de la Verdad", "autor": "Buda Gautama", "fuente": "gutenberg", "downloads": 31200, "portada": "https://covers.openlibrary.org/b/id/8235420-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/2017.epub3.images", "descripcion": "Colección de aforismos del Buda sobre el sendero de la iluminación y la paz mental."}, {"id": "rel-6", "d": "rel-confesiones-agustin", "titulo": "Las Confesiones", "autor": "San Agustín", "fuente": "gutenberg", "downloads": 28900, "portada": "https://covers.openlibrary.org/b/id/8236100-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/3296.epub3.images", "descripcion": "Autobiografía espiritual y meditación sobre la gracia, el pecado y la conversión a Dios."}, {"id": "rel-7", "d": "rel-ciudad-dios", "titulo": "La Ciudad de Dios", "autor": "San Agustín", "fuente": "gutenberg", "downloads": 24500, "portada": "https://covers.openlibrary.org/b/id/8237190-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/45304.epub3.images", "descripcion": "Monumental tratado teológico sobre el destino de la humanidad y la historia de salvación."}, {"id": "rel-8", "d": "rel-suma-teologica", "titulo": "Suma Teológica (Selección)", "autor": "Santo Tomás de Aquino", "fuente": "gutenberg", "downloads": 23800, "portada": "https://covers.openlibrary.org/b/id/8238120-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/17611.epub3.images", "descripcion": "La cumbre de la teología escolástica que armoniza la fe cristiana con la filosofía de Aristóteles."}, {"id": "rel-9", "d": "rel-imitacion-cristo", "titulo": "Imitación de Cristo", "autor": "Tomás de Kempis", "fuente": "gutenberg", "downloads": 22400, "portada": "https://covers.openlibrary.org/b/id/8239010-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/1653.epub3.images", "descripcion": "El manual devocional más leído del cristianismo después de los Evangelios."}, {"id": "rel-10", "d": "rel-libro-tibetano-muertos", "titulo": "El Libro Tibetano de los Muertos (Bardo Thodol)", "autor": "Padmasambhava", "fuente": "archive", "downloads": 21900, "portada": "https://covers.openlibrary.org/b/id/8240100-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800300.us.archive.org/bardo.pdf", "descripcion": "Guía espiritual budista para la conciencia a través del estado intermedio entre la muerte y el renacimiento."}, {"id": "rel-11", "d": "rel-upanishads", "titulo": "Los Upanishads: Esencia del Pensamiento Hindú", "autor": "Sabios Védicos", "fuente": "gutenberg", "downloads": 20500, "portada": "https://covers.openlibrary.org/b/id/8241200-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/3283.epub3.images", "descripcion": "Tratados místicos y filosóficos sobre la naturaleza de Brahmán y la identidad del Ser (Atman)."}, {"id": "rel-12", "d": "rel-sutra-diamante", "titulo": "El Sutra del Diamante", "autor": "Tradición Mahāyāna", "fuente": "wikisource", "downloads": 19800, "portada": "https://covers.openlibrary.org/b/id/8242300-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Enseñanzas de prajñāpāramitā sobre la vacuidad de todos los fenómenos y el desapego del ego."}, {"id": "rel-13", "d": "rel-moradas-teresa", "titulo": "Las Moradas del Castillo Interior", "autor": "Santa Teresa de Jesús", "fuente": "gutenberg", "downloads": 19400, "portada": "https://covers.openlibrary.org/b/id/8243400-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/24578.epub3.images", "descripcion": "Guía sublime de oración contemplativa y ascenso místico del alma hasta la unión con Dios."}, {"id": "rel-14", "d": "rel-noche-oscura", "titulo": "Noche Oscura del Alma", "autor": "San Juan de la Cruz", "fuente": "gutenberg", "downloads": 18900, "portada": "https://covers.openlibrary.org/b/id/8244500-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/25619.epub3.images", "descripcion": "Poesía lírica y teología de la purificación espiritual previa a la iluminación divina."}, {"id": "rel-15", "d": "rel-guia-perplejos", "titulo": "Guía de Perplejos", "autor": "Moisés Maimónides", "fuente": "gutenberg", "downloads": 18200, "portada": "https://covers.openlibrary.org/b/id/8245600-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/39904.epub3.images", "descripcion": "Magistral reconciliación judía entre la ley de Moisés, la razón aristotélica y la metafísica."}, {"id": "rel-16", "d": "rel-zohar", "titulo": "El Zohar: El Libro del Esplendor", "autor": "Shimon bar Yojai (Atrib.)", "fuente": "archive", "downloads": 17800, "portada": "https://covers.openlibrary.org/b/id/8246700-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800400.us.archive.org/zohar.pdf", "descripcion": "Texto cumbre de la Cábala mística sobre las dimensiones ocultas de la creación divina."}, {"id": "rel-17", "d": "rel-gilgamesh", "titulo": "El Poema de Gilgamesh", "autor": "Mitología Sumeria", "fuente": "gutenberg", "downloads": 17500, "portada": "https://covers.openlibrary.org/b/id/8247800-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/11000.epub3.images", "descripcion": "La epopeya religiosa y poética más antigua del mundo sobre la búsqueda de la inmortalidad."}, {"id": "rel-18", "d": "rel-muertos-egipcio", "titulo": "El Libro Egipcio de los Muertos", "autor": "Sacerdotes de Tebas", "fuente": "gutenberg", "downloads": 16900, "portada": "https://covers.openlibrary.org/b/id/8248900-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/13000.epub3.images", "descripcion": "Fórmulas mágicas e himnos funerarios para guiar el alma ante el tribunal del dios Osiris."}, {"id": "rel-19", "d": "rel-teogonia", "titulo": "Teogonía y Los Trabajos y los Días", "autor": "Hesíodo", "fuente": "gutenberg", "downloads": 16400, "portada": "https://covers.openlibrary.org/b/id/8249000-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/348.epub3.images", "descripcion": "Origen de los dioses del Olimpo y el orden sagrado del cosmos en la Grecia Arcaica."}, {"id": "rel-20", "d": "rel-cantar-cantares", "titulo": "El Cantar de los Cantares", "autor": "Rey Salomón", "fuente": "wikisource", "downloads": 16100, "portada": "https://covers.openlibrary.org/b/id/8250100-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Poema de amor místico y alegoría del matrimonio espiritual entre Dios y la humanidad."}, {"id": "rel-21", "d": "rel-libro-job", "titulo": "El Libro de Job", "autor": "Literatura Bíblica Sapiencial", "fuente": "wikisource", "downloads": 15800, "portada": "https://covers.openlibrary.org/b/id/8251200-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Dramática indagación sobre el problema del sufrimiento del inocente y el misterio divino."}, {"id": "rel-22", "d": "rel-tratado-teologico-spinoza", "titulo": "Tratado Teológico-Político", "autor": "Baruch Spinoza", "fuente": "gutenberg", "downloads": 15500, "portada": "https://covers.openlibrary.org/b/id/8252300-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/2361.epub3.images", "descripcion": "Análisis pionero de la crítica bíblica, la libertad de pensamiento y el concepto de Dios en la naturaleza."}, {"id": "rel-23", "d": "rel-pensamientos-pascal", "titulo": "Pensamientos", "autor": "Blaise Pascal", "fuente": "gutenberg", "downloads": 15200, "portada": "https://covers.openlibrary.org/b/id/8253400-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/18269.epub3.images", "descripcion": "La célebre apuesta de Pascal y reflexiones profundas sobre la miseria humana y la grandeza de la fe."}, {"id": "rel-24", "d": "rel-variedades-experiencia", "titulo": "Las Variedades de la Experiencia Religiosa", "autor": "William James", "fuente": "gutenberg", "downloads": 14900, "portada": "https://covers.openlibrary.org/b/id/8254500-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/621.epub3.images", "descripcion": "Estudio psicológico y empírico clásico sobre la conversión, la oración y los estados místicos."}, {"id": "rel-25", "d": "rel-lo-sagrado-profano", "titulo": "Lo Sagrado y lo Profano", "autor": "Mircea Eliade", "fuente": "openlibrary", "downloads": 14600, "portada": "https://covers.openlibrary.org/b/id/8255600-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Estudio fundamental de historia de las religiones sobre la experiencia del espacio y tiempo sagrados."}, {"id": "rel-26", "d": "rel-mito-eterno-retorno", "titulo": "El Mito del Eterno Retorno", "autor": "Mircea Eliade", "fuente": "openlibrary", "downloads": 14200, "portada": "https://covers.openlibrary.org/b/id/8256700-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Arquetipos y repetición en las culturas religiosas tradicionales frente a la historia lineal."}, {"id": "rel-27", "d": "rel-religiones-mundo", "titulo": "Las Religiones del Mundo", "autor": "Huston Smith", "fuente": "openlibrary", "downloads": 13900, "portada": "https://covers.openlibrary.org/b/id/8257800-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Panorama claro y respetuoso del hinduismo, budismo, confucianismo, taoísmo, judaísmo, cristianismo e islam."}, {"id": "rel-28", "d": "rel-el-profeta", "titulo": "El Profeta", "autor": "Gibran Khalil Gibran", "fuente": "gutenberg", "downloads": 13600, "portada": "https://covers.openlibrary.org/b/id/8258900-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/58585.epub3.images", "descripcion": "Poesía en prosa sobre el amor, la libertad, el trabajo y la muerte a través del sabio Almustafá."}, {"id": "rel-29", "d": "rel-nube-no-saber", "titulo": "La Nube del No-Saber", "autor": "Místico Anónimo Inglés", "fuente": "gutenberg", "downloads": 13300, "portada": "https://covers.openlibrary.org/b/id/8259100-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/123.epub3.images", "descripcion": "Tratado medieval de teología apofática sobre la contemplación de Dios más allá del intelecto."}, {"id": "rel-30", "d": "rel-regla-san-benito", "titulo": "La Regla de San Benito", "autor": "San Benito de Nursia", "fuente": "gutenberg", "downloads": 13000, "portada": "https://covers.openlibrary.org/b/id/8260200-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/7000.epub3.images", "descripcion": "El código monástico que moldeó la civilización europea occidental bajo el lema Ora et Labora."}, {"id": "rel-31", "d": "rel-ejercicios-espirituales", "titulo": "Ejercicios Espirituales", "autor": "San Ignacio de Loyola", "fuente": "gutenberg", "downloads": 12700, "portada": "https://covers.openlibrary.org/b/id/8261300-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/24580.epub3.images", "descripcion": "Método de discernimiento espiritual, meditación y compromiso vital con el Evangelio."}, {"id": "rel-32", "d": "rel-vida-jesus-renan", "titulo": "Vida de Jesús", "autor": "Ernest Renan", "fuente": "gutenberg", "downloads": 12400, "portada": "https://covers.openlibrary.org/b/id/8262400-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/4900.epub3.images", "descripcion": "Estudio histórico y literario del siglo XIX que revolucionó la comprensión humana de Jesús de Nazaret."}, {"id": "rel-33", "d": "rel-ortodoxia-chesterton", "titulo": "Ortodoxia", "autor": "G.K. Chesterton", "fuente": "gutenberg", "downloads": 12100, "portada": "https://covers.openlibrary.org/b/id/8263500-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/130.epub3.images", "descripcion": "Brillante defensa del asombro infantil, el sentido común y la fe cristiana contra el escepticismo."}, {"id": "rel-34", "d": "rel-hombre-eterno", "titulo": "El Hombre Eterno", "autor": "G.K. Chesterton", "fuente": "gutenberg", "downloads": 11800, "portada": "https://covers.openlibrary.org/b/id/8264600-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/247.epub3.images", "descripcion": "Visión de la historia humana como la preparación y cumplimiento del evento de Cristo."}, {"id": "rel-35", "d": "rel-cartas-diablo", "titulo": "Cartas del Diablo a su Sobrino", "autor": "C.S. Lewis", "fuente": "archive", "downloads": 11500, "portada": "https://covers.openlibrary.org/b/id/8265700-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800500.us.archive.org/cartas.pdf", "descripcion": "Sátira teológica epistolar sobre las sutiles tentaciones morales de la vida cotidiana."}, {"id": "rel-36", "d": "rel-mero-cristianismo", "titulo": "Mero Cristianismo", "autor": "C.S. Lewis", "fuente": "archive", "downloads": 11200, "portada": "https://covers.openlibrary.org/b/id/8266800-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800600.us.archive.org/mero.pdf", "descripcion": "Explicación lógica y accesible de los fundamentos compartidos por todas las iglesias cristianas."}, {"id": "rel-37", "d": "rel-cuatro-amores", "titulo": "Los Cuatro Amores", "autor": "C.S. Lewis", "fuente": "archive", "downloads": 10900, "portada": "https://covers.openlibrary.org/b/id/8267900-M.jpg", "categoria": "religion", "idioma": "es", "fileUrl": "https://ia800700.us.archive.org/amores.pdf", "descripcion": "Exploración de los afectos humanos: el afecto, la amistad, el eros y la caridad divina (ágape)."}, {"id": "rel-38", "d": "rel-iching", "titulo": "I Ching: El Libro de las Mutaciones", "autor": "Tradición Clásica China", "fuente": "gutenberg", "downloads": 10600, "portada": "https://covers.openlibrary.org/b/id/8268000-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/1500.epub3.images", "descripcion": "Oráculo y texto sapiencial milenario sobre las leyes del cambio en la naturaleza y el ser humano."}, {"id": "rel-39", "d": "rel-chuang-tzu", "titulo": "Libro de Chuang Tzu", "autor": "Zhuangzi", "fuente": "gutenberg", "downloads": 10300, "portada": "https://covers.openlibrary.org/b/id/8269100-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/525.epub3.images", "descripcion": "Parábolas poéticas y humorísticas sobre la libertad interior y la espontaneidad del Tao."}, {"id": "rel-40", "d": "rel-analectas", "titulo": "Las Analectas", "autor": "Confucio", "fuente": "gutenberg", "downloads": 10000, "portada": "https://covers.openlibrary.org/b/id/8270200-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/4094.epub3.images", "descripcion": "Principios de rectitud ética, piedad filial, benevolencia y rito para una sociedad armónica."}, {"id": "rel-41", "d": "rel-bodhisattva", "titulo": "El Camino del Bodhisattva (Bodhicaryavatara)", "autor": "Shantideva", "fuente": "archive", "downloads": 9800, "portada": "https://covers.openlibrary.org/b/id/8271300-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Tratado poético budista sobre la generación de bodhichitta y el cultivo de la compasión infinita."}, {"id": "rel-42", "d": "rel-palabras-maestro", "titulo": "Palabras de mi Maestro Perfecto", "autor": "Patrul Rinpoche", "fuente": "archive", "downloads": 9500, "portada": "https://covers.openlibrary.org/b/id/8272400-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Instrucciones fundamentales de las prácticas preliminares del budismo tibetano de la tradición Dzogchen."}, {"id": "rel-43", "d": "rel-etica-spinoza", "titulo": "Ética demostrada según el orden geométrico", "autor": "Baruch Spinoza", "fuente": "gutenberg", "downloads": 9300, "portada": "https://covers.openlibrary.org/b/id/8273500-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/3800.epub3.images", "descripcion": "La visión panteísta del universo donde Dios y la Naturaleza son una sola sustancia infinita."}, {"id": "rel-44", "d": "rel-religion-razon-kant", "titulo": "La Religión dentro de los Límites de la Mera Razón", "autor": "Immanuel Kant", "fuente": "gutenberg", "downloads": 9100, "portada": "https://covers.openlibrary.org/b/id/8274600-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/48000.epub3.images", "descripcion": "Examen filosófico del mal radical, la gracia divina y el deber moral como esencia de la fe."}, {"id": "rel-45", "d": "rel-temor-temblor", "titulo": "Temor y Temblor", "autor": "Søren Kierkegaard", "fuente": "gutenberg", "downloads": 8900, "portada": "https://covers.openlibrary.org/b/id/8275700-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/60333.epub3.images", "descripcion": "Meditación existencial sobre el sacrificio de Abraham y la paradoja del salto de la fe."}, {"id": "rel-46", "d": "rel-obras-amor", "titulo": "Las Obras del Amor", "autor": "Søren Kierkegaard", "fuente": "openlibrary", "downloads": 8700, "portada": "https://covers.openlibrary.org/b/id/8276800-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Discursos cristianos sobre el mandamiento de amar al prójimo y la naturaleza del amor desinteresado."}, {"id": "rel-47", "d": "rel-misterio-fe", "titulo": "El Misterio de la Fe", "autor": "Alexander Schmemann", "fuente": "archive", "downloads": 8500, "portada": "https://covers.openlibrary.org/b/id/8277900-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "La teología litúrgica y los sacramentos en la espiritualidad de la Iglesia Ortodoxa Oriental."}, {"id": "rel-48", "d": "rel-teologia-mistica-oriental", "titulo": "La Teología Mística de la Iglesia Oriental", "autor": "Vladimir Lossky", "fuente": "archive", "downloads": 8300, "portada": "https://covers.openlibrary.org/b/id/8278000-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Estudio clásico del hesicasmo, la apófasis y la deificación (theosis) del ser humano."}, {"id": "rel-49", "d": "rel-masnavi", "titulo": "Masnavi: El Poema Espiritual", "autor": "Jalal al-Din Rumi", "fuente": "gutenberg", "downloads": 8100, "portada": "https://covers.openlibrary.org/b/id/8279100-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/2526.epub3.images", "descripcion": "La obra maestra del misticismo sufí, considerada por muchos el Corán en lengua persa."}, {"id": "rel-50", "d": "rel-conferencia-pajaros", "titulo": "La Conferencia de los Pájaros", "autor": "Farid al-Din Attar", "fuente": "archive", "downloads": 7900, "portada": "https://covers.openlibrary.org/b/id/8280200-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Alegoría sufí de los treinta pájaros que cruzan siete valles en busca del rey divino Simurg."}, {"id": "rel-51", "d": "rel-cabala-simbolismo", "titulo": "La Cábala y su Simbolismo", "autor": "Gershom Scholem", "fuente": "openlibrary", "downloads": 7700, "portada": "https://covers.openlibrary.org/b/id/8281300-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "El estudio seminal sobre la mística judía, el lenguaje sagrado y el mito del Golem."}, {"id": "rel-52", "d": "rel-dios-busca-hombre", "titulo": "Dios en Busca del Hombre", "autor": "Abraham Joshua Heschel", "fuente": "openlibrary", "downloads": 7500, "portada": "https://covers.openlibrary.org/b/id/8282400-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Filosofía del judaísmo centrada en el asombro, la respuesta humana a la palabra divina y la acción ética."}, {"id": "rel-53", "d": "rel-los-profetas-heschel", "titulo": "Los Profetas: Voz y Conciencia", "autor": "Abraham Joshua Heschel", "fuente": "openlibrary", "downloads": 7300, "portada": "https://covers.openlibrary.org/b/id/8283500-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "El patetismo divino y la pasión de los profetas de Israel por la justicia social incondicional."}, {"id": "rel-54", "d": "rel-francisco-asis-chesterton", "titulo": "San Francisco de Asís", "autor": "G.K. Chesterton", "fuente": "gutenberg", "downloads": 7100, "portada": "https://covers.openlibrary.org/b/id/8284600-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/1887.epub3.images", "descripcion": "Biografía poética y espiritual del santo de la pobreza, el amor a la creación y la hermandad."}, {"id": "rel-55", "d": "rel-leyenda-dorada", "titulo": "La Leyenda Dorada", "autor": "Santiago de la Vorágine", "fuente": "gutenberg", "downloads": 6900, "portada": "https://covers.openlibrary.org/b/id/8285700-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/39000.epub3.images", "descripcion": "La célebre recopilación medieval de vidas de santos, milagros y fiestas del año litúrgico."}, {"id": "rel-56", "d": "rel-confesiones-alghazali", "titulo": "El Rescatador del Error (Confesiones)", "autor": "Abu Hamid Al-Ghazali", "fuente": "archive", "downloads": 6700, "portada": "https://covers.openlibrary.org/b/id/8286800-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Itinerario intelectual desde la duda radical hasta la certeza intuitiva del misticismo sufí."}, {"id": "rel-57", "d": "rel-mente-zen", "titulo": "Mente Zen, Mente de Principiante", "autor": "Shunryu Suzuki", "fuente": "openlibrary", "downloads": 6500, "portada": "https://covers.openlibrary.org/b/id/8287900-M.jpg", "categoria": "religion", "idioma": "es", "descripcion": "Charlas sencillas sobre la postura, la respiración y la práctica abierta de la meditación zazen."}, {"id": "rel-58", "d": "rel-eneadas-plotino", "titulo": "Las Enéadas", "autor": "Plotino", "fuente": "gutenberg", "downloads": 6300, "portada": "https://covers.openlibrary.org/b/id/8288000-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/42930.epub3.images", "descripcion": "El gran monumento del neoplatonismo sobre la emanación cósmica desde El Uno inefable."}, {"id": "rel-59", "d": "rel-fedon-platon", "titulo": "Fedón o Del Alma", "autor": "Platón", "fuente": "gutenberg", "downloads": 6100, "portada": "https://covers.openlibrary.org/b/id/8289100-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/1658.epub3.images", "descripcion": "Últimas conversaciones de Sócrates en prisión sobre la inmortalidad del alma y la vida tras la muerte."}, {"id": "rel-60", "d": "rel-meditaciones-seneca", "titulo": "Cartas a Lucilio sobre la Serenidad y la Providencia", "autor": "Séneca", "fuente": "gutenberg", "downloads": 5900, "portada": "https://covers.openlibrary.org/b/id/8290200-M.jpg", "categoria": "religion", "idioma": "es", "epub": "https://www.gutenberg.org/ebooks/16888.epub3.images", "descripcion": "Espiritualidad estoica romana sobre la virtud interior, la resignación noble y la razón divina."}, {"id": "rel-61", "d": "rel-king-james-bible", "titulo": "The Holy Bible (King James Version)", "autor": "Various Authors", "fuente": "gutenberg", "downloads": 32000, "portada": "https://covers.openlibrary.org/b/id/8291300-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/10.epub3.images", "descripcion": "The majestic English translation of the Old and New Testaments commissioned in 1604."}, {"id": "rel-62", "d": "rel-pilgrims-progress", "titulo": "The Pilgrim's Progress", "autor": "John Bunyan", "fuente": "gutenberg", "downloads": 24000, "portada": "https://covers.openlibrary.org/b/id/8292400-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/131.epub3.images", "descripcion": "Classic Christian allegory of Christian's arduous journey from the City of Destruction to the Celestial City."}, {"id": "rel-63", "d": "rel-song-celestial", "titulo": "The Song Celestial: Bhagavad-Gita", "autor": "Sir Edwin Arnold", "fuente": "gutenberg", "downloads": 18000, "portada": "https://covers.openlibrary.org/b/id/8293500-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/2388.epub3.images", "descripcion": "The celebrated English poetic rendering of the Bhagavad Gita that inspired Mahatma Gandhi."}, {"id": "rel-64", "d": "rel-prophet-en", "titulo": "The Prophet", "autor": "Kahlil Gibran", "fuente": "gutenberg", "downloads": 17500, "portada": "https://covers.openlibrary.org/b/id/8294600-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/58585.epub3.images", "descripcion": "Philosophic and spiritual essays in English prose on the universal human condition."}, {"id": "rel-65", "d": "rel-varieties-en", "titulo": "The Varieties of Religious Experience", "autor": "William James", "fuente": "gutenberg", "downloads": 15000, "portada": "https://covers.openlibrary.org/b/id/8295700-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/621.epub3.images", "descripcion": "Seminal psychological lectures delivered at Edinburgh exploring mysticism, faith, and healthy-mindedness."}, {"id": "rel-66", "d": "rel-mere-christianity-en", "titulo": "Mere Christianity", "autor": "C.S. Lewis", "fuente": "archive", "downloads": 14000, "portada": "https://covers.openlibrary.org/b/id/8296800-M.jpg", "categoria": "religion", "idioma": "en", "fileUrl": "https://ia800800.us.archive.org/mere_en.pdf", "descripcion": "Original BBC radio broadcasts articulating standard core Christian beliefs without sectarian bias."}, {"id": "rel-67", "d": "rel-orthodoxy-en", "titulo": "Orthodoxy", "autor": "G.K. Chesterton", "fuente": "gutenberg", "downloads": 13500, "portada": "https://covers.openlibrary.org/b/id/8297900-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/130.epub3.images", "descripcion": "Masterpiece of Christian defense examining fairy tales, logic, romance, and the balance of creeds."}, {"id": "rel-68", "d": "rel-cloud-unknowing-en", "titulo": "The Cloud of Unknowing", "autor": "Anonymous 14th Century Monk", "fuente": "gutenberg", "downloads": 12800, "portada": "https://covers.openlibrary.org/b/id/8298000-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/123.epub3.images", "descripcion": "Middle English apophatic spiritual guide teaching contemplative prayer through silent loving intent."}, {"id": "rel-69", "d": "rel-gospel-buddha", "titulo": "The Gospel of Buddha", "autor": "Paul Carus", "fuente": "gutenberg", "downloads": 12000, "portada": "https://covers.openlibrary.org/b/id/8299100-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/3589.epub3.images", "descripcion": "Comprehensive anthology compiled from Pali scriptures presenting the teachings of Gotama Buddha."}, {"id": "rel-70", "d": "rel-light-of-asia", "titulo": "The Light of Asia", "autor": "Sir Edwin Arnold", "fuente": "gutenberg", "downloads": 11500, "portada": "https://covers.openlibrary.org/b/id/8300200-M.jpg", "categoria": "religion", "idioma": "en", "epub": "https://www.gutenberg.org/ebooks/8404.epub3.images", "descripcion": "Narrative epic poem detailing the life, spiritual search, and awakening of Prince Gautama Siddhartha."}, {"id": "rel-71", "d": "rel-pensees-fr", "titulo": "Pensées de Pascal sur la Religion", "autor": "Blaise Pascal", "fuente": "gutenberg", "downloads": 11000, "portada": "https://covers.openlibrary.org/b/id/8301300-M.jpg", "categoria": "religion", "idioma": "fr", "epub": "https://www.gutenberg.org/ebooks/18269.epub3.images", "descripcion": "Apologie inachevée de la religion chrétienne, un sommet de la pensée et de la langue française."}, {"id": "rel-72", "d": "rel-vie-jesus-fr", "titulo": "Vie de Jésus (Original Français)", "autor": "Ernest Renan", "fuente": "gutenberg", "downloads": 10500, "portada": "https://covers.openlibrary.org/b/id/8302400-M.jpg", "categoria": "religion", "idioma": "fr", "epub": "https://www.gutenberg.org/ebooks/4900.epub3.images", "descripcion": "La biographie humaniste et poétique qui a transformé la lecture des textes évangéliques au XIXe siècle."}, {"id": "rel-73", "d": "rel-tolerance-voltaire", "titulo": "Traité sur la Tolérance", "autor": "Voltaire", "fuente": "gutenberg", "downloads": 10200, "portada": "https://covers.openlibrary.org/b/id/8303500-M.jpg", "categoria": "religion", "idioma": "fr", "epub": "https://www.gutenberg.org/ebooks/28498.epub3.images", "descripcion": "Plaidoyer vibrant pour la liberté de culte, la paix civile et contre le fanatisme religieux."}, {"id": "rel-74", "d": "rel-religion-kant-de", "titulo": "Die Religion innerhalb der Grenzen der bloßen Vernunft", "autor": "Immanuel Kant", "fuente": "gutenberg", "downloads": 9900, "portada": "https://covers.openlibrary.org/b/id/8304600-M.jpg", "categoria": "religion", "idioma": "de", "epub": "https://www.gutenberg.org/ebooks/48000.epub3.images", "descripcion": "Kants religionsphilosophisches Hauptwerk über Vernunftglaube, Moral und die unsichtbare Kirche."}, {"id": "rel-75", "d": "rel-furcht-zittern-de", "titulo": "Furcht und Zittern", "autor": "Søren Kierkegaard", "fuente": "gutenberg", "downloads": 9600, "portada": "https://covers.openlibrary.org/b/id/8305700-M.jpg", "categoria": "religion", "idioma": "de", "epub": "https://www.gutenberg.org/ebooks/60333.epub3.images", "descripcion": "Dialektische Lyrik über den Glaubensritter Abraham und die theologische Suspendierung des Ethischen."}, {"id": "rel-76", "d": "rel-siddhartha-de", "titulo": "Siddhartha: Eine indische Dichtung", "autor": "Hermann Hesse", "fuente": "gutenberg", "downloads": 16000, "portada": "https://covers.openlibrary.org/b/id/8306800-M.jpg", "categoria": "religion", "idioma": "de", "epub": "https://www.gutenberg.org/ebooks/2493.epub3.images", "descripcion": "Die legendäre Erzählung von der spirituellen Selbstfindung eines jungen Brahmanen im alten Indien."}, {"id": "rel-77", "d": "rel-divina-commedia-it", "titulo": "La Divina Commedia (Testo Originale)", "autor": "Dante Alighieri", "fuente": "gutenberg", "downloads": 27000, "portada": "https://covers.openlibrary.org/b/id/8307900-M.jpg", "categoria": "religion", "idioma": "it", "epub": "https://www.gutenberg.org/ebooks/1012.epub3.images", "descripcion": "Il supremo poema sacro della fede cristiana: viaggio tra Inferno, Purgatorio e la visione di Dio nel Paradiso."}, {"id": "rel-78", "d": "rel-fioretti-francesco-it", "titulo": "I Fioretti di San Francesco", "autor": "Ugolino da Montegiorgio", "fuente": "gutenberg", "downloads": 9400, "portada": "https://covers.openlibrary.org/b/id/8308000-M.jpg", "categoria": "religion", "idioma": "it", "epub": "https://www.gutenberg.org/ebooks/18999.epub3.images", "descripcion": "I racconti poetici e miracolosi della santa povertà e dell'amore francescano per tutte le creature."}, {"id": "rel-79", "d": "rel-biblia-sagrada-pt", "titulo": "A Bíblia Sagrada (Tradução de João Ferreira de Almeida)", "autor": "Vários Autores", "fuente": "gutenberg", "downloads": 15000, "portada": "https://covers.openlibrary.org/b/id/8309100-M.jpg", "categoria": "religion", "idioma": "pt", "epub": "https://www.gutenberg.org/ebooks/2300.epub3.images", "descripcion": "A tradução clássica em língua portuguesa das Sagradas Escrituras do Antigo e Novo Testamento."}, {"id": "rel-80", "d": "rel-evangelho-espiritismo-pt", "titulo": "O Evangelho Segundo o Espiritismo", "autor": "Allan Kardec", "fuente": "archive", "downloads": 12500, "portada": "https://covers.openlibrary.org/b/id/8310200-M.jpg", "categoria": "religion", "idioma": "pt", "fileUrl": "https://ia800900.us.archive.org/kardec.pdf", "descripcion": "Explicação dos preceitos morais do Cristo sob a ótica dos ensinamentos dos Espíritos."}];
+
+const detectarIdiomaLibro = (b) => {
+	if (!b) return "es";
+	const raw = (b.idioma || b.language || b.lang || "").toLowerCase();
+	if (raw) {
+		for (const p of ["es", "en", "fr", "de", "it", "pt"]) {
+			if (raw.startsWith(p)) return p;
+		}
+		if (raw === "spa" || raw === "spanish") return "es";
+		if (raw === "eng" || raw === "english") return "en";
+		if (raw === "fra" || raw === "fre" || raw === "french") return "fr";
+		if (raw === "deu" || raw === "ger" || raw === "german") return "de";
+		if (raw === "ita" || raw === "italian") return "it";
+		if (raw === "por" || raw === "portuguese") return "pt";
+	}
+	const tit = (b.titulo || b.title || "").toLowerCase();
+	if (/(^|\s)(le|les|du|des|misérables|prince|étranger|bovary|swann|candide)($|\s)/i.test(tit)) return "fr";
+	if (/(^|\s)(der|die|das|ein|eine|verwandlung|faust|zarathustra|kritik|werther|steppenwolf)($|\s)/i.test(tit)) return "de";
+	if (/(^|\s)(del|della|dei|degli|commedia|decameron|avventure)($|\s)/i.test(tit)) return "it";
+	if (/(^|\s)(lusíadas|casmurro|memórias|mensagem|sertão)($|\s)/i.test(tit)) return "pt";
+	if (/(^|\s)(the|and|of|in|to|pride|prejudice|gatsby|war|peace|frankenstein|dracula|alice|republic)($|\s)/i.test(tit)) return "en";
+	return "es";
+};
+
+const matchesIdioma = (b, filtro) => {
+	if (!filtro || filtro === "todos") return true;
+	return detectarIdiomaLibro(b) === filtro;
+};
+
 const LISTA_CATS_UNIFICADAS = [
 	{ id: "ficción", label: "Ficción", icon: "📖" },
 	{ id: "no-ficción", label: "No-ficción", icon: "🧠" },
 	{ id: "ciencia", label: "Ciencia", icon: "🔬" },
 	{ id: "historia", label: "Historia", icon: "📜" },
 	{ id: "filosofía", label: "Filosofía", icon: "💭" },
+	{ id: "religion", label: "Religión", icon: "🕊️" },
 	{ id: "poesía", label: "Poesía", icon: "🎭" },
 	{ id: "misterio", label: "Misterio", icon: "🔍" },
 	{ id: "fantasía", label: "Fantasía", icon: "🐉" },
@@ -3283,6 +3496,8 @@ const MAPA_TEMA_LG = {
 	"__populares__": "all",
 	"__recientes__": "all",
 	"politica": "Category: Politics",
+	"religion": "Category: Religion",
+	"religión": "Category: Religion",
 	"ficción": "Category: Novels",
 	"no-ficción": "Category: History",
 	"ciencia": "Category: Science",
@@ -3298,15 +3513,32 @@ const MAPA_TEMA_LG = {
 	"arte": "Category: Art",
 	"cómics": "Category: Comic and Graphic Books"
 };
+const carrilRefCallback = (el) => {
+	if (el && !el._wheelAttached) {
+		el._wheelAttached = true;
+		el.addEventListener("wheel", (e) => {
+			const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+			if (delta !== 0) {
+				el.scrollLeft += delta;
+				try { e.preventDefault(); } catch {}
+				try { e.stopPropagation(); } catch {}
+			}
+		}, { passive: false });
+	}
+};
 const onWheelHorizontal = (e) => {
-	if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-		e.currentTarget.scrollLeft += e.deltaY;
+	const delta = Math.abs(e.deltaX) >= Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+	if (delta !== 0) {
+		e.currentTarget.scrollLeft += delta;
+		try { e.preventDefault(); } catch {}
+		try { e.stopPropagation(); } catch {}
 	}
 };
 const nombreBonitoCat = (c) => {
 	const item = LISTA_CATS_UNIFICADAS.find((x) => x.id === c);
 	if (item) return item.label;
 	if (c === "politica") return "Política";
+	if (c === "religion" || c === "religión") return "Religión";
 	return c ? c.charAt(0).toUpperCase() + c.slice(1) : "Categoría";
 };
 function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {

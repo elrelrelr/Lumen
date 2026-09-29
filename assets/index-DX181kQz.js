@@ -25211,7 +25211,9 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 				transform: tr,
 				transformOrigin: "135px 135px",
 				cursor: editando ? "grab" : void 0,
-				pointerEvents: editando ? "auto" : "none"
+				pointerEvents: editando ? "auto" : "none",
+				touchAction: editando ? "none" : "auto",
+				userSelect: "none"
 			},
 			onClick: editando && onSelect ? (e) => {
 				e.stopPropagation();
@@ -25222,17 +25224,20 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 				if (onSelect) onSelect(partId);
 				onStartDrag(e, partId);
 			} : void 0,
-			children: partId === "base" ? [
+			children: [
 				editando && lumoJ("rect", {
-					x: 0,
-					y: 0,
-					width: 270,
-					height: 270,
+					x: partId === "base" ? 0 : 25,
+					y: partId === "base" ? 0 : 25,
+					width: partId === "base" ? 270 : 220,
+					height: partId === "base" ? 270 : 220,
 					fill: "transparent",
-					style: { pointerEvents: "none" }
+					style: {
+						pointerEvents: editando ? "auto" : "none",
+						touchAction: "none"
+					}
 				}),
 				element
-			] : element
+			]
 		});
 	};
 	return lumoJ("svg", {
@@ -25506,25 +25511,35 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 	};
 	const iniciarArrastre = (e, partId) => {
 		if (!editandoPos) return;
-		e.preventDefault();
+		if (e.cancelable) e.preventDefault();
 		e.stopPropagation();
 		const actualPartId = partId || "base";
 		setElemSeleccionado(actualPartId);
 		setArrastrandoId(actualPartId);
+
+		const targetEl = e.currentTarget || e.target;
+		const pointerId = e.pointerId;
+		if (pointerId !== void 0 && targetEl?.setPointerCapture) {
+			try { targetEl.setPointerCapture(pointerId); } catch {}
+		}
+
 		const isSvgPart = !actualPartId.startsWith("mueble_");
 		let scale = 1;
 		if (isSvgPart) {
-			const svg = e.currentTarget.closest("svg");
+			const svg = (targetEl?.closest ? targetEl.closest("svg") : null) || document.querySelector(".lumo-figura svg");
 			const bcr = svg ? svg.getBoundingClientRect() : { width: 270, height: 270 };
 			scale = 270 / (bcr.width || 270);
 		}
-		const startX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0;
-		const startY = e.clientY ?? (e.touches && e.touches[0]?.clientY) ?? 0;
+
+		const startX = (e.clientX !== void 0 && e.clientX !== 0) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+		const startY = (e.clientY !== void 0 && e.clientY !== 0) ? e.clientY : (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
 		const orig = customOffsets[actualPartId] || { x: 0, y: 0, scale: 1 };
 		let cur = { ...orig };
+
 		const onMove = (ev) => {
-			const cx = ev.clientX ?? (ev.touches && ev.touches[0]?.clientX) ?? startX;
-			const cy = ev.clientY ?? (ev.touches && ev.touches[0]?.clientY) ?? startY;
+			if (ev.cancelable) ev.preventDefault();
+			const cx = ev.clientX !== void 0 ? ev.clientX : (ev.touches && ev.touches[0] ? ev.touches[0].clientX : startX);
+			const cy = ev.clientY !== void 0 ? ev.clientY : (ev.touches && ev.touches[0] ? ev.touches[0].clientY : startY);
 			const dx = Math.round((cx - startX) * scale);
 			const dy = Math.round((cy - startY) * scale);
 			cur = { ...orig, x: orig.x + dx, y: orig.y + dy };
@@ -25533,24 +25548,31 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 				[actualPartId]: cur
 			}));
 		};
+
 		const onUp = () => {
+			if (pointerId !== void 0 && targetEl?.releasePointerCapture) {
+				try { targetEl.releasePointerCapture(pointerId); } catch {}
+			}
 			setArrastrandoId(null);
 			window.removeEventListener("pointermove", onMove);
 			window.removeEventListener("pointerup", onUp);
 			window.removeEventListener("pointercancel", onUp);
 			window.removeEventListener("touchmove", onMove);
 			window.removeEventListener("touchend", onUp);
+			window.removeEventListener("touchcancel", onUp);
 			setCustomOffsets((final) => {
 				const next = { ...final, [actualPartId]: cur };
 				guardarLumoOffsets(next);
 				return next;
 			});
 		};
+
 		window.addEventListener("pointermove", onMove, { passive: false });
 		window.addEventListener("pointerup", onUp);
 		window.addEventListener("pointercancel", onUp);
 		window.addEventListener("touchmove", onMove, { passive: false });
 		window.addEventListener("touchend", onUp);
+		window.addEventListener("touchcancel", onUp);
 	};
 	const guardarFotoCasaLumo = async () => {
 		try {
@@ -25881,10 +25903,7 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 									style: d.equipped.bg ? { background: ICONO_BG[d.equipped.bg] ? "var(--bg-soft)" : void 0 } : void 0,
 									onClick: () => setElemSeleccionado(null),
 									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "lumo-edit-badge",
-											children: "✏️ Arrastra o toca para ajustar el tamaño"
-										}),
+
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "lumo-selected-hud" + (arrastrandoId ? " lumo-hud-dragging" : ""),
 											children: [
@@ -25973,10 +25992,12 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 													className: "lumo-size-controls",
 													children: [
 														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															type: "button",
 															className: "lumo-size-btn",
 															onClick: () => cambiarTamano(elemSeleccionado, -0.1),
 															title: "Reducir tamaño",
-															children: "🔍− Reducir"
+															"aria-label": "Reducir tamaño",
+															children: "➖"
 														}),
 														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 															type: "range",
@@ -25989,16 +26010,20 @@ function Lumo({ open, onClose, toast, onLibrosGratis }) {
 															"aria-label": "Tamaño de elemento"
 														}),
 														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															type: "button",
 															className: "lumo-size-btn",
 															onClick: () => cambiarTamano(elemSeleccionado, 0.1),
 															title: "Aumentar tamaño",
-															children: "🔍+ Agrandar"
+															"aria-label": "Aumentar tamaño",
+															children: "➕"
 														}),
 														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															type: "button",
 															className: "lumo-size-btn",
 															onClick: () => fijarTamano(elemSeleccionado, 1),
 															title: "Restablecer a 100%",
-															children: "↺ 100%"
+															"aria-label": "Restablecer a 100%",
+															children: "↺"
 														})
 													]
 												})
@@ -40241,21 +40266,206 @@ const toquesDev = (0, import_react.useRef)(0);
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row-sub",
 						style: {
-							marginBottom: 14,
+							marginBottom: 12,
 							lineHeight: 1.5
 						},
 						children: [
-							"Cambia el tamaño global de la interfaz (menús, listas y botones). A partir de 120 % la app empieza a descuadrarse, así que ahí se detiene. Si necesitas más, ajusta abajo ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "menús" }),
-							" y ",
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "listas" }),
-							"por separado, que se pueden subir sin romper nada. El tamaño de lectura de cada libro se ajusta aparte, dentro del libro."
+							"Ajusta y previsualiza el tamaño de cada sección de la aplicación en tiempo real."
 						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "section-title",
+						style: { margin: "14px 4px 6px" },
+						children: "1. Texto normal del libro"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Tamaño de lectura" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "row-sub", children: [settings.fontSize || 20, " px"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "plain",
+								type: "range",
+								min: 14,
+								max: 38,
+								step: 1,
+								value: settings.fontSize || 20,
+								onChange: (e) => setSettings({ fontSize: Number(e.target.value) })
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "letra-pv-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-pv-hdr",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📖 Vista previa · Texto normal del libro" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "letra-pv-tag", children: [settings.fontSize || 20, " px"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "letra-pv-libro-box",
+								style: { fontSize: (settings.fontSize || 20) + "px" },
+								children: "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor. Una olla de algo más vaca que carnero, salpicón las más noches..."
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "section-title",
+						style: { margin: "16px 4px 6px" },
+						children: "2. Menús y botones"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Menús y botones" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "row-sub", children: [Math.round((settings.escalaMenu ?? 1) * 100), "%"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "plain",
+								type: "range",
+								min: .85,
+								max: 1.5,
+								step: .05,
+								value: settings.escalaMenu ?? 1,
+								onChange: (e) => setSettings({ escalaMenu: Number(e.target.value) })
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "letra-pv-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-pv-hdr",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔘 Vista previa · Menús y botones" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "letra-pv-tag", children: [Math.round((settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 100), "% efectivo"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-pv-menu-box",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "letra-pv-menu-btns",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "letra-pv-btn primary",
+												style: { fontSize: Math.round(13.5 * (settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px" },
+												children: "📖 Continuar"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "letra-pv-btn",
+												style: { fontSize: Math.round(13.5 * (settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px" },
+												children: "📑 Capítulos"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "letra-pv-btn",
+												style: { fontSize: Math.round(13.5 * (settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px" },
+												children: "⚙️ Ajustes"
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "letra-pv-menu-row",
+										style: { fontSize: Math.round(13 * (settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px" },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔖 Marcadores y notas guardadas" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: .5 }, children: "›" })
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "section-title",
+						style: { margin: "16px 4px 6px" },
+						children: "3. Listas y tarjetas"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Listas y tarjetas" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "row-sub", children: [Math.round((settings.escalaLista ?? 1) * 100), "%"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "plain",
+								type: "range",
+								min: .85,
+								max: 1.5,
+								step: .05,
+								value: settings.escalaLista ?? 1,
+								onChange: (e) => setSettings({ escalaLista: Number(e.target.value) })
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "letra-pv-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-pv-hdr",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📇 Vista previa · Listas y tarjetas" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "letra-pv-tag", children: [Math.round((settings.escalaLista ?? 1) * ((settings.appScale ?? 100) / 100) * 100), "% efectivo"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "letra-pv-lista-box",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "letra-pv-thumb", children: "📕" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "letra-pv-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												style: {
+													fontSize: Math.round(15 * (settings.escalaLista ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px",
+													fontWeight: 700,
+													color: "var(--fg)"
+												},
+												children: "Don Quijote de la Mancha"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												style: {
+													fontSize: Math.round(12 * (settings.escalaLista ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px",
+													opacity: .75,
+													color: "var(--fg)"
+												},
+												children: "Miguel de Cervantes · 82% completado"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "letra-pv-badge",
+												style: { fontSize: Math.round(11 * (settings.escalaLista ?? 1) * ((settings.appScale ?? 100) / 100) * 10) / 10 + "px" },
+												children: "Leyendo"
+											})
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "section-title",
+						style: { margin: "18px 4px 6px" },
+						children: "Tamaño global de la interfaz"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "letra-demo",
 						style: { fontSize: `${(settings.appScale ?? 100) / 100 * 15}px` },
-						children: "Así se verá el texto de la aplicación."
+						children: "Así se verá el texto general de la aplicación."
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "letra-ctrl",
@@ -40314,53 +40524,12 @@ const toquesDev = (0, import_react.useRef)(0);
 						}, v))
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "section-title",
-						style: { margin: "18px 4px 6px" },
-						children: "Ajuste por partes"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Menús y botones"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: [Math.round((settings.escalaMenu ?? 1) * 100), "%"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: .85,
-							max: 1.5,
-							step: .05,
-							value: settings.escalaMenu ?? 1,
-							onChange: (e) => setSettings({ escalaMenu: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Listas y tarjetas"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: [Math.round((settings.escalaLista ?? 1) * 100), "%"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: .85,
-							max: 1.5,
-							step: .05,
-							value: settings.escalaLista ?? 1,
-							onChange: (e) => setSettings({ escalaLista: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "row-sub",
 						style: {
-							padding: "0 4px 6px",
+							padding: "10px 4px 6px",
 							lineHeight: 1.5
 						},
-						children: "El tamaño global (de arriba) multiplica a todo. Estos dos ajustan encima sus propios grupos, sin descuadrar el resto de la pantalla."
+						children: "El tamaño global multiplica a todo. Los ajustes superiores calibran de forma independiente cada parte con su respectiva vista previa."
 					})
 				]
 			}),
@@ -41057,13 +41226,10 @@ const toquesDev = (0, import_react.useRef)(0);
 					temaSiguiente();
 				},
 				"aria-label": "Acciones",
-				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "fab-icono" + (fabPista && !fab ? " oculto" : ""),
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "fab-icono",
 					children: fab ? "✕" : "＋"
-				}), !fab && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-					className: "fab-icono fab-ajustes" + (fabPista ? " visible" : ""),
-					children: "⚙"
-				})]
+				})
 			}),
 			fab && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "fab-scrim",
@@ -45305,6 +45471,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [autoVel, setAutoVel] = (0, import_react.useState)(2);
 	const autoRaf = (0, import_react.useRef)(0);
 	const autoAcum = (0, import_react.useRef)(0);
+	const asPreviewRef = (0, import_react.useRef)(null);
 	const [selPos, setSelPos] = (0, import_react.useState)(null);
 	const [paletaAbierta, setPaletaAbierta] = (0, import_react.useState)(false);
 	const [invertir, setInvertir] = (0, import_react.useState)(false);
@@ -48582,13 +48749,14 @@ const docPedir = (desde, hasta, centroArg) => {
 		// en .rd-page. Antes solo funcionaba en la vista no-carrusel (scroll).
 		const el = carousel ? document.querySelectorAll(".carousel .carousel-item")[page] : document.querySelector(".rd-page");
 		if (!el) return;
-		const pxPorSeg = [
-			12,
-			26,
-			48,
-			90,
-			150
-		][Math.max(0, Math.min(4, autoVel - 1))];
+		const pxPorSeg = {
+			0.5: 6,
+			1: 12,
+			2: 26,
+			3: 48,
+			4: 90,
+			5: 150
+		}[autoVel] || (autoVel === 0.5 ? 6 : [12, 26, 48, 90, 150][Math.max(0, Math.min(4, Math.round(autoVel) - 1))] || 26);
 		let ultimo = performance.now();
 		autoAcum.current = 0;
 		const paso = (ahora) => {
@@ -48599,12 +48767,11 @@ const docPedir = (desde, hasta, centroArg) => {
 				const px = Math.floor(autoAcum.current);
 				autoAcum.current -= px;
 				el.scrollTop += px;
-				if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
-					// v169: al llegar al final de la página, pasar a la siguiente en vez
-					// de parar: el auto-scroll queda continuo y no "se deshabilita" en
-					// cada cambio de página. (Antes hacía setAutoScrollOn(false).)
+				if (el.scrollTop + el.clientHeight >= el.scrollHeight - 3) {
 					if (page < pageCount - 1) {
-						go(1);
+						if (!cargaPgT.current && !edgeRaf.current) {
+							iniciarCargaPg("abajo", true);
+						}
 						return;
 					}
 					setAutoScrollOn(false);
@@ -48614,13 +48781,35 @@ const docPedir = (desde, hasta, centroArg) => {
 			autoRaf.current = requestAnimationFrame(paso);
 		};
 		autoRaf.current = requestAnimationFrame(paso);
-		// v169: ya NO se detiene al tocar la pantalla ni el texto. Antes había un
-		// `parar` en touchstart/mousedown de .rd-page que lo mataba con cualquier
-		// toque; ahora solo lo detiene el botón ⏹ (o al llegar al final de la página).
 		return () => {
 			cancelAnimationFrame(autoRaf.current);
 		};
 	}, [autoScrollOn, autoVel, page, go, pageCount, carousel, mode]);
+	(0, import_react.useEffect)(() => {
+		if (sheet !== "settings") return;
+		const el = asPreviewRef.current;
+		if (!el) return;
+		const pxPorSeg = { 0.5: 6, 1: 12, 2: 26, 3: 48, 4: 90, 5: 150 }[autoVel] || 26;
+		let ult = performance.now();
+		let acum = 0;
+		let raf = null;
+		const tick = (ahora) => {
+			const dt = Math.min(100, ahora - ult) / 1e3;
+			ult = ahora;
+			acum += pxPorSeg * dt;
+			if (acum >= 1) {
+				const px = Math.floor(acum);
+				acum -= px;
+				el.scrollTop += px;
+				if (el.scrollTop + el.clientHeight >= el.scrollHeight - 2) {
+					el.scrollTop = 0;
+				}
+			}
+			raf = requestAnimationFrame(tick);
+		};
+		raf = requestAnimationFrame(tick);
+		return () => { if (raf) cancelAnimationFrame(raf); };
+	}, [sheet, autoVel]);
 	// v169: ya NO se deshabilita al cambiar de página. Antes había
 	// useEffect(()=>setAutoScrollOn(false),[page]); con `page` en los deps de arriba,
 	// el efecto se re-ejecuta y sigue haciendo scroll en la nueva página.
@@ -49222,7 +49411,7 @@ const docPedir = (desde, hasta, centroArg) => {
 			autoScrollOn && (mode === "text" || mode === "original") && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				className: "auto-stop",
 				"aria-label": "Parar el auto-scroll",
-				onClick: (e) => { e.stopPropagation(); setAutoScrollOn(false); haptic$1.success?.(); },
+				onClick: (e) => { e.stopPropagation(); setAutoScrollOn(false); detenerCargaPg(); haptic$1.success?.(); },
 				onPointerDown: (e) => e.stopPropagation(),
 				onTouchStart: (e) => e.stopPropagation(),
 				children: "⏹"
@@ -53005,7 +53194,13 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "btn sm" + (autoScrollOn ? " on" : ""),
 										"aria-label": autoScrollOn ? "Pausar el auto-scroll" : "Iniciar el auto-scroll",
-										onClick: () => { setAutoScrollOn((v) => !v); haptic$1.success?.(); },
+										onClick: () => {
+											const activar = !autoScrollOn;
+											setAutoScrollOn(activar);
+											if (activar) closeSheet();
+											else detenerCargaPg();
+											haptic$1.success?.();
+										},
 										children: autoScrollOn ? "⏸ Pausar" : "▶ Iniciar"
 									})
 								]
@@ -53016,12 +53211,35 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Velocidad" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "as-vel",
-										children: [1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										children: [0.5, 1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 											key: v,
 											className: "as-vel-b" + (autoVel === v ? " on" : ""),
 											onClick: () => { setAutoVel(v); haptic$1.tap?.(); },
-											children: v
+											children: v === 0.5 ? "0.5" : v
 										}, v))
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "as-preview-wrap",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "as-preview-header",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📜 Vista previa de velocidad" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "as-preview-tag",
+												children: [autoVel === 0.5 ? "0.5" : autoVel, "x · ", { 0.5: 6, 1: 12, 2: 26, 3: 48, 4: 90, 5: 150 }[autoVel] || 26, " px/s"]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										ref: asPreviewRef,
+										className: "as-preview-box",
+										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "as-preview-text",
+											children: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat."
+										})
 									})
 								]
 							})
