@@ -1116,29 +1116,78 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		return false;
 	});
 	
-	const extraerIdLibro = (texto) => {
+	const extraerDatosLibroEnlace = (texto) => {
 		if (!texto || typeof texto !== "string") return null;
 		const str = texto.trim();
-		const matchLibro = str.match(/[?&]libro=([^&\s#]+)/i);
-		if (matchLibro) return decodeURIComponent(matchLibro[1]);
-		const matchHash = str.match(/#[^?\s]*[?&]?b=([^&\s#]+)/i) || str.match(/#libro=([^&\s#]+)/i);
-		if (matchHash) return decodeURIComponent(matchHash[1]);
-		const matchProto = str.match(/lumen(?:reader)?:\/\/b\/([^&\s#?]+)/i);
-		if (matchProto) return decodeURIComponent(matchProto[1]);
-		const matchPath = str.match(/\/b\/([^&\s#?]+)/i);
-		if (matchPath) return decodeURIComponent(matchPath[1]);
-		if (str.startsWith("{") && str.endsWith("}")) {
+		let id = null;
+		let tit = "";
+		let aut = "";
+		let file = "";
+		let cov = "";
+		let mag = "";
+		let cat = "";
+		let desc = "";
+
+		try {
+			const urlMatch = str.match(/https?:\/\/[^\s"'<>]+/i) || str.match(/lumen(?:reader)?:\/\/[^\s"'<>]+/i);
+			const urlStr = urlMatch ? urlMatch[0] : str;
+			const u = new URL(urlStr, "https://lumenreader.app");
+			id = u.searchParams.get("libro") || u.searchParams.get("b");
+			if (!id && u.pathname.startsWith("/b/")) id = decodeURIComponent(u.pathname.slice(3));
+			if (!id && u.hash) {
+				const hm = u.hash.match(/[?&]libro=([^&\s#]+)/i) || u.hash.match(/#libro=([^&\s#]+)/i) || u.hash.match(/[?&]b=([^&\s#]+)/i);
+				if (hm) id = decodeURIComponent(hm[1]);
+			}
+			tit = u.searchParams.get("tit") || u.searchParams.get("t") || "";
+			aut = u.searchParams.get("aut") || u.searchParams.get("a") || "";
+			file = u.searchParams.get("file") || u.searchParams.get("f") || "";
+			cov = u.searchParams.get("cov") || u.searchParams.get("c") || "";
+			mag = u.searchParams.get("mag") || u.searchParams.get("m") || "";
+			cat = u.searchParams.get("cat") || "";
+			desc = u.searchParams.get("desc") || "";
+		} catch {
+			const mLib = str.match(/[?&]libro=([^&\s#]+)/i);
+			if (mLib) id = decodeURIComponent(mLib[1]);
+			const mProto = str.match(/lumen(?:reader)?:\/\/b\/([^&\s#?]+)/i);
+			if (mProto) id = decodeURIComponent(mProto[1]);
+			const mTit = str.match(/[?&]tit=([^&\s#]+)/i);
+			if (mTit) tit = decodeURIComponent(mTit[1]);
+			const mAut = str.match(/[?&]aut=([^&\s#]+)/i);
+			if (mAut) aut = decodeURIComponent(mAut[1]);
+			const mFile = str.match(/[?&]file=([^&\s#]+)/i);
+			if (mFile) file = decodeURIComponent(mFile[1]);
+		}
+
+		if (!id && str.startsWith("{") && str.endsWith("}")) {
 			try {
 				const obj = JSON.parse(str);
-				if (obj.d || obj.id) return obj.d || obj.id;
+				if (obj.d || obj.id) {
+					id = obj.d || obj.id;
+					tit = obj.t || obj.titulo || "";
+					aut = obj.a || obj.autor || "";
+					file = obj.f || obj.fileUrl || "";
+					mag = obj.m || obj.magnet || "";
+				}
 			} catch {}
 		}
-		return null;
+
+		if (!id && /^[a-z0-9_-]{10,80}$/i.test(str)) {
+			id = str;
+		}
+
+		if (!id) return null;
+		return { id, tit, aut, file, cov, mag, cat, desc };
 	};
 
-	const resolverYMostrarLibro = async (targetId) => {
+	const extraerIdLibro = (texto) => {
+		const d = extraerDatosLibroEnlace(texto);
+		return d?.id || null;
+	};
+
+	const resolverYMostrarLibro = async (targetId, meta = null) => {
 		if (!targetId) return false;
-		const target = String(targetId).trim();
+		const target = typeof targetId === "object" ? (targetId.id || targetId.d) : String(targetId).trim();
+		const metaDatos = typeof targetId === "object" ? targetId : meta;
 		const pool = [...(libros || []), ...(misLibros || []), ...(librosFeed || [])];
 		const enMemoria = pool.find(
 			(b) => b.d === target || b.id === target || b.slug === target || (b.d && b.d.toLowerCase() === target.toLowerCase())
@@ -1162,39 +1211,61 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				return true;
 			}
 		} catch {}
-		toast?.("🔎 Buscando libro en la red descentralizada…");
+
+		if (metaDatos && (metaDatos.tit || metaDatos.titulo || metaDatos.file || metaDatos.fileUrl)) {
+			const libroShared = {
+				id: target,
+				d: target,
+				titulo: metaDatos.tit || metaDatos.titulo || "Libro compartido",
+				autor: metaDatos.aut || metaDatos.autor || "Autor Lumen",
+				fileUrl: metaDatos.file || metaDatos.fileUrl || "",
+				portada: metaDatos.cov || metaDatos.portada || "",
+				magnet: metaDatos.mag || metaDatos.magnet || "",
+				categoria: metaDatos.cat || metaDatos.categoria || "general",
+				descripcion: metaDatos.desc || metaDatos.descripcion || "",
+				createdAt: Date.now(),
+				esCompartido: true
+			};
+			setLibros((prev) => [libroShared, ...prev.filter((b) => b.d !== target && b.id !== target)]);
+			setDetalle(libroShared);
+			toast?.("📖 Libro compartido detectado: " + libroShared.titulo);
+			haptic.tap();
+		} else {
+			toast?.("🔎 Buscando libro en la red descentralizada…");
+		}
+
 		try {
 			const relays = await relaysGuardados();
-			let encontrado = null;
-			for (const url of relays) {
-				if (encontrado) break;
-				await new Promise((resolve) => {
-					const subId = "b-look-" + Math.random().toString(36).slice(2, 7);
-					const filtros = [
-						{ kinds: [30023, 30004], "#d": [target], limit: 1 },
-						{ kinds: [30023, 30004], ids: [target], limit: 1 }
-					];
-					let timeout = setTimeout(() => resolve(), 3000);
-					conectarRelay(url, (ev, sId) => {
-						if (sId === subId && ev && (ev.kind === 30023 || ev.kind === 30004)) {
-							clearTimeout(timeout);
-							encontrado = libroDeEvento(ev);
-							resolve();
-						}
-					});
-					suscribir(url, subId, filtros);
+			const promesas = relays.map((url) => new Promise((resolve) => {
+				const subId = "b-look-" + Math.random().toString(36).slice(2, 7);
+				const filtros = [
+					{ kinds: [30023, 30004], "#d": [target], limit: 1 },
+					{ kinds: [30023, 30004], ids: [target], limit: 1 }
+				];
+				let timeout = setTimeout(() => resolve(null), 3500);
+				conectarRelay(url, (ev, sId) => {
+					if (sId === subId && ev && (ev.kind === 30023 || ev.kind === 30004)) {
+						clearTimeout(timeout);
+						resolve(libroDeEvento(ev));
+					}
 				});
-			}
+				suscribir(url, subId, filtros);
+			}));
+
+			const resultados = await Promise.allSettled(promesas);
+			const encontrado = resultados.map((r) => r.status === "fulfilled" ? r.value : null).find(Boolean);
 			if (encontrado) {
-				setLibros((prev) => [encontrado, ...prev.filter((b) => b.d !== encontrado.d)]);
+				setLibros((prev) => [encontrado, ...prev.filter((b) => b.d !== encontrado.d && b.id !== encontrado.id)]);
 				setDetalle(encontrado);
-				toast?.("📖 Libro encontrado: " + encontrado.titulo);
+				toast?.("📖 Libro encontrado en la red: " + encontrado.titulo);
 				haptic.tap();
 				return true;
 			}
 		} catch (e) {
 			console.warn("[lookup error]", e);
 		}
+
+		if (metaDatos && (metaDatos.tit || metaDatos.titulo)) return true;
 		toast?.("No se encontró el libro con identificador: " + target);
 		return false;
 	};
@@ -1205,13 +1276,35 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				const params = new URLSearchParams(window.location.search);
 				const p = params.get("libro") || params.get("b");
 				if (p) {
-					resolverYMostrarLibro(p);
+					resolverYMostrarLibro(p, {
+						id: p,
+						tit: params.get("tit") || params.get("t") || "",
+						aut: params.get("aut") || params.get("a") || "",
+						file: params.get("file") || params.get("f") || "",
+						cov: params.get("cov") || params.get("c") || "",
+						mag: params.get("mag") || params.get("m") || "",
+						cat: params.get("cat") || "",
+						desc: params.get("desc") || ""
+					});
 				} else if (window.location.hash) {
-					const tid = extraerIdLibro(window.location.hash);
-					if (tid) resolverYMostrarLibro(tid);
+					const parsed = extraerDatosLibroEnlace(window.location.hash);
+					if (parsed?.id) resolverYMostrarLibro(parsed.id, parsed);
 				}
 			}
 		} catch {}
+
+		const onPubCambio = async () => {
+			try {
+				const mios = await listarPublicados();
+				setMisLibros(mios.map(libroDePublicado));
+			} catch {}
+		};
+		window.addEventListener("lumen:publicado", onPubCambio);
+		window.addEventListener("lumen:borrado", onPubCambio);
+		return () => {
+			window.removeEventListener("lumen:publicado", onPubCambio);
+			window.removeEventListener("lumen:borrado", onPubCambio);
+		};
 	}, []);
 
 	const confirmarEliminar = async (libro) => {
@@ -1403,8 +1496,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const idLibro = libro.d || libro.id;
 			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
 			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}`;
-			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}`;
+			const titParam = encodeURIComponent(libro.titulo || libro.title || "");
+			const autParam = encodeURIComponent(libro.autor || "");
+			const fileParam = encodeURIComponent(libro.fileUrl || "");
+			const covParam = encodeURIComponent(libro.portada || "");
+			const magParam = encodeURIComponent(libro.magnet || "");
+			const catParam = encodeURIComponent(libro.categoria || "");
+			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&cat=${catParam}`;
+			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}?tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}`;
 			const texto = `📕 ${libro.titulo || libro.title}\n${libro.autor ? `✍️ ${libro.autor}\n` : ""}\n🌐 Enlace en Lumen Store:\n${enlaceWeb}\n\n📱 Lumen Reader: ${enlaceApp}${libro.magnet ? `\n\n🧲 Magnet: ${libro.magnet}` : ""}`;
 			if (window.AndroidShare?.shareText) {
 				window.AndroidShare.shareText(libro.titulo || "Lumen Reader", texto);
@@ -1536,11 +1635,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 													const val = e.target.value;
 													if (lgUrlAbierto) setLgUrlWeb(val);
 													else {
-														const tid = extraerIdLibro(val);
-														if (tid) {
+														const parsed = extraerDatosLibroEnlace(val);
+														if (parsed?.id) {
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(tid);
+															resolverYMostrarLibro(parsed.id, parsed);
 															return;
 														}
 														setLgQ(val);
@@ -1550,12 +1649,12 @@ const cargar = (0, import_react.useCallback)(async () => {
 												onPaste: (e) => {
 													if (!lgUrlAbierto) {
 														const texto = e.clipboardData?.getData("text") || "";
-														const tid = extraerIdLibro(texto);
-														if (tid) {
+														const parsed = extraerDatosLibroEnlace(texto);
+														if (parsed?.id) {
 															e.preventDefault();
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(tid);
+															resolverYMostrarLibro(parsed.id, parsed);
 														}
 													}
 												},
@@ -1585,11 +1684,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 													}
 													if (e.key === "Enter") {
 														setSugVisible(false);
-														const tid = extraerIdLibro(lgQ);
-														if (tid) {
+														const parsed = extraerDatosLibroEnlace(lgQ);
+														if (parsed?.id) {
 															e.preventDefault();
 															setLgQ("");
-															resolverYMostrarLibro(tid);
+															resolverYMostrarLibro(parsed.id, parsed);
 															return;
 														}
 														if (lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) {
@@ -2296,8 +2395,9 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				open: escanerAbierto,
 				onClose: () => setEscanerAbierto(false),
 				onCodigoDetectado: (codigo) => {
-					const tid = extraerIdLibro(codigo) || codigo;
-					resolverYMostrarLibro(tid);
+					const parsed = extraerDatosLibroEnlace(codigo);
+					const tid = parsed?.id || extraerIdLibro(codigo) || codigo;
+					resolverYMostrarLibro(tid, parsed);
 				},
 				toast
 			})

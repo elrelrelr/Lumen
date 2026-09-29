@@ -1,7 +1,7 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
-import { identidadGuardada, npubCorto, relaysGuardados } from "./nostr-zC6Qsl2z.js";
-import { a as generarVitrinaHtml, c as libroDePublicado, d as reenviarPublicado, i as exportarJson, l as listarPublicados, n as enlaceDe, r as estadoDe, t as borrarPublicadoRed, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
+import { identidadGuardada, npubCorto, relaysGuardados, crearEvento, firmarEvento, publicarEnRelays, eventoDeLibro } from "./nostr-zC6Qsl2z.js";
+import { a as generarVitrinaHtml, c as libroDePublicado, d as reenviarPublicado, i as exportarJson, l as listarPublicados, n as enlaceDe, r as estadoDe, t as borrarPublicadoRed, u as obtenerBlobLumen, p as parchearPublicado, g as guardarLista } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { copiarTexto } from "./NostrAjustes-CIgc9tj_.js";
 //#region src/components/MisPublicaciones.jsx
@@ -200,6 +200,118 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 			setTrabajando("");
 		}
 	};
+	const quitarDeInternet = async (pub) => {
+		setTrabajando("despublicar");
+		try {
+			if (identidad && (pub.evento?.id || pub.id)) {
+				const tags = [["e", pub.evento?.id || pub.id || ""]];
+				if (pub.d) tags.push(["a", `30023:${identidad.pubHex}:${pub.d}`]);
+				try {
+					await publicarEnRelays(firmarEvento(crearEvento({
+						pubkey: identidad.pubHex,
+						kind: 5,
+						tags,
+						content: "Despublicado por su autor desde LumenReader"
+					}), identidad.privHex));
+				} catch (e) {
+					console.warn("[quitar de internet relays]", e);
+				}
+			}
+			await parchearPublicado(pub.d, {
+				enInternet: false,
+				estadoRelays: [],
+				despublicadoAt: Date.now()
+			});
+			const lista = await listarPublicados();
+			const actual = lista.find((p) => p.d === pub.d);
+			if (actual) {
+				actual.historial = [...actual.historial || [], {
+					at: Date.now(),
+					accion: "Quitado de internet (borrado Kind 5 solicitado a los relays)"
+				}].slice(-40);
+				await guardarLista(lista);
+			}
+			try {
+				const cat = JSON.parse(localStorage.getItem("lumen_catalogo") || "[]");
+				const filtrado = cat.filter((b) => b.d !== pub.d && b.id !== pub.id && b.id !== pub.evento?.id);
+				localStorage.setItem("lumen_catalogo", JSON.stringify(filtrado));
+			} catch {}
+			await cargar();
+			toast("📴 Libro quitado de internet. Se conserva seguro en tu dispositivo.");
+		} finally {
+			setTrabajando("");
+		}
+	};
+	const ponerEnInternet = async (pub) => {
+		setTrabajando("publicar");
+		try {
+			await parchearPublicado(pub.d, {
+				enInternet: true,
+				publicadoAt: Date.now()
+			});
+			await cargar();
+			let ev = pub.evento;
+			let idActual = identidad || await identidadGuardada();
+			if (!ev && idActual) {
+				try {
+					ev = eventoDeLibro({
+						identidad: idActual,
+						d: pub.d,
+						titulo: pub.titulo,
+						autor: pub.autor,
+						authorAvatar: pub.authorAvatar,
+						categoria: pub.categoria || "",
+						idioma: pub.idioma || "es",
+						descripcion: pub.descripcion || "",
+						portada: pub.portada || "",
+						magnet: pub.magnet || "",
+						fileUrl: pub.fileUrl || "",
+						audioUrl: pub.audioUrl || "",
+						videoUrl: pub.videoUrl || "",
+						tamano: pub.tamano || "",
+						paginas: pub.paginas || "",
+						ad: pub.ad || null,
+						donacion: pub.donacion || "",
+						zap: pub.zap || "",
+						rating: pub.rating || "general",
+						etiquetas: pub.etiquetas || []
+					});
+				} catch {}
+			}
+			let resultados = [];
+			if (ev) {
+				try {
+					resultados = await publicarEnRelays(ev);
+				} catch (e) {
+					console.warn("[poner en internet relays]", e);
+				}
+			}
+			const ok = resultados.filter((r) => r.ok).length;
+			await parchearPublicado(pub.d, {
+				enInternet: true,
+				evento: ev || pub.evento,
+				estadoRelays: resultados.map((r) => ({
+					url: r.url,
+					ok: r.ok,
+					detalle: r.detalle || ""
+				})),
+				publicadoAt: Date.now()
+			});
+			const lista = await listarPublicados();
+			const actual = lista.find((p) => p.d === pub.d);
+			if (actual) {
+				actual.historial = [...actual.historial || [], {
+					at: Date.now(),
+					accion: ok > 0 ? `Puesto en internet (${ok}/${resultados.length} relays ok)` : `Puesto en internet (activo)`
+				}].slice(-40);
+				await guardarLista(lista);
+			}
+			await cargar();
+			toast(ok > 0 ? `🌐 ¡Puesto en internet con éxito (${ok} relays)!` : "🌐 Puesto en internet.");
+		} finally {
+			setTrabajando("");
+		}
+	};
 	const leer = (pub) => {
 		onLeer?.(libroDePublicado(pub));
 	};
@@ -367,6 +479,22 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 												className: "btn sm",
 												onClick: () => onEditar?.(pub),
 												children: "✏️ Editar"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm",
+												style: { color: "#ff8080" },
+												disabled: trabajando === "despublicar",
+												title: "Retirar libro de internet manteniendo copia en tu dispositivo",
+												onClick: () => quitarDeInternet(pub),
+												children: trabajando === "despublicar" ? "⏳" : "📴 Quitar de internet"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm",
+												style: { color: "#7c5cff" },
+												disabled: trabajando === "publicar",
+												title: "Publicar o restablecer en la red descentralizada de Lumen Store",
+												onClick: () => ponerEnInternet(pub),
+												children: trabajando === "publicar" ? "⏳" : "🌐 Poner en internet"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 												className: "btn sm",

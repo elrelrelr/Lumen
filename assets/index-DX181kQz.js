@@ -55807,7 +55807,8 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						else setPublicarOpen({ modo: "nuevo" });
 					},
 					onAbrirLibro: (libro) => {
-						setLectorGlobal(libro);
+						setCatalogoAbierto(false);
+						setLectorGlobal({ ...libro, _desdeCatalogo: true });
 					},
 					onAbrirLibroLocal: (id) => {
 						setCatalogoAbierto(false);
@@ -55848,6 +55849,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 					onPublicado: (ev) => {
 						setPublicarOpen(null);
 						setCatalogoAbierto(true);
+						try { window.dispatchEvent(new CustomEvent("lumen:publicado")); } catch {}
 						toast("Libro en el catálogo: pide a los relays un momento para verlo");
 					}
 				}) }),
@@ -55858,7 +55860,10 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						modo: "editar",
 						pub
 					}),
-					onLeer: (libro) => setLectorGlobal(libro),
+					onLeer: (libro) => {
+						setMisPubsAbierto(false);
+						setLectorGlobal({ ...libro, _desdeMisPubs: true });
+					},
 					onAbrirCatalogo: () => {
 						setMisPubsAbierto(false);
 						setCatalogoAbierto(true);
@@ -55868,7 +55873,13 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 					libro: lectorGlobal,
 					reportes: lectorGlobal._reportes,
 					toast,
-					onSalir: () => setLectorGlobal(null)
+					onSalir: () => {
+						const volverMisPubs = lectorGlobal?._desdeMisPubs;
+						const volverCat = lectorGlobal?._desdeCatalogo;
+						setLectorGlobal(null);
+						if (volverMisPubs) setMisPubsAbierto(true);
+						else if (volverCat) setCatalogoAbierto(true);
+					}
 				}),
 				bienvenida && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(BienvenidaLazy, {
 					tipo: bienvenida,

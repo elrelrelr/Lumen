@@ -5,14 +5,22 @@ var CLAVE = "lumen_publicados";
 var KIND_BORRADO = 5;
 /** Lista de publicaciones, de la más reciente a la más antigua. */
 async function listarPublicados() {
-	let l = (await getMeta(CLAVE, null))?.lista;
-	if (!l || !l.length) {
-		try {
-			l = JSON.parse(localStorage.getItem(CLAVE) || "[]");
-		} catch {
-			l = [];
-		}
+	let local = [];
+	try {
+		local = JSON.parse(localStorage.getItem(CLAVE) || "[]");
+	} catch {
+		local = [];
 	}
+	let meta = [];
+	try {
+		meta = (await getMeta(CLAVE, null))?.lista || [];
+	} catch {
+		meta = [];
+	}
+	const map = new Map();
+	for (const p of meta) if (p && (p.d || p.id)) map.set(p.d || p.id, p);
+	for (const p of local) if (p && (p.d || p.id)) map.set(p.d || p.id, p);
+	const l = [...map.values()];
 	return (l || []).sort((a, b) => (b.updated || b.createdAt || 0) - (a.updated || a.createdAt || 0));
 }
 async function guardarLista(lista) {
@@ -43,6 +51,11 @@ async function guardarPublicado(pub) {
 	if (i >= 0) lista[i] = registro;
 	else lista.unshift(registro);
 	await guardarLista(lista);
+	try {
+		if (typeof window !== "undefined") {
+			window.dispatchEvent(new CustomEvent("lumen:publicado", { detail: registro }));
+		}
+	} catch {}
 	return registro;
 }
 /** Actualiza campos sueltos sin duplicar historial. */
@@ -56,6 +69,11 @@ async function parchearPublicado(d, patch) {
 		updated: Date.now()
 	};
 	await guardarLista(lista);
+	try {
+		if (typeof window !== "undefined") {
+			window.dispatchEvent(new CustomEvent("lumen:publicado", { detail: lista[i] }));
+		}
+	} catch {}
 	return lista[i];
 }
 /** Elimina una publicación del historial local (no toca la red). */
@@ -67,6 +85,11 @@ async function borrarPublicadoLocal(d) {
 		if (raw) {
 			const pubs = JSON.parse(raw);
 			localStorage.setItem(CLAVE, JSON.stringify(pubs.filter((p) => p.d !== d && p.id !== d)));
+		}
+	} catch {}
+	try {
+		if (typeof window !== "undefined") {
+			window.dispatchEvent(new CustomEvent("lumen:borrado", { detail: { d } }));
 		}
 	} catch {}
 }
@@ -85,15 +108,33 @@ async function borrarBlobLumen(d) {
 	}
 }
 
-async function obtenerBlobLumen(d) {
+async function obtenerBlobLumen(d, altId = null) {
 	try {
-		return (await getBlob(claveBlobLumen(d)))?.blob || null;
+		if (d) {
+			const b1 = (await getBlob(claveBlobLumen(d)))?.blob;
+			if (b1) return b1;
+			const b2 = (await getBlob(d))?.blob;
+			if (b2) return b2;
+		}
+		if (altId) {
+			const b3 = (await getBlob(altId))?.blob;
+			if (b3) return b3;
+			const b4 = (await getBlob(claveBlobLumen(altId)))?.blob;
+			if (b4) return b4;
+		}
+		return null;
 	} catch {
 		return null;
 	}
 }
 /** Resume el estado: 'publicado' | 'parcial' | 'local'. */
 function estadoDe(pub) {
+	if (pub.enInternet === false) return {
+		nivel: "local",
+		etiqueta: "📴 Solo en tu dispositivo (despublicado)",
+		ok: 0,
+		total: 0
+	};
 	const rs = pub.estadoRelays || [];
 	const ok = rs.filter((r) => r.ok).length;
 	if (!rs.length) return {
@@ -325,4 +366,4 @@ function exportarJson(pubs) {
 	})), null, 2);
 }
 //#endregion
-export { generarVitrinaHtml as a, libroDePublicado as c, reenviarPublicado as d, exportarJson as i, listarPublicados as l, enlaceDe as n, guardarBlobLumen as o, estadoDe as r, guardarPublicado as s, borrarPublicadoRed as t, obtenerBlobLumen as u, borrarPublicadoLocal, borrarBlobLumen };
+export { generarVitrinaHtml as a, libroDePublicado as c, reenviarPublicado as d, exportarJson as i, listarPublicados as l, enlaceDe as n, guardarBlobLumen as o, estadoDe as r, guardarPublicado as s, borrarPublicadoRed as t, obtenerBlobLumen as u, borrarPublicadoLocal, borrarBlobLumen, parchearPublicado as p, guardarLista as g };

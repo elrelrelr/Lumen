@@ -226,7 +226,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 		}
 		try {
 			setProgreso("Firmando y publicando en la red descentralizada…");
-			const dTag = dTagRef.current || editar?.d || `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48)}-${Date.now().toString(36)}`;
+			const dTag = dTagRef.current || ((editar && editar.d) ? editar.d : `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`);
 			const ev = eventoDeLibro({
 				identidad: idActual,
 				rating: editar?.rating || "general",
@@ -355,7 +355,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 					zap
 				}, capsFuente.length ? capsFuente : [descripcion || titulo], portada || null)).blob;
 			}
-			const dTag = editar?.d || `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 48)}-${Date.now().toString(36)}`;
+			const dTag = (editar && editar.d) ? editar.d : `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 			dTagRef.current = dTag;
 			await guardarBlobLumen(dTag, blob);
 			const nombre = (titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".lumen";

@@ -244,9 +244,9 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 					return;
 				}
 			}
-			if (libro.d) try {
+			if (libro.d || libro.id || libro.bookId) try {
 				setPaso("Abriendo copia local…");
-				const blob = await obtenerBlobLumen(libro.d);
+				const blob = await obtenerBlobLumen(libro.d, libro.id || libro.bookId);
 				if (blob && vivo) {
 					const bytes = new Uint8Array(await blob.arrayBuffer()).buffer;
 					const lumen = await leerLumen(bytes);
@@ -266,7 +266,7 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 			}
 			if (libro.fileUrl) try {
 				setPaso("Descargando libro desde Lumen Storage…");
-				const res = await fetch(libro.fileUrl, { signal: AbortSignal.timeout(30000) });
+				const res = await fetch(libro.fileUrl, { signal: AbortSignal.timeout(6000) });
 				if (res.ok && vivo) {
 					const buf = await res.arrayBuffer();
 					if (libro.d) {
@@ -587,7 +587,7 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "lg-prog",
+						className: "lg-prog-num",
 						children: totalItems ? enPortada ? "Portada" : `${idx + 1}/${totalItems}` : ""
 					})
 				]
