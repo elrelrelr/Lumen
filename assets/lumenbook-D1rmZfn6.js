@@ -136,11 +136,13 @@ async function construirLumen(meta, capitulos, portada = null) {
 	return _construir("text", meta, capitulos, null, portada);
 }
 /** Construye un .lumen de texto con las personalizaciones por libro del usuario (personal.json). */
-async function construirLumenPersonal(meta, capitulos, portada, personal) {
-	return _construir("text", meta, capitulos, null, portada, personal ? { "personal.json": JSON.stringify(personal) } : null);
+async function construirLumenPersonal(meta, capitulos, portada, personal, extraArchivos) {
+	const extras = { ...extraArchivos };
+	if (personal) extras["personal.json"] = JSON.stringify(personal);
+	return _construir("text", meta, capitulos, null, portada, extras);
 }
 /** Construye un .lumen paginado que embebe el original (PDF o ZIP/CBZ de imágenes) y las personalizaciones por libro. */
-async function construirLumenConOriginal(meta, blobOriginal, nombreOriginal, personal) {
+async function construirLumenConOriginal(meta, blobOriginal, nombreOriginal, personal, extraArchivos) {
 	const zip = new import_jszip_min.default();
 	const titulo = meta.titulo || "Libro sin título";
 	const u8 = new Uint8Array(await blobOriginal.arrayBuffer());
@@ -162,6 +164,9 @@ async function construirLumenConOriginal(meta, blobOriginal, nombreOriginal, per
 		description: meta.descripcion || ""
 	}, null, 2));
 	if (personal) zip.file("personal.json", JSON.stringify(personal));
+	for (const [nombre, contenido] of Object.entries(extraArchivos || {})) {
+		zip.file(nombre, contenido);
+	}
 	const esComprimido = /\.(zip|cbz)$/i.test(nombreOriginal);
 	return {
 		blob: await zip.generateAsync({
@@ -272,6 +277,7 @@ async function parsearLumen(bytes) {
 		tipo: "unknown",
 		capitulos: [],
 		paginas: [],
+		audios: [],
 		errores: [],
 		cover: null,
 		personal: null,
@@ -315,6 +321,17 @@ async function parsearLumen(bytes) {
 		} catch (e) {
 			res.errores.push("portada: " + (e?.message || e));
 		}
+		// Extraer canciones o pistas de audio locales si las hay
+		const audioFiles = Object.keys(zip.files).filter((n) => /^audio\/[^/]+\.(mp3|ogg|wav|m4a|aac|opus|flac)$/i.test(n) || /\.(mp3|ogg|wav|m4a|aac|opus|flac)$/i.test(n));
+		for (const ruta of audioFiles) {
+			try {
+				const f = zip.file(ruta);
+				if (!f) continue;
+				const blob = await f.async("blob");
+				const nombre = String(ruta).split("/").pop();
+				res.audios.push({ ruta, nombre, blob });
+			} catch {}
+		}
 		if (tipo === "text") {
 			const orden = Array.isArray(manifest.reading_order) && manifest.reading_order.length ? manifest.reading_order : Object.keys(zip.files).filter((n) => /chapter-\d+\.xhtml$/.test(n) || /chapters\/.*\.xhtml$/.test(n)).sort();
 			for (const nombre of orden) {
@@ -351,7 +368,7 @@ async function parsearLumen(bytes) {
 		return res;
 	}
 }
-/** Compatibilidad: leerLumen devuelve { manifest, metadata, capitulos, paginas }. */
+/** Compatibilidad: leerLumen devuelve { manifest, metadata, capitulos, paginas, audios }. */
 async function leerLumen(bytes) {
 	const r = await parsearLumen(bytes);
 	return {
@@ -359,6 +376,7 @@ async function leerLumen(bytes) {
 		metadata: r.metadata || {},
 		capitulos: r.capitulos,
 		paginas: r.paginas,
+		audios: r.audios || [],
 		tipo: r.tipo,
 		originalName: r.originalName || null,
 		personal: r.personal || null,

@@ -16164,3 +16164,197 @@ body:has(.stories) .sidebar,
   transform: scale(0.95) !important;
   background: rgba(239, 68, 68, 0.22) !important;
 }
+
+/* v244: Selector granular de metadatos en PublicarLibro (.lumen vs original) */
+.pb-meta-seccion {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 12px 0 16px;
+}
+.pb-meta-titulo-wrap {
+  margin-bottom: 2px;
+}
+.pb-meta-subtit {
+  color: var(--fg-mute);
+  font-size: 11.5px;
+  line-height: 1.45;
+  display: block;
+  margin-top: 3px;
+}
+.pb-meta-tarjeta {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+.pb-meta-tarjeta.activa {
+  border-color: rgba(124, 92, 255, 0.5);
+  background: rgba(124, 92, 255, 0.05);
+}
+.pb-meta-cabecera {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.pb-meta-check-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.pb-meta-checkbox {
+  width: 19px;
+  height: 19px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.pb-meta-info-txt {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.pb-meta-tit {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.pb-meta-desc {
+  font-size: 11px;
+  color: var(--fg-mute);
+  margin-top: 1px;
+}
+.pb-meta-badge {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--chip-bg);
+  color: var(--accent-2);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+.pb-meta-expandido {
+  padding: 10px 12px 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(0, 0, 0, 0.16);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: cgEntra 0.2s ease-out;
+}
+.pb-musica-local-bloque {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-soft);
+  border: 1px dashed var(--line);
+}
+.pb-musica-local-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.pb-campo-subtit {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--fg-dim);
+}
+.pb-btn-audio {
+  padding: 4px 9px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pb-canciones-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.pb-cancion-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11.5px;
+  padding: 4px 8px;
+  background: var(--bg-elev);
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.pb-cancion-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 85%;
+}
+.pb-cancion-del {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  font-weight: 700;
+}
+.pb-meta-nota-prem {
+  font-size: 11px;
+  color: var(--amber);
+  font-style: italic;
+  margin-top: 2px;
+}
+.pb-formato-caja {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin-top: 6px;
+  align-items: flex-start;
+  transition: all 0.25s ease;
+}
+.pb-formato-orig {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+}
+.pb-formato-lumen {
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.16), rgba(52, 211, 153, 0.08));
+  border: 1px solid rgba(124, 92, 255, 0.45);
+  box-shadow: 0 4px 20px rgba(124, 92, 255, 0.12);
+}
+.pb-formato-icono {
+  font-size: 26px;
+  line-height: 1;
+  flex: none;
+  margin-top: 2px;
+}
+.pb-formato-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+.pb-formato-tit {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--fg);
+}
+.pb-formato-desc {
+  font-size: 11.5px;
+  color: var(--fg-mute);
+  line-height: 1.45;
+  margin-top: 2px;
+}
+.pb-formato-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.pb-chip-inc {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--accent);
+  padding: 2px 8px;
+  border-radius: 6px;
+}

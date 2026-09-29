@@ -11898,6 +11898,13 @@ async function importarLumen(file, book, onProgress, opts) {
 		status: "importing"
 	});
 	if (r.cover) await patchBook(book.id, { cover: r.cover }).catch(() => {});
+	if (r.audios && r.audios.length) {
+		for (let idx = 0; idx < r.audios.length; idx++) {
+			const item = r.audios[idx];
+			const aKey = "audio_" + book.id + "_" + idx;
+			await putBlob(aKey, item.blob).catch(() => {});
+		}
+	}
 	if (r.tipo === "paged") {
 		const zip = await (await __vitePreload(() => import("./epub-B8oVrWvJ.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1)), __vite__mapDeps([4,1]), import.meta.url)).default.loadAsync(buf);
 		const pdfName = Object.keys(zip.files).find((n) => /^original\.(pdf|zip|cbz)$/i.test(n)) || Object.keys(zip.files).find((n) => /\.pdf$/i.test(n));
@@ -11911,7 +11918,7 @@ async function importarLumen(file, book, onProgress, opts) {
 				});
 				const fOrig = new File([origBlob], "original." + extLumen, { type: "application/zip" });
 				await importarComic(fOrig, book, onProgress);
-				const stPers = await aplicarPersonalLumen(book.id, r.personal);
+				const stPers = await aplicarPersonalLumen(book.id, r.personal, r.audios);
 				if (stPers) opts?.onPersonal?.(stPers);
 				return;
 			}
@@ -11960,7 +11967,7 @@ async function importarLumen(file, book, onProgress, opts) {
 				}
 			}
 			await patchBook(book.id, { status: "ready" });
-			const stPers = await aplicarPersonalLumen(book.id, r.personal);
+			const stPers = await aplicarPersonalLumen(book.id, r.personal, r.audios);
 			if (stPers) opts?.onPersonal?.(stPers);
 			return;
 		}
@@ -11990,7 +11997,7 @@ async function importarLumen(file, book, onProgress, opts) {
 			hasOriginal: true,
 			needsOcrPages: needs
 		});
-		const stPersImg = await aplicarPersonalLumen(book.id, r.personal);
+		const stPersImg = await aplicarPersonalLumen(book.id, r.personal, r.audios);
 		if (stPersImg) opts?.onPersonal?.(stPersImg);
 		return;
 	}
@@ -12001,20 +12008,67 @@ async function importarLumen(file, book, onProgress, opts) {
 	let todo = "";
 	for (const c of r.capitulos) todo += await extraerTextoXhtml(c.html) + "\n\n";
 	await savePaginated(book, todo, onProgress, "lumen");
-	const stPersTxt = await aplicarPersonalLumen(book.id, r.personal);
+	const stPersTxt = await aplicarPersonalLumen(book.id, r.personal, r.audios);
 	if (stPersTxt) opts?.onPersonal?.(stPersTxt);
 }
 /** Aplica las personalizaciones POR LIBRO incluidas en un .lumen (marcador, resaltados, notas,
 *  fondo, música al abrir, desplazamiento OCR, traducciones, tema de fondo). NUNCA incluye los
 *  ajustes generales de la app (música global, tipografía, tema global, TTS…). */
-async function aplicarPersonalLumen(bookId, personal) {
+async function aplicarPersonalLumen(bookId, personal, audios = []) {
 	if (!personal || typeof personal !== "object") return null;
 	const p = personal.book || {};
-	const CAMPOS = ["fondo", "fondoAjuste", "fondoAnimado", "fondoVelo", "fondoBlur", "musicOnOpen", "musicScene", "musicVolume", "lastMode", "scrollPos", "invertirImagen", "ocrShift", "marcador", "marcadores", "lastPage", "percentRead", "traducciones"];
+	const CAMPOS = ["fondo", "fondoAjuste", "fondoAnimado", "fondoVelo", "fondoBlur", "musicOnOpen", "musicScene", "musicVolume", "lastMode", "scrollPos", "invertirImagen", "ocrShift", "marcador", "marcadores", "lastPage", "percentRead", "traducciones", "fontSize", "fontFamily", "lineHeight", "margin", "textColor"];
 	const campos = {};
 	for (const k of CAMPOS) if (p[k] !== undefined && p[k] !== null) campos[k] = p[k];
+
+	// Música y volumen
+	if (personal.musica) {
+		if (personal.musica.scene !== undefined) campos.musicScene = personal.musica.scene;
+		if (personal.musica.volume !== undefined) campos.musicVolume = personal.musica.volume;
+		campos.musicOnOpen = personal.musica.onOpen !== undefined ? !!personal.musica.onOpen : true;
+	}
+	if (p.musicScene !== undefined) campos.musicScene = p.musicScene;
+	if (p.musicVolume !== undefined) campos.musicVolume = p.musicVolume;
+	if (p.musicOnOpen !== undefined) campos.musicOnOpen = !!p.musicOnOpen;
+
+	// Canciones locales embebidas en el .lumen
+	if (audios && audios.length) {
+		campos.musicCustom = audios.map((a, i) => ({
+			id: "local-" + i,
+			nombre: a.nombre,
+			blobKey: "audio_" + bookId + "_" + i
+		}));
+		campos.musicOnOpen = true;
+	} else if (personal.musica?.tracks?.length) {
+		campos.musicCustom = personal.musica.tracks;
+	}
+
+	// Fondo y fondo animado
+	if (personal.fondoAnimado !== undefined && campos.fondoAnimado === undefined) campos.fondoAnimado = personal.fondoAnimado;
+	if (personal.fondo && !campos.fondo) campos.fondo = personal.fondo;
+	if (personal.fondoTema && personal.fondoTema.usar) {
+		await setMeta({ id: "fondoTema_" + bookId, ...personal.fondoTema });
+	}
+
+	// Ajustes de texto / lectura
+	const at = personal.ajustesTexto || p.ajustesTexto || null;
+	if (at || p.fontFamily || p.fontSize || p.lineHeight || p.margin) {
+		const src = at || p;
+		if (src.fontSize) campos.fontSize = src.fontSize;
+		if (src.lineHeight) campos.lineHeight = src.lineHeight;
+		if (src.margin !== undefined) campos.margin = src.margin;
+		let fam = src.fontFamily || p.fontFamily;
+		if (fam) {
+			const esGratis = ["serif", "sans", "dyslexic", "mono"].includes(fam);
+			// Excluir tipografías premium: si es premium y el usuario no tiene premium, se degrada a la por defecto
+			if (!esGratis && !isPremium()) {
+				fam = "serif";
+			}
+			campos.fontFamily = fam;
+		}
+	}
+
 	if (Object.keys(campos).length) await patchBook(bookId, campos);
-	if (personal.fondoTema && personal.fondoTema.usar) await setMeta({ id: "fondoTema_" + bookId, ...personal.fondoTema });
 	let hl = 0;
 	for (const h of personal.highlights || []) {
 		try {
@@ -49078,11 +49132,11 @@ const docPedir = (desde, hasta, centroArg) => {
 		setSheet(null);
 	};
 	const fontStyle = {
-		fontSize: settings.fontSize + "px",
-		lineHeight: settings.lineHeight,
-		fontFamily: FONTS[settings.fontFamily] || FONTS.serif,
-		padding: `0 ${settings.margin}px`,
-	color: settings.textColor || void 0
+		fontSize: (book?.fontSize || settings.fontSize) + "px",
+		lineHeight: book?.lineHeight || settings.lineHeight,
+		fontFamily: FONTS[book?.fontFamily || settings.fontFamily] || FONTS.serif,
+		padding: `0 ${book?.margin ?? settings.margin}px`,
+	color: book?.textColor || settings.textColor || void 0
 	};
 	const pageHighs = (0, import_react.useMemo)(() => highs.filter((h) => h.page === page && !!h.trad === enTraduccion), [
 		highs,
@@ -55859,13 +55913,18 @@ function App() {
 				}
 			}
 
-			// Si tenemos el blob (.lumen o .epub), importarlo a la pantalla principal
+			// Si tenemos el blob (.lumen o formato original), importarlo a la pantalla principal
 			if (blobDescargado && blobDescargado.size > 200) {
-				toast?.("📖 Configurando capítulos, resaltados y fondos…");
-				const esEpub = /\.epub$/i.test(urlDescarga);
-				const ext = esEpub ? ".epub" : ".lumen";
+				toast?.("📖 Configurando lectura y personalizaciones…");
+				const uBajo = (urlDescarga || "").toLowerCase();
+				let ext = ".lumen";
+				let mime = "application/octet-stream";
+				if (uBajo.endsWith(".epub")) { ext = ".epub"; mime = "application/epub+zip"; }
+				else if (uBajo.endsWith(".pdf")) { ext = ".pdf"; mime = "application/pdf"; }
+				else if (uBajo.endsWith(".txt")) { ext = ".txt"; mime = "text/plain"; }
+				else if (uBajo.endsWith(".docx")) { ext = ".docx"; mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; }
 				const nombreArchivo = (libro.titulo || libro.title || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ext;
-				const f = new File([blobDescargado], nombreArchivo, { type: esEpub ? "application/epub+zip" : "application/octet-stream" });
+				const f = new File([blobDescargado], nombreArchivo, { type: mime });
 				const nuevo = await importFile(f, ({ percent, label }) => {
 					if (label) toast?.(label);
 				});

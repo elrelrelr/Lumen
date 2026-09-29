@@ -1,11 +1,12 @@
 import { t as require_react } from "./react-1WJTggxS.js";
 import { f as getAllPages, r as allBooks, h as getMeta, y as highlightsByBook, x as notesByBook } from "./db-Ii3ipPL7.js";
-import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile } from "./index-DX181kQz.js";
+import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile, f as isPremium } from "./index-DX181kQz.js";
+import { n as getOriginal } from "./originals-D2DFW8Gx.js";
 import { eventoDeLibro, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
 import { o as guardarBlobLumen, s as guardarPublicado, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { onTorrent } from "./torrent-DS6cTKT6.js";
-import { construirLumen, construirLumenPersonal, dividirEnCapitulos, portadaSvg } from "./lumenbook-D1rmZfn6.js";
+import { construirLumen, construirLumenPersonal, construirLumenConOriginal, dividirEnCapitulos, portadaSvg } from "./lumenbook-D1rmZfn6.js";
 import { abrirEnlace, copiarTexto } from "./NostrAjustes-CIgc9tj_.js";
 //#region src/components/PublicarLibro.jsx
 var import_react = require_react();
@@ -32,6 +33,39 @@ var IDIOMAS = [
 	["de", "Deutsch"],
 	["it", "Italiano"],
 	["otro", "Otro"]
+];
+var ESCENAS_MUSICA = [
+	{ id: "lluvia", nombre: "🌧️ Lluvia suave" },
+	{ id: "real-piano", nombre: "🎹 Piano relajante" },
+	{ id: "real-lofi", nombre: "🎧 Lo-fi beats" },
+	{ id: "bosque", nombre: "🌲 Bosque nocturno" },
+	{ id: "oceano", nombre: "🌊 Olas del mar" },
+	{ id: "cafeteria", nombre: "☕ Cafetería" },
+	{ id: "fogata", nombre: "🔥 Fogata cálida" },
+	{ id: "templo", nombre: "🏯 Templo Zen" },
+	{ id: "brisa", nombre: "🍃 Brisa suave" },
+	{ id: "real-techno", nombre: "🎛️ Techno suave" }
+];
+var FONDOS_ANIMADOS_OPTS = [
+	{ id: "", nombre: "Ninguno (Estático)" },
+	{ id: "aurora", nombre: "🌌 Aurora boreal" },
+	{ id: "nebulosa", nombre: "✨ Nebulosa espacial" },
+	{ id: "ondas", nombre: "🌊 Ondas lentas" },
+	{ id: "particulas", nombre: "🌟 Partículas flotantes" },
+	{ id: "lluvia", nombre: "🌧️ Gotas de lluvia" },
+	{ id: "brasa", nombre: "🔥 Brasa cálida" },
+	{ id: "matrix", nombre: "💻 Código Matrix" },
+	{ id: "respirar", nombre: "🧘 Pulso respiración" }
+];
+var TIPOGRAFIAS_OPTS = [
+	{ id: "serif", nombre: "Serif (Georgia clásica)" },
+	{ id: "sans", nombre: "Sans (Inter moderna)" },
+	{ id: "dyslexic", nombre: "Alta legibilidad" },
+	{ id: "mono", nombre: "Monoespaciada" },
+	{ id: "lectura", nombre: "👑 Lectura editorial (Prem)" },
+	{ id: "humanista", nombre: "👑 Humanista suave (Prem)" },
+	{ id: "merriweather", nombre: "👑 Merriweather Pro (Prem)" },
+	{ id: "lora", nombre: "👑 Lora literaria (Prem)" }
 ];
 var PASOS = [
 	["1", "Libro"],
@@ -100,6 +134,59 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 	const [progreso, setProgreso] = (0, import_react.useState)("");
 	const [resultado, setResultado] = (0, import_react.useState)(null);
 
+	// Selección granular de metadatos para publicar (.lumen vs original)
+	const [compartirMusica, setCompartirMusica] = (0, import_react.useState)(false);
+	const [compartirCapitulos, setCompartirCapitulos] = (0, import_react.useState)(false);
+	const [compartirResaltados, setCompartirResaltados] = (0, import_react.useState)(false);
+	const [compartirDiseno, setCompartirDiseno] = (0, import_react.useState)(false);
+
+	const [musicaEscena, setMusicaEscena] = (0, import_react.useState)("lluvia");
+	const [musicaVolumen, setMusicaVolumen] = (0, import_react.useState)(0.35);
+	const [cancionesLocales, setCancionesLocales] = (0, import_react.useState)([]);
+
+	const [disenoTipografia, setDisenoTipografia] = (0, import_react.useState)("serif");
+	const [disenoTamano, setDisenoTamano] = (0, import_react.useState)(18);
+	const [disenoInterlineado, setDisenoInterlineado] = (0, import_react.useState)(1.7);
+	const [disenoFondoAnimado, setDisenoFondoAnimado] = (0, import_react.useState)("");
+
+	const [resaltadosCount, setResaltadosCount] = (0, import_react.useState)(0);
+	const [notasCount, setNotasCount] = (0, import_react.useState)(0);
+
+	const tienePersonalizaciones = compartirMusica || compartirCapitulos || compartirResaltados || compartirDiseno;
+
+	const formatoOriginalExt = (0, import_react.useMemo)(() => {
+		if (fuente?.tipo === "archivo" && fuente.file?.name) {
+			return (fuente.file.name.split(".").pop() || "txt").toLowerCase();
+		}
+		if (fuente?.tipo === "local" && fuente.libro) {
+			if (fuente.libro.kind === "pdf") return "pdf";
+			if (fuente.libro.kind === "epub") return "epub";
+			const ext = (fuente.libro.fileName || "").split(".").pop().toLowerCase();
+			if (ext && ext.length <= 5) return ext;
+			return "epub";
+		}
+		return "txt";
+	}, [fuente]);
+
+	const agregarCancionLocal = (e) => {
+		const files = Array.from(e.target.files || []);
+		if (!files.length) return;
+		const nuevas = files.map((f) => ({
+			name: f.name.replace(/[^\w\s.-]/gi, "_"),
+			file: f,
+			size: (f.size / (1024 * 1024)).toFixed(1) + " MB"
+		}));
+		setCancionesLocales((prev) => [...prev, ...nuevas]);
+		setCompartirMusica(true);
+		toast(`🎵 ${files.length} canción(es) local(es) para empaquetar en el .lumen`);
+		e.target.value = "";
+	};
+
+	const quitarCancionLocal = (index) => {
+		setCancionesLocales((prev) => prev.filter((_, i) => i !== index));
+		toast("Canción local retirada");
+	};
+
 	const pasoCerrado = (0, import_react.useRef)(false);
 	const refTorrentTimer = (0, import_react.useRef)(null);
 	const refExtra = (0, import_react.useRef)({});
@@ -117,7 +204,19 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 		identidad,
 		capsFuente,
 		portada,
-		avatarUri
+		avatarUri,
+		compartirMusica,
+		compartirCapitulos,
+		compartirResaltados,
+		compartirDiseno,
+		musicaEscena,
+		musicaVolumen,
+		cancionesLocales,
+		disenoTipografia,
+		disenoTamano,
+		disenoInterlineado,
+		disenoFondoAnimado,
+		fuente
 	};
 
 	usarPantallaAtras(() => onSalir?.(), () => {
@@ -179,7 +278,17 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 				if (b.author) setAutor(b.author);
 				if (b.description) setDescripcion(b.description);
 				if (b.cover) setPortada(b.cover);
+				if (b.musicScene) setMusicaEscena(b.musicScene);
+				if (b.musicVolume != null) setMusicaVolumen(b.musicVolume);
+				if (b.fondoAnimado) setDisenoFondoAnimado(b.fondoAnimado);
+				if (b.fontFamily) setDisenoTipografia(b.fontFamily);
+				if (b.fontSize) setDisenoTamano(b.fontSize);
+				if (b.lineHeight) setDisenoInterlineado(b.lineHeight);
 			}
+			const hl = await highlightsByBook(id).catch(() => []);
+			const nt = await notesByBook(id).catch(() => []);
+			setResaltadosCount(hl?.length || 0);
+			setNotasCount(nt?.length || 0);
 			setPaso(2);
 		} catch (e) {
 			toast("No se pudo cargar el libro: " + (e?.message || e));
@@ -207,7 +316,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 			const nom = file.name.replace(/\.[^.]+$/, "");
 			const txt = await file.text();
 			const caps = dividirEnCapitulos(txt);
-			setFuente({ tipo: "archivo", nombre: file.name });
+			setFuente({ tipo: "archivo", nombre: file.name, file });
 			setCapsFuente(caps.length ? caps : [txt.slice(0, 100000)]);
 			setTitulo(nom || "Mi libro");
 			setPaso(2);
@@ -334,65 +443,124 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 		pasoCerrado.current = false;
 		refPublicado.current = false;
 		try {
-			const { titulo, autor, categoria, idioma, descripcion, donacion, zap, portada, capsFuente } = datosRef.current;
-			setProgreso("Creando formato LumenBook (.lumen)…");
+			const {
+				titulo, autor, categoria, idioma, descripcion, donacion, zap, portada, capsFuente,
+				compartirMusica, compartirCapitulos, compartirResaltados, compartirDiseno,
+				musicaEscena, musicaVolumen, cancionesLocales,
+				disenoTipografia, disenoTamano, disenoInterlineado, disenoFondoAnimado,
+				fuente
+			} = datosRef.current;
+
 			let blob = null;
-			let personal = null;
-			if (fuente?.tipo === "local" && fuente.id) {
-				try {
-					const hl = await highlightsByBook(fuente.id).catch(() => []);
-					const nt = await notesByBook(fuente.id).catch(() => []);
-					const fondoTema = await getMeta("fondoTema_" + fuente.id, null).catch(() => null);
-					personal = {
-						version: 1,
-						app: "lumen",
-						creado: Math.floor(Date.now() / 1e3),
-						book: {
-							title: fuente.libro?.title || titulo,
-							fondo: fuente.libro?.fondo || null,
-							fondoAjuste: fuente.libro?.fondoAjuste ?? null,
-							fondoAnimado: fuente.libro?.fondoAnimado ?? null,
-							fondoVelo: fuente.libro?.fondoVelo ?? null,
-							fondoBlur: fuente.libro?.fondoBlur ?? null,
-							musicOnOpen: !!fuente.libro?.musicOnOpen,
-							marcador: fuente.libro?.marcador || null,
-							marcadores: fuente.libro?.marcadores || [],
-							lastPage: fuente.libro?.lastPage || 0,
-							percentRead: fuente.libro?.percentRead || 0
-						},
-						fondoTema: fondoTema && fondoTema.usar ? { usar: true, tema: fondoTema.tema || "" } : null,
-						highlights: hl || [],
-						notes: nt || []
-					};
-				} catch {}
-			}
-			if (editar && fuente?.tipo === "editar" && !capsFuente.length) {
-				blob = await obtenerBlobLumen(editar.d);
-				if (!blob) {
-					blob = (await construirLumen({
-						titulo,
-						autor,
-						categoria,
-						idioma,
-						descripcion,
-						ad: null,
-						donacion,
-						zap
-					}, [descripcion || titulo], portada || null)).blob;
+			let nombre = "";
+			const extraArchivos = {};
+			const tienePers = compartirMusica || compartirCapitulos || compartirResaltados || compartirDiseno;
+
+			if (!tienePers) {
+				// CASO: NINGUNA CASILLA MARCADA -> SE PUBLICA EN EL FORMATO ORIGINAL
+				setProgreso(`Preparando libro en su formato original (.${formatoOriginalExt})…`);
+				if (fuente?.tipo === "archivo" && fuente.file) {
+					blob = fuente.file;
+					nombre = fuente.file.name;
+				} else if (fuente?.tipo === "local") {
+					let origBlob = null;
+					if (fuente.libro?.hasOriginal) {
+						origBlob = await getOriginal(fuente.id).catch(() => null);
+					}
+					if (origBlob) {
+						blob = origBlob;
+						nombre = `${(titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim()}.${formatoOriginalExt}`;
+					} else {
+						const txtCompleto = (capsFuente || []).join("\n\n");
+						blob = new Blob([txtCompleto], { type: "text/plain;charset=utf-8" });
+						nombre = `${(titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim()}.txt`;
+					}
+				} else {
+					const txtCompleto = (capsFuente || []).join("\n\n");
+					blob = new Blob([txtCompleto], { type: "text/plain;charset=utf-8" });
+					nombre = `${(titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim()}.txt`;
 				}
-			} else if (personal) {
-				blob = (await construirLumenPersonal({
-					titulo,
-					autor,
-					categoria,
-					idioma,
-					descripcion,
-					ad: null,
-					donacion,
-					zap
-				}, capsFuente.length ? capsFuente : [descripcion || titulo], portada || null, personal)).blob;
 			} else {
-				blob = (await construirLumen({
+				// CASO: MARCA ALGUNA O TODAS LAS CASILLAS -> EMPAQUETAR Y PUBLICAR .LUMEN
+				setProgreso("Empaquetando formato LumenBook (.lumen) con personalizaciones…");
+				const personal = {
+					version: 1,
+					app: "lumen",
+					creado: Math.floor(Date.now() / 1e3),
+					book: {
+						title: fuente?.libro?.title || titulo
+					}
+				};
+
+				if (compartirMusica) {
+					personal.musica = {
+						scene: musicaEscena,
+						volume: musicaVolumen,
+						onOpen: true,
+						tracks: (cancionesLocales || []).map((c, i) => ({
+							id: "local-" + i,
+							nombre: c.name,
+							ruta: "audio/" + c.name
+						}))
+					};
+					personal.book.musicScene = musicaEscena;
+					personal.book.musicVolume = musicaVolumen;
+					personal.book.musicOnOpen = true;
+
+					for (let i = 0; i < (cancionesLocales || []).length; i++) {
+						const cFile = cancionesLocales[i].file;
+						if (cFile) {
+							const u8 = new Uint8Array(await cFile.arrayBuffer());
+							extraArchivos["audio/" + cancionesLocales[i].name] = u8;
+						}
+					}
+				}
+
+				if (compartirCapitulos) {
+					personal.capitulos = (capsFuente || []).map((c, i) => ({
+						indice: i,
+						titulo: `Capítulo ${i + 1}`
+					}));
+				}
+
+				if (compartirResaltados) {
+					let hl = [];
+					let nt = [];
+					if (fuente?.tipo === "local" && fuente.id) {
+						hl = await highlightsByBook(fuente.id).catch(() => []);
+						nt = await notesByBook(fuente.id).catch(() => []);
+					}
+					personal.highlights = hl || [];
+					personal.notes = nt || [];
+				}
+
+				if (compartirDiseno) {
+					const esGratis = ["serif", "sans", "dyslexic", "mono"].includes(disenoTipografia);
+					const famSegura = (!esGratis && !isPremium()) ? "serif" : disenoTipografia;
+					personal.ajustesTexto = {
+						fontSize: disenoTamano,
+						fontFamily: famSegura,
+						lineHeight: disenoInterlineado
+					};
+					personal.book.fontFamily = famSegura;
+					personal.book.fontSize = disenoTamano;
+					personal.book.lineHeight = disenoInterlineado;
+
+					if (disenoFondoAnimado) {
+						personal.fondoAnimado = disenoFondoAnimado;
+						personal.book.fondoAnimado = disenoFondoAnimado;
+					}
+					if (fuente?.libro?.fondo) {
+						personal.fondo = fuente.libro.fondo;
+						personal.book.fondo = fuente.libro.fondo;
+					}
+					if (fuente?.libro?.fondoVelo != null) personal.book.fondoVelo = fuente.libro.fondoVelo;
+					if (fuente?.libro?.fondoBlur != null) personal.book.fondoBlur = fuente.libro.fondoBlur;
+					const ft = (fuente?.tipo === "local" && fuente.id) ? await getMeta("fondoTema_" + fuente.id, null).catch(() => null) : null;
+					if (ft && ft.usar) personal.fondoTema = ft;
+				}
+
+				const metaBase = {
 					titulo,
 					autor,
 					categoria,
@@ -401,12 +569,26 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 					ad: null,
 					donacion,
 					zap
-				}, capsFuente.length ? capsFuente : [descripcion || titulo], portada || null)).blob;
+				};
+
+				const original = (fuente?.tipo === "local" && fuente.libro?.hasOriginal) ? await getOriginal(fuente.id).catch(() => null) : null;
+				if (fuente?.libro?.kind === "pdf" && original) {
+					const lb = await construirLumenConOriginal(metaBase, original, "original.pdf", personal, extraArchivos);
+					blob = lb.blob;
+				} else if ((fuente?.libro?.kind === "image" || fuente?.libro?.esComic) && original) {
+					const lb = await construirLumenConOriginal(metaBase, original, "original.cbz", personal, extraArchivos);
+					blob = lb.blob;
+				} else {
+					const capsParaLumen = compartirCapitulos ? capsFuente : [(capsFuente || []).join("\n\n") || descripcion || titulo];
+					const lb = await construirLumenPersonal(metaBase, capsParaLumen.length ? capsParaLumen : [descripcion || titulo], portada || null, personal, extraArchivos);
+					blob = lb.blob;
+				}
+				nombre = `${(titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim()}.lumen`;
 			}
+
 			const dTag = (editar && editar.d) ? editar.d : `${(titulo || "libro").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40)}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 			dTagRef.current = dTag;
 			await guardarBlobLumen(dTag, blob);
-			const nombre = (titulo || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".lumen";
 			const extra = { fileUrl: null, audioUrl: null, videoUrl: null };
 			try {
 				setProgreso("Subiendo a Lumen Storage para descarga en cualquier dispositivo…");
@@ -773,6 +955,391 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 																	onClick: () => setPortada(""),
 																	children: "Usar diseño auto"
 																})
+															]
+														})
+													]
+												})
+											]
+										}),
+										/* Selector Granular de Metadatos y Formato de Publicación (.lumen vs original) */
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "pb-meta-seccion",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "pb-meta-titulo-wrap",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+															className: "pb-campo-tit",
+															children: "✨ Personalizaciones y metadatos a publicar"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+															className: "pb-meta-subtit",
+															children: [
+																"Elige qué metadatos compartir. Si no marcas ninguno, se publica en el ",
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: `formato original (.${formatoOriginalExt})` }),
+																"; si marcas una o varias casillas, se empaqueta como ",
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: ".lumen" }),
+																"."
+															]
+														})
+													]
+												}),
+												/* 1. Música y Volumen */
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: `pb-meta-tarjeta ${compartirMusica ? "activa" : ""}`,
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-meta-cabecera",
+															onClick: () => setCompartirMusica(!compartirMusica),
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+																	className: "pb-meta-check-label",
+																	onClick: (e) => e.stopPropagation(),
+																	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																		type: "checkbox",
+																		className: "pb-meta-checkbox",
+																		checked: compartirMusica,
+																		onChange: (e) => setCompartirMusica(e.target.checked)
+																	})
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-meta-info-txt",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																			className: "pb-meta-tit",
+																			children: "🎵 Música ambiental y volumen"
+																		}),
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																			className: "pb-meta-desc",
+																			children: "Pistas sonoras inmersivas, volumen y canciones locales embebidas"
+																		})
+																	]
+																}),
+																cancionesLocales.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																	className: "pb-meta-badge",
+																	children: [cancionesLocales.length, " local", cancionesLocales.length > 1 ? "es" : ""]
+																}) : null
+															]
+														}),
+														compartirMusica ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-meta-expandido",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-fila",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Pista ambiental" }),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+																					value: musicaEscena,
+																					onChange: (e) => setMusicaEscena(e.target.value),
+																					children: ESCENAS_MUSICA.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+																						value: sc.id,
+																						children: sc.nombre
+																					}, sc.id))
+																				})
+																			]
+																		}),
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																					children: ["Volumen: ", Math.round(musicaVolumen * 100), "%"]
+																				}),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																					type: "range",
+																					min: "0.05",
+																					max: "1",
+																					step: "0.05",
+																					value: musicaVolumen,
+																					onChange: (e) => setMusicaVolumen(parseFloat(e.target.value))
+																				})
+																			]
+																		})
+																	]
+																}),
+																/* Bloque de canciones locales */
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-musica-local-bloque",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																			className: "pb-musica-local-head",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																					className: "pb-campo-subtit",
+																					children: "Canciones locales (se empaquetan en el .lumen)"
+																				}),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																					className: "btn ghost sm pb-btn-audio",
+																					children: [
+																						"➕ Agregar canción",
+																						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																							type: "file",
+																							accept: "audio/*",
+																							multiple: true,
+																							style: { display: "none" },
+																							onChange: agregarCancionLocal
+																						})
+																					]
+																				})
+																			]
+																		}),
+																		cancionesLocales.length > 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+																			className: "pb-canciones-lista",
+																			children: cancionesLocales.map((c, i) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																				className: "pb-cancion-item",
+																				children: [
+																					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																						className: "pb-cancion-nombre",
+																						children: ["🎶 ", c.name, " (", c.size, ")"]
+																					}),
+																					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																						type: "button",
+																						className: "pb-cancion-del",
+																						onClick: () => quitarCancionLocal(i),
+																						title: "Quitar pista",
+																						children: "✕"
+																					})
+																				]
+																			}, i))
+																		}) : null
+																	]
+																})
+															]
+														}) : null
+													]
+												}),
+												/* 2. Capítulos */
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: `pb-meta-tarjeta ${compartirCapitulos ? "activa" : ""}`,
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "pb-meta-cabecera",
+														onClick: () => setCompartirCapitulos(!compartirCapitulos),
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+																className: "pb-meta-check-label",
+																onClick: (e) => e.stopPropagation(),
+																children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	type: "checkbox",
+																	className: "pb-meta-checkbox",
+																	checked: compartirCapitulos,
+																	onChange: (e) => setCompartirCapitulos(e.target.checked)
+																})
+															}),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																className: "pb-meta-info-txt",
+																children: [
+																	/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																		className: "pb-meta-tit",
+																		children: "📑 Capítulos y estructura"
+																	}),
+																	/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																		className: "pb-meta-desc",
+																		children: "Compartir la división organizada por capítulos"
+																	})
+																]
+															}),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																className: "pb-meta-badge",
+																children: [capsFuente.length, " cap", capsFuente.length === 1 ? "" : "s"]
+															})
+														]
+													})
+												}),
+												/* 3. Resaltados y Notas */
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: `pb-meta-tarjeta ${compartirResaltados ? "activa" : ""}`,
+													children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "pb-meta-cabecera",
+														onClick: () => setCompartirResaltados(!compartirResaltados),
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+																className: "pb-meta-check-label",
+																onClick: (e) => e.stopPropagation(),
+																children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																	type: "checkbox",
+																	className: "pb-meta-checkbox",
+																	checked: compartirResaltados,
+																	onChange: (e) => setCompartirResaltados(e.target.checked)
+																})
+															}),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																className: "pb-meta-info-txt",
+																children: [
+																	/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																		className: "pb-meta-tit",
+																		children: "🖍️ Resaltados y notas"
+																	}),
+																	/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																		className: "pb-meta-desc",
+																		children: "Compartir todos los tipos de resaltados de colores y notas"
+																	})
+																]
+															}),
+															(resaltadosCount > 0 || notasCount > 0) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																className: "pb-meta-badge",
+																children: [resaltadosCount, " res · ", notasCount, " notas"]
+															}) : null
+														]
+													})
+												}),
+												/* 4. Ajustes de Lectura y Fondos */
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: `pb-meta-tarjeta ${compartirDiseno ? "activa" : ""}`,
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-meta-cabecera",
+															onClick: () => setCompartirDiseno(!compartirDiseno),
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("label", {
+																	className: "pb-meta-check-label",
+																	onClick: (e) => e.stopPropagation(),
+																	children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																		type: "checkbox",
+																		className: "pb-meta-checkbox",
+																		checked: compartirDiseno,
+																		onChange: (e) => setCompartirDiseno(e.target.checked)
+																	})
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-meta-info-txt",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																			className: "pb-meta-tit",
+																			children: "🎨 Ajustes de lectura y fondos"
+																		}),
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																			className: "pb-meta-desc",
+																			children: "Tipografía, tamaño de texto, interlineado, fondo y fondo animado"
+																		})
+																	]
+																})
+															]
+														}),
+														compartirDiseno ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-meta-expandido",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-fila",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Tipografía" }),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+																					value: disenoTipografia,
+																					onChange: (e) => setDisenoTipografia(e.target.value),
+																					children: TIPOGRAFIAS_OPTS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+																						value: f.id,
+																						children: f.nombre
+																					}, f.id))
+																				})
+																			]
+																		}),
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Fondo animado" }),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+																					value: disenoFondoAnimado,
+																					onChange: (e) => setDisenoFondoAnimado(e.target.value),
+																					children: FONDOS_ANIMADOS_OPTS.map((fa) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+																						value: fa.id,
+																						children: fa.nombre
+																					}, fa.id))
+																				})
+																			]
+																		})
+																	]
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-fila",
+																	children: [
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																					children: ["Tamaño: ", disenoTamano, "px"]
+																				}),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																					type: "range",
+																					min: "14",
+																					max: "28",
+																					step: "1",
+																					value: disenoTamano,
+																					onChange: (e) => setDisenoTamano(parseInt(e.target.value, 10))
+																				})
+																			]
+																		}),
+																		/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("label", {
+																			className: "pb-campo",
+																			children: [
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																					children: ["Interlineado: ", disenoInterlineado]
+																				}),
+																				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+																					type: "range",
+																					min: "1.3",
+																					max: "2.4",
+																					step: "0.1",
+																					value: disenoInterlineado,
+																					onChange: (e) => setDisenoInterlineado(parseFloat(e.target.value))
+																				})
+																			]
+																		})
+																	]
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+																	className: "pb-meta-nota-prem",
+																	children: "ℹ️ Si eliges una tipografía premium, los lectores sin suscripción la verán con la tipografía por defecto (Georgia/Serif)."
+																})
+															]
+														}) : null
+													]
+												}),
+												/* Indicador Dinámico de Formato Resultante */
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: `pb-formato-caja ${tienePersonalizaciones ? "pb-formato-lumen" : "pb-formato-orig"}`,
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+															className: "pb-formato-icono",
+															children: tienePersonalizaciones ? "📦" : "📄"
+														}),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+															className: "pb-formato-cuerpo",
+															children: [
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+																	className: "pb-formato-tit",
+																	children: tienePersonalizaciones ? "Formato resultante: LumenBook (.lumen)" : `Formato resultante: Original (.${formatoOriginalExt})`
+																}),
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+																	className: "pb-formato-desc",
+																	children: tienePersonalizaciones
+																		? "Se empaquetará en un archivo .lumen (ZIP versátil) incluyendo las personalizaciones marcadas:"
+																		: `No has seleccionado personalizaciones. El libro se publicará directamente en su formato original de archivo (.${formatoOriginalExt}).`
+																}),
+																tienePersonalizaciones ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																	className: "pb-formato-chips",
+																	children: [
+																		compartirMusica ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																			className: "pb-chip-inc",
+																			children: ["🎵 Música y volumen", cancionesLocales.length > 0 ? ` (${cancionesLocales.length} locales)` : ` (${musicaEscena})`]
+																		}) : null,
+																		compartirCapitulos ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																			className: "pb-chip-inc",
+																			children: ["📑 ", capsFuente.length, " Capítulos"]
+																		}) : null,
+																		compartirResaltados ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+																			className: "pb-chip-inc",
+																			children: "🖍️ Resaltados y notas"
+																		}) : null,
+																		compartirDiseno ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																			className: "pb-chip-inc",
+																			children: ["🎨 Lectura (", disenoTipografia, disenoFondoAnimado ? ` · ${disenoFondoAnimado}` : "", ")"]
+																		}) : null
+																	]
+																}) : null
 															]
 														})
 													]
