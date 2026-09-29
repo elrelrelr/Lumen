@@ -25225,17 +25225,32 @@ var LumoOso = ({ estado, eq, offsets, onStartDrag, onSelect, editando, anim, sel
 				onStartDrag(e, partId);
 			} : void 0,
 			children: [
-				editando && lumoJ("rect", {
-					x: partId === "base" ? 0 : 25,
-					y: partId === "base" ? 0 : 25,
-					width: partId === "base" ? 270 : 220,
-					height: partId === "base" ? 270 : 220,
+				editando && partId === "base" && lumoJ("rect", {
+					x: 0,
+					y: 0,
+					width: 270,
+					height: 270,
 					fill: "transparent",
 					style: {
 						pointerEvents: editando ? "auto" : "none",
 						touchAction: "none"
 					}
 				}),
+				editando && partId !== "base" && (() => {
+					const cr = ICONO_CROPE[partId] ? ICONO_CROPE[partId].split(" ").map(Number) : null;
+					if (!cr || cr.length < 4) return null;
+					return lumoJ("rect", {
+						x: cr[0] - 2,
+						y: cr[1] - 2,
+						width: cr[2] + 4,
+						height: cr[3] + 4,
+						fill: "transparent",
+						style: {
+							pointerEvents: editando ? "auto" : "none",
+							touchAction: "none"
+						}
+					});
+				})(),
 				element
 			]
 		});

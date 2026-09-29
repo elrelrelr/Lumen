@@ -15840,3 +15840,199 @@ body:has(.stories) .sidebar,
   border-color: var(--accent, #6366f1) !important;
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35) !important;
 }
+
+
+/* ====================================================
+   Lumen v241: Perfeccionamiento de UI y Catálogo
+   ==================================================== */
+
+/* 1. Alineación simétrica de Anterior y Saltar en el tutorial */
+.bien-ant {
+  position: absolute !important;
+  top: calc(var(--safe-t, 0px) + 58px) !important;
+  left: 16px !important;
+  right: auto !important;
+  bottom: auto !important;
+  z-index: 10 !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  background: rgba(10, 9, 19, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  line-height: normal !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+.bien-pie .bien-ant {
+  position: absolute !important;
+  top: calc(var(--safe-t, 0px) + 58px) !important;
+  left: 16px !important;
+  bottom: auto !important;
+  right: auto !important;
+  margin: 0 !important;
+}
+
+.bien-ant:disabled {
+  opacity: 0.3 !important;
+  pointer-events: none !important;
+}
+
+.bien-saltar {
+  position: absolute !important;
+  top: calc(var(--safe-t, 0px) + 58px) !important;
+  right: 16px !important;
+  left: auto !important;
+  bottom: auto !important;
+  z-index: 10 !important;
+  padding: 7px 14px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  background: rgba(10, 9, 19, 0.94) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  color: rgba(255, 255, 255, 0.88) !important;
+  line-height: normal !important;
+  height: 32px !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+
+:root[data-theme='light'] .bien-ant,
+:root[data-theme='sepia'] .bien-ant {
+  background: var(--chip-bg) !important;
+  color: var(--fg) !important;
+  border-color: var(--line) !important;
+}
+
+/* 2. Cuadro de selección de Lumo ajustado y centrado al objeto */
+[data-lumo-part].lumo-elem-selected,
+.lumo-elem-selected {
+  outline: 2px dashed #f59e0b !important;
+  outline-offset: 3px !important;
+  border-radius: 8px !important;
+  filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6)) !important;
+}
+
+[data-lumo-part="base"].lumo-elem-selected {
+  outline-offset: 4px !important;
+  border-radius: 20px !important;
+}
+
+/* 3. Habitación de Lumo en edición: Fondo y texto según el tema actual */
+.lumo-editor-fullscreen {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+}
+
+.lumo-fs-topbar {
+  background: color-mix(in srgb, var(--bg-elev, var(--bg)) 90%, transparent) !important;
+  border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.12)) !important;
+  color: var(--fg) !important;
+}
+
+.lumo-fs-badge {
+  color: var(--fg) !important;
+}
+
+.lumo-fs-hint {
+  color: var(--fg-dim, var(--fg)) !important;
+  opacity: 0.85;
+}
+
+.lumo-scena.lumo-scena-fullscreen {
+  background: var(--bg) !important;
+  color: var(--fg) !important;
+}
+
+.lumo-scena-stage {
+  background: var(--bg-soft, var(--bg)) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.12)) !important;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.25);
+}
+
+.lumo-selected-hud {
+  background: var(--bg-elev, var(--bg)) !important;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16)) !important;
+  color: var(--fg) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.3) !important;
+}
+
+.lumo-size-bar {
+  background: var(--bg-elev, var(--bg)) !important;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.16)) !important;
+  color: var(--fg) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+}
+
+.lumo-size-info {
+  color: var(--fg) !important;
+}
+
+.lumo-edit-btn {
+  background: var(--bg-elev, var(--bg)) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--line) !important;
+}
+
+.lumo-edit-btn:hover {
+  background: var(--bg-hover, color-mix(in srgb, var(--accent) 15%, var(--bg-elev))) !important;
+}
+
+/* 4. Desplazamiento horizontal estricto igual a lg-fila en lg-filas */
+.cg-fila,
+.lg-fila {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  scroll-snap-type: x proximity !important;
+  padding: 2px 2px 8px !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: thin !important;
+  touch-action: pan-x !important;
+  overscroll-behavior-x: contain !important;
+  overscroll-behavior-y: none !important;
+}
+
+.cg-fila::-webkit-scrollbar,
+.lg-fila::-webkit-scrollbar {
+  height: 6px !important;
+}
+
+.cg-fila::-webkit-scrollbar-thumb,
+.lg-fila::-webkit-scrollbar-thumb {
+  background: var(--line, #333) !important;
+  border-radius: 3px !important;
+}
+
+.cg-fila > .cg-tarjeta-wrap,
+.lg-fila > .cg-tarjeta-wrap {
+  flex: 0 0 clamp(140px, 32vw, 168px) !important;
+  width: clamp(140px, 32vw, 168px) !important;
+  scroll-snap-align: start !important;
+}
+
+/* 5. Portada un poco menos alta en las filas del catálogo */
+.cg-tarjeta .cg-portada,
+.cg-tarjeta-compacta .cg-portada,
+.cg-fila-compacta .cg-portada,
+.cg-seccion-fila-cat .cg-portada {
+  aspect-ratio: 1 / 1.28 !important;
+  max-height: 195px !important;
+  border-radius: 12px 12px 0 0 !important;
+}

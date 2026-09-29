@@ -2268,30 +2268,42 @@ const cargar = (0, import_react.useCallback)(async () => {
 					}),
 
 					/* Vista de categoría con Top 10 Popular Rail + Catálogo Completo (40 en 40) */
-					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-seccion cg-seccion-categoria" + (categoria === "politica" ? " cg-seccion-politica" : ""),
-						children: [
-							/* Encabezado de la categoría */
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "cg-seccion-head",
-								style: { marginBottom: 16 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-										style: { textTransform: "capitalize", margin: "0 0 6px" },
-										children: ["📚 ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-										className: "cg-seccion-sub",
-										children: "Organizado en 4 filas horizontales de 10 libros por lote. Desliza horizontalmente cada carril para explorar."
-									})
-								]
-							}),
+					categoria !== "" && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__" && (() => {
+						const lumenLibrosCat = visibles
+							.filter((b) => {
+								if (!matchesIdioma(b, filtroIdioma)) return false;
+								const bCat = (b.categoria || "").toLowerCase();
+								const cNorm = (categoria || "").toLowerCase();
+								if (bCat === cNorm) return true;
+								if (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo || ""))) return true;
+								if ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo || ""))) return true;
+								return false;
+							})
+							.map((b) => normalizarLibroGenerico(b, "lumen"));
 
-							/* Cuatro filas de 10 libros con scroll horizontal exclusivo */
-							...Array.from({ length: Math.ceil(librosPantallaCat.length / 10) }, (_, filaIdx) => {
-								const filaLibros = librosPantallaCat.slice(filaIdx * 10, (filaIdx + 1) * 10);
-								const numFila = filaIdx + 1;
-								return (0, import_jsx_runtime.jsxs)("div", {
+						const totalFilasCatalogo = Math.ceil(librosPantallaCat.length / 10);
+
+						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-seccion cg-seccion-categoria" + (categoria === "politica" ? " cg-seccion-politica" : ""),
+							children: [
+								/* Encabezado de la categoría */
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-seccion-head",
+									style: { marginBottom: 16 },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
+											style: { textTransform: "capitalize", margin: "0 0 6px" },
+											children: ["📚 ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+											className: "cg-seccion-sub",
+											children: "Exploración completa en filas horizontales fluidas: Top 10 más populares, 4 filas del catálogo y obras de la red Lumen."
+										})
+									]
+								}),
+
+								/* Fila 1: Los 10 más populares de esta categoría (actualizados según el pool cargado) */
+								top10Categoria.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "cg-seccion cg-seccion-fila-cat",
 									style: { marginBottom: 18 },
 									children: [
@@ -2300,48 +2312,122 @@ const cargar = (0, import_react.useCallback)(async () => {
 											children: [
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
 													style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
-													children: filaIdx === 0 ? ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria), ` (${filaIdx * 10 + 1}–${filaIdx * 10 + filaLibros.length})`] : [`Fila ${numFila} • ${nombreBonitoCat(categoria)}`, ` (${filaIdx * 10 + 1}–${filaIdx * 10 + filaLibros.length})`]
+													children: ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria), ` (de ${librosPantallaCat.length} cargados)`]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 													className: "cg-seccion-sub",
 													style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
-													children: filaIdx === 0 ? "Títulos más descargados y leídos de esta categoría con desplazamiento horizontal." : `Selección curada • ${filaLibros.length} títulos con desplazamiento horizontal`
+													children: "Títulos más descargados y leídos de esta categoría con desplazamiento horizontal exclusivo."
 												})
 											]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "cg-fila " + (filaIdx === 0 ? "cg-fila-top " : "") + "cg-scroll-x-only",
+											className: "lg-fila cg-fila cg-fila-top cg-scroll-x-only",
 											ref: carrilRefCallback,
 											onWheel: onWheelHorizontal,
-											children: filaLibros.map((libro, idx) => (
+											children: top10Categoria.map((libro, idx) => (
 												(0, import_jsx_runtime.jsx)(Tarjeta, {
 													libro,
-													ranking: filaIdx === 0 ? idx + 1 : null,
+													ranking: idx + 1,
 													descargas: libro.downloads ? formatearDescargas(libro.downloads) + " descargas" : null,
 													reportes,
 													onAbrir: () => { haptic.tap(); setDetalle(libro); },
 													onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
-												}, libro.id || (filaIdx * 10 + idx))
+												}, libro.id || `cat-top-${idx}`)
 											))
 										})
 									]
-								}, `fila-cat-${categoria}-${filaIdx}`);
-							}),
+								}),
 
-							/* Paginación de 40 en 40 libros */
-							poolCategoriaActual.length > librosPantallaCat.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "cg-paginacion-wrap",
-								style: { textAlign: "center", margin: "24px 0 32px" },
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-									type: "button",
-									className: "btn primary",
-									onClick: () => avanzarPagina(categoria),
-									children: ["📖 Siguientes 40 libros de ", nombreBonitoCat(categoria), " (", Math.min(poolCategoriaActual.length, librosPantallaCat.length + 40), " de ", poolCategoriaActual.length, ")"]
-								})
-							}),
-							lgSeccion
-						]
-					}),
+								/* Filas 2, 3, 4, 5 (y adicionales al paginar): Catálogo completo en 4 filas de 10 libros con portada adaptada */
+								...Array.from({ length: totalFilasCatalogo }, (_, fIdx) => {
+									const filaLibros = librosPantallaCat.slice(fIdx * 10, (fIdx + 1) * 10);
+									const numFila = fIdx + 2; // Fila 2, 3, 4, 5...
+									return (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-seccion cg-seccion-fila-cat",
+										style: { marginBottom: 18 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "cg-seccion-head",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
+														style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
+														children: [`Fila ${numFila} • Catálogo de ${nombreBonitoCat(categoria)}`, ` (${fIdx * 10 + 1}–${fIdx * 10 + filaLibros.length})`]
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+														className: "cg-seccion-sub",
+														style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
+														children: `Catálogo general • ${filaLibros.length} títulos con desplazamiento horizontal`
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "lg-fila cg-fila cg-fila-compacta cg-scroll-x-only",
+												ref: carrilRefCallback,
+												onWheel: onWheelHorizontal,
+												children: filaLibros.map((libro, idx) => (
+													(0, import_jsx_runtime.jsx)(Tarjeta, {
+														libro,
+														reportes,
+														onAbrir: () => { haptic.tap(); setDetalle(libro); },
+														onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+													}, libro.id || (fIdx * 10 + idx))
+												))
+											})
+										]
+									}, `fila-cat-${categoria}-${fIdx}`);
+								}),
+
+								/* Fila 6: Libros de Lumen en esta categoría (si los hay, sino no se crea esta fila) */
+								lumenLibrosCat.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "cg-seccion cg-seccion-fila-cat cg-seccion-fila-lumen",
+									style: { marginBottom: 18 },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "cg-seccion-head",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
+													style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
+													children: [`Fila ${totalFilasCatalogo + 2} • 🌟 Libros de la red Lumen en `, nombreBonitoCat(categoria), ` (${lumenLibrosCat.length} ${lumenLibrosCat.length === 1 ? "libro" : "libros"})`]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+													className: "cg-seccion-sub",
+													style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
+													children: "Publicaciones independientes creadas y compartidas por la comunidad de lectores de Lumen."
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "lg-fila cg-fila cg-fila-compacta cg-scroll-x-only",
+											ref: carrilRefCallback,
+											onWheel: onWheelHorizontal,
+											children: lumenLibrosCat.map((libro, idx) => (
+												(0, import_jsx_runtime.jsx)(Tarjeta, {
+													libro,
+													reportes,
+													onAbrir: () => { haptic.tap(); setDetalle(libro); },
+													onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
+												}, libro.id || `lumen-cat-${idx}`)
+											))
+										})
+									]
+								}),
+
+								/* Paginación de 40 en 40 libros */
+								poolCategoriaActual.length > librosPantallaCat.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "cg-paginacion-wrap",
+									style: { textAlign: "center", margin: "24px 0 32px" },
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn primary",
+										onClick: () => avanzarPagina(categoria),
+										children: ["📖 Siguientes 40 libros de ", nombreBonitoCat(categoria), " (", Math.min(poolCategoriaActual.length, librosPantallaCat.length + 40), " de ", poolCategoriaActual.length, ")"]
+									})
+								}),
+								lgSeccion
+							]
+						});
+					})(),
 
 					/* Vista estándar ("Todas") reorganizada: sin cg-destacado, 10 libros en Top y Recientes, y fila de 10 libros para cada categoría unificada */
 					categoria === "" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
