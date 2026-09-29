@@ -12,7 +12,7 @@ var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
 var CATEGORIAS = [
 	"ficción",
-	"no-ficción",
+	"romance",
 	"política",
 	"desarrollo-personal",
 	"ciencia",

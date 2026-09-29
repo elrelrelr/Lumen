@@ -11139,10 +11139,9 @@ html[data-fuente-app='antigua'] textarea {
   padding: 6px 4px 14px !important;
   scroll-snap-type: none !important;
   -webkit-overflow-scrolling: touch !important;
-  touch-action: pan-x !important;
-  overscroll-behavior-x: contain !important;
-  overscroll-behavior-y: none !important;
-  overscroll-behavior: contain !important;
+  touch-action: pan-y pan-x !important;
+  overscroll-behavior-x: auto !important;
+  overscroll-behavior-y: auto !important;
   scrollbar-width: thin !important;
   scrollbar-color: rgba(255, 255, 255, 0.25) transparent !important;
 }
@@ -15803,11 +15802,11 @@ body:has(.stories) .sidebar,
   border-radius: 8px !important;
 }
 
-/* v240: Strict horizontal scroll & overscroll containment on chips & rows */
+/* v242: Natural horizontal pan on carousels, allowing page vertical scroll */
 .cg-cats-unificadas, .cg-scroll-x-only {
-  overscroll-behavior-x: contain !important;
-  overscroll-behavior-y: none !important;
-  touch-action: pan-x !important;
+  overscroll-behavior-x: auto !important;
+  overscroll-behavior-y: auto !important;
+  touch-action: pan-y pan-x !important;
 }
 
 /* v240: Language filter chips */
@@ -15991,7 +15990,7 @@ body:has(.stories) .sidebar,
   background: var(--bg-hover, color-mix(in srgb, var(--accent) 15%, var(--bg-elev))) !important;
 }
 
-/* 4. Desplazamiento horizontal estricto igual a lg-fila en lg-filas */
+/* 4. Desplazamiento horizontal fluido: swipe horizontal mueve fila, vertical mueve página */
 .cg-fila,
 .lg-fila {
   display: flex !important;
@@ -16004,9 +16003,9 @@ body:has(.stories) .sidebar,
   padding: 2px 2px 8px !important;
   -webkit-overflow-scrolling: touch !important;
   scrollbar-width: thin !important;
-  touch-action: pan-x !important;
-  overscroll-behavior-x: contain !important;
-  overscroll-behavior-y: none !important;
+  touch-action: pan-y pan-x !important;
+  overscroll-behavior-x: auto !important;
+  overscroll-behavior-y: auto !important;
 }
 
 .cg-fila::-webkit-scrollbar,
@@ -16027,12 +16026,90 @@ body:has(.stories) .sidebar,
   scroll-snap-align: start !important;
 }
 
-/* 5. Portada un poco menos alta en las filas del catálogo */
+/* 5. Altura estándar natural de portada de libro para evitar recortes */
 .cg-tarjeta .cg-portada,
 .cg-tarjeta-compacta .cg-portada,
 .cg-fila-compacta .cg-portada,
 .cg-seccion-fila-cat .cg-portada {
-  aspect-ratio: 1 / 1.28 !important;
-  max-height: 195px !important;
+  aspect-ratio: 2 / 3 !important;
+  max-height: 230px !important;
   border-radius: 12px 12px 0 0 !important;
+}
+
+.cg-portada img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  object-position: center top !important;
+}
+
+/* v242: Ocultar selector de modos confusos en el lector */
+.lg-modo {
+  display: none !important;
+}
+
+/* v242: Acomodar botones de acciones de libro sin espacios vacíos */
+.cg-detalle-acciones {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 14px !important;
+  width: 100% !important;
+}
+
+.cg-detalle-acciones .btn {
+  flex: 1 1 calc(50% - 6px) !important;
+  min-width: 120px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 10px 14px !important;
+  font-size: 13px !important;
+  border-radius: 10px !important;
+}
+
+.cg-detalle-acciones .btn.primary {
+  flex: 1 1 100% !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  padding: 13px 18px !important;
+}
+
+.cg-detalle-acciones .cg-btn-copiar-link {
+  flex: 1 1 100% !important;
+}
+
+.cg-detalle-media-btns {
+  display: flex !important;
+  width: 100% !important;
+  gap: 8px !important;
+}
+
+.cg-detalle-media-btns .btn {
+  flex: 1 !important;
+}
+
+/* v242: Botón compacto para eliminar mi propio mensaje en el chat */
+.cg-resena-btn-del {
+  margin-left: auto !important;
+  padding: 3px 8px !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  border-radius: 6px !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  background: rgba(239, 68, 68, 0.1) !important;
+  color: #ef4444 !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  transition: all 0.15s ease !important;
+}
+
+.cg-resena-btn-del:active {
+  transform: scale(0.95) !important;
+  background: rgba(239, 68, 68, 0.22) !important;
 }
