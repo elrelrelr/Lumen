@@ -10,7 +10,7 @@ var import_jsx_runtime = require_jsx_runtime();
 function PortadaMini({ pub }) {
 	const h = (() => {
 		let x = 0;
-		const s = String(pub.titulo || "L");
+		const s = String((pub.titulo || "L") + " " + (pub.autor || "")).toLowerCase();
 		for (let i = 0; i < s.length; i++) x = (x * 31 + s.charCodeAt(i)) % 360;
 		return x;
 	})();
@@ -23,7 +23,10 @@ function PortadaMini({ pub }) {
 	const ini = String(pub.titulo || "L").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "mp-cov mp-cov-gen",
-		style: { background: `linear-gradient(150deg, hsl(${h} 60% 44%), hsl(${(h + 45) % 360} 56% 24%))` },
+		style: {
+			background: `linear-gradient(145deg, hsl(${h} 58% 38%), hsl(${(h + 42) % 360} 54% 20%))`,
+			boxShadow: "inset 4px 0 6px -2px rgba(0,0,0,0.45)"
+		},
 		children: ini
 	});
 }
@@ -486,7 +489,7 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 												disabled: trabajando === "despublicar",
 												title: "Retirar libro de internet manteniendo copia en tu dispositivo",
 												onClick: () => quitarDeInternet(pub),
-												children: trabajando === "despublicar" ? "⏳" : "📴 Quitar de internet"
+												children: trabajando === "despublicar" ? "⏳" : "📴 Quitar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 												className: "btn sm",
@@ -494,7 +497,7 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 												disabled: trabajando === "publicar",
 												title: "Publicar o restablecer en la red descentralizada de Lumen Store",
 												onClick: () => ponerEnInternet(pub),
-												children: trabajando === "publicar" ? "⏳" : "🌐 Poner en internet"
+												children: trabajando === "publicar" ? "⏳" : "🌐 Publicar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 												className: "btn sm",

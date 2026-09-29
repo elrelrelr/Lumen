@@ -157,7 +157,7 @@ function estadoDe(pub) {
 	};
 	return {
 		nivel: "local",
-		etiqueta: "❌ No llegó a los relays",
+		etiqueta: "📴 Guardado en dispositivo (sin conexión a relays)",
 		ok: 0,
 		total: rs.length
 	};
@@ -260,7 +260,22 @@ function libroDePublicado(pub) {
 	};
 }
 /** Enlace profundo para compartir: lumenreader://b/<d> */
-var enlaceDe = (pub) => `lumenreader://b/${pub.d}`;
+var enlaceDe = (pub) => {
+	if (!pub) return "lumenreader://b/";
+	const d = pub.d || pub.id || "";
+	const p = new URLSearchParams();
+	if (pub.titulo) p.set("t", pub.titulo);
+	if (pub.autor) p.set("a", pub.autor);
+	if (pub.portada) p.set("c", pub.portada);
+	if (pub.fileUrl) p.set("f", pub.fileUrl);
+	if (pub.magnet) p.set("m", pub.magnet);
+	if (pub.audioUrl) p.set("aud", pub.audioUrl);
+	if (pub.videoUrl) p.set("vid", pub.videoUrl);
+	if (pub.categoria) p.set("cat", pub.categoria);
+	if (pub.descripcion) p.set("desc", String(pub.descripcion).slice(0, 300));
+	const qs = p.toString();
+	return `lumenreader://b/${encodeURIComponent(d)}${qs ? "?" + qs : ""}`;
+};
 function esc(t) {
 	return String(t ?? "").replace(/[&<>"']/g, (m) => ({
 		"&": "&amp;",
@@ -277,7 +292,7 @@ function generarVitrinaHtml(pubs, { nombre = "Mis libros", npub = "" } = {}) {
 		day: "numeric"
 	});
 	const tarjetas = pubs.map((p) => {
-		const portada = p.portada ? `<img class="cov" src="${esc(p.portada)}" alt=""/>` : `<div class="cov gen" style="background:linear-gradient(150deg,hsl(${hslDe(p.titulo)} 60% 44%),hsl(${(hslDe(p.titulo) + 45) % 360} 56% 24%))">${esc(inicialesDe(p.titulo))}</div>`;
+		const portada = p.portada ? `<img class="cov" src="${esc(p.portada)}" alt=""/>` : `<div class="cov gen" style="background:linear-gradient(150deg,hsl(${hslDe(p.titulo + " " + (p.autor || ""))} 60% 44%),hsl(${(hslDe(p.titulo + " " + (p.autor || "")) + 45) % 360} 56% 24%))">${esc(inicialesDe(p.titulo))}</div>`;
 		const enlace = enlaceDe(p);
 		const magnet = p.magnet || "";
 		return `

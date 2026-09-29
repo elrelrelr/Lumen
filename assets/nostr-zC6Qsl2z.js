@@ -2726,12 +2726,20 @@ var KIND_LIBRO = 30023;
 var KIND_REPORTE = 30024;
 var KIND_VOTO = 30025;
 var RELAYS_DEFECTO = [
+	"wss://relay.nostr.band",
+	"wss://nos.lol",
+	"wss://nostr.oxtr.dev",
+	"wss://purplerelay.com",
+	"wss://relay.current.fyi",
 	"wss://relay.damus.io",
-	"wss://relay.primal.net",
-	"wss://nostr.mom",
-	"wss://relay.snort.social"
+	"wss://relay.primal.net"
 ];
 var RELAY_NOMBRES = {
+	"wss://relay.nostr.band": "NostrBand",
+	"wss://nos.lol": "Nos.lol",
+	"wss://nostr.oxtr.dev": "Oxtr",
+	"wss://purplerelay.com": "Purple",
+	"wss://relay.current.fyi": "Current",
 	"wss://relay.damus.io": "Damus",
 	"wss://relay.primal.net": "Primal",
 	"wss://nostr.mom": "Nostr.mom",
@@ -3020,25 +3028,40 @@ function suscribir(url, subId, filtros) {
 function publicarEvento(ev, url, timeoutMs = 12e3) {
 	return new Promise((resolve) => {
 		let hecho = false;
+		let iv = null;
+		let enviado = false;
 		const done = (ok, detalle = "") => {
 			if (hecho) return;
 			hecho = true;
 			clearTimeout(t);
+			if (iv) clearInterval(iv);
 			resolve({
 				ok,
 				url,
 				detalle
 			});
 		};
-		const t = setTimeout(() => done(false, "timeout"), timeoutMs);
+		const t = setTimeout(() => {
+			if (enviado && conexiones.get(url)?.abierto) {
+				done(true, "enviado a la red");
+			} else {
+				done(false, "timeout");
+			}
+		}, timeoutMs);
 		if (!conexiones.get(url)) conectarRelay(url);
 		const off = escucharEstado(url, (estado, u, id, ok, msg) => {
-			if (estado === "ok" && id === ev.id) done(ok === true, ok === true ? "" : String(msg || ""));
+			if (estado === "ok" && id === ev.id) {
+				const esOk = ok === true || (typeof msg === "string" && msg.toLowerCase().includes("duplicate"));
+				done(esOk, esOk ? (msg || "Aceptado") : String(msg || "Rechazado"));
+			} else if (estado === "error" && !enviado) {
+				done(false, "error de conexión");
+			}
 		});
 		const enviar = () => {
 			const c = conexiones.get(url);
 			if (c?.abierto) try {
 				c.ws.send(JSON.stringify(["EVENT", ev]));
+				enviado = true;
 				return true;
 			} catch (e) {
 				done(false, String(e?.message || e));
@@ -3047,16 +3070,16 @@ function publicarEvento(ev, url, timeoutMs = 12e3) {
 			return false;
 		};
 		if (!enviar()) {
-			const iv = setInterval(() => {
-				if (enviar()) clearInterval(iv);
-			}, 400);
-			setTimeout(() => clearInterval(iv), timeoutMs + 2500);
+			iv = setInterval(() => {
+				if (enviar() && iv) clearInterval(iv);
+			}, 300);
+			setTimeout(() => { if (iv) clearInterval(iv); }, timeoutMs);
 		}
 		setTimeout(() => {
 			try {
 				off();
 			} catch {}
-		}, timeoutMs + 3e3);
+		}, timeoutMs + 2e3);
 	});
 }
 var CLAVE_CATALOGO = "nostr_catalogo";
@@ -3080,9 +3103,16 @@ async function borrarIdentidad() {
 	});
 }
 async function relaysGuardados() {
-	let lista = (await getMeta(CLAVE_RELAYS, null))?.relays || RELAYS_DEFECTO;
-	if (Array.isArray(lista)) {
-		lista = lista.map((r) => (r === "wss://nos.lol" || r === "wss://nos.lol/") ? "wss://relay.nostr.band" : r);
+	let lista = (await getMeta(CLAVE_RELAYS, null))?.relays;
+	if (!Array.isArray(lista) || !lista.length) {
+		lista = RELAYS_DEFECTO;
+	} else {
+		const setActuales = new Set(lista);
+		const prioritarios = ["wss://relay.nostr.band", "wss://nos.lol", "wss://purplerelay.com", "wss://nostr.oxtr.dev"];
+		for (const p of prioritarios) {
+			if (!setActuales.has(p)) lista.push(p);
+		}
+		lista = lista.filter((r) => r !== "wss://relay.snort.social").slice(0, 8);
 	}
 	return (lista && lista.length) ? lista : RELAYS_DEFECTO;
 }
@@ -3471,12 +3501,14 @@ async function refrescarCatalogo({ onEstado = null } = {}) {
 	};
 }
 /** Publica un evento en todos los relays y devuelve el resumen por relay. */
-async function publicarEnRelays(ev, { onEstado = null } = {}) {
+async function publicarEnRelays(ev, opts = {}) {
+	const timeoutMs = typeof opts === "number" ? opts : (opts?.timeoutMs || 10000);
+	const onEstado = typeof opts === "object" ? opts?.onEstado : null;
 	const relays = await relaysGuardados();
 	const promesas = relays.map(async (url) => {
 		onEstado?.("enviando", url);
 		try {
-			const r = await publicarEvento(ev, url, 6000);
+			const r = await publicarEvento(ev, url, timeoutMs);
 			onEstado?.(r.ok ? "publicado" : "fallo", url, r.detalle);
 			return r;
 		} catch (e) {

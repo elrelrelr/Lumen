@@ -143,8 +143,32 @@ function BuscadorPage({ onSalir, toast, onMagnet, qInicial }) {
 								className: "plain",
 								value: texto,
 								autoFocus: true,
-								placeholder: "Título, autor o ISBN…",
-								onChange: (e) => setTexto(e.target.value),
+								placeholder: "Título, autor, ISBN o magnet…",
+								onChange: (e) => {
+									const val = e.target.value;
+									if (/magnet:\?xt=/i.test(val)) {
+										const m = val.match(/magnet:\?xt=[^\s"'<>]+/i);
+										if (m) {
+											onMagnet?.(m[0]);
+											toast?.("🧲 Enlace magnet detectado: iniciando descarga torrent…");
+											setTexto("");
+											return;
+										}
+									}
+									setTexto(val);
+								},
+								onPaste: (e) => {
+									const pasted = e.clipboardData?.getData("text") || "";
+									if (/magnet:\?xt=/i.test(pasted)) {
+										const m = pasted.match(/magnet:\?xt=[^\s"'<>]+/i);
+										if (m) {
+											e.preventDefault();
+											onMagnet?.(m[0]);
+											toast?.("🧲 Enlace magnet detectado: iniciando descarga torrent…");
+											setTexto("");
+										}
+									}
+								},
 								onKeyDown: (e) => {
 									if (e.key === "Enter" && texto.trim()) buscar(lista[0]);
 								}

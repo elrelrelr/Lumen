@@ -100,6 +100,293 @@ function reducirImagen(file) {
 		fr.readAsDataURL(file);
 	});
 }
+function TutorialCrearLibro({ onCerrar, onIrAEditor }) {
+	const [paso, setPaso] = (0, import_react.useState)(1);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "bc-tut-wrap",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-pills",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 1 ? "activa" : ""}`,
+						onClick: () => setPaso(1),
+						children: ["✍️ 1. Crear"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 2 ? "activa" : ""}`,
+						onClick: () => setPaso(2),
+						children: ["🚀 2. Publicar"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 3 ? "activa" : ""}`,
+						onClick: () => setPaso(3),
+						children: ["🌐 3. Compartir"]
+					})
+				]
+			}),
+			paso === 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "✍️" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 1 de 3 · Creación" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se crea un libro?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Lumen te ofrece múltiples métodos para comenzar o digitalizar tus textos:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "✏️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Escribe en el editor enriquecido: " }),
+											"Redacta con soporte Markdown para títulos (#), negritas (**), cursivas y listas, con contador de palabras y páginas en tiempo real."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🎙️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Voz, cámara y portapapeles: " }),
+											"Dicta con tu voz mediante el micrófono, captura hojas impresas con la cámara para extraer texto por OCR, o pega texto copiado."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📎" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Importa un archivo existente: " }),
+											"Sube documentos en .epub, .pdf, .docx, .txt, .md, .fb2 o .lumen y se transformarán al instante en un libro listo para leer."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "⚡ Flujo de Creación" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "1. Redacta o importa" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#7c5cff" }, children: "→" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "2. Formato y título" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#7c5cff" }, children: "→" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", style: { background: "#7c5cff", color: "#fff" }, children: "3. Pulsar «Crear libro»" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			paso === 2 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "🚀" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 2 de 3 · Publicación" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se publica en la comunidad?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Al terminar de redactar o desde «Publicar libro», configuras tu obra con total privacidad:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🏷️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Ficha, seudónimo y portada: " }),
+											"Define título, autor anónimo o alias, sinopsis y sube tu propia imagen de portada o genera un diseño automático."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "✨" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Personalizaciones a compartir: " }),
+											"Elige con las casillas si incluir música ambiental y volumen (con canciones locales), capítulos divididos, resaltados y diseño de lectura."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📦" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Decisión inteligente de formato: " }),
+											"Si no marcas casillas, se publica en su formato original (.epub, .pdf, .docx, .txt). Si marcas alguna, se empaqueta automáticamente como LumenBook (.lumen)."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "📦 Selector Granular de Metadatos" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Música y volumen" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Capítulos" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Notas & Resaltados" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", style: { background: "rgba(16, 185, 129, 0.2)", color: "#34d399", borderColor: "rgba(16, 185, 129, 0.4)" }, children: "✓ Empaquetado .lumen listo" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			paso === 3 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "🌐" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 3 de 3 · Compartir" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se comparte una vez publicado?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Al publicarse, Lumen te proporciona canales inmediatos y descentralizados:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🔗" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Enlace directo de Lumen: " }),
+											"Copia el enlace único (lumenreader://b/... o enlace web) y envíalo por WhatsApp, Telegram o redes; quien lo toque abrirá el libro de inmediato."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📱" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Código QR instantáneo: " }),
+											"Muestra el QR en tu pantalla para que cualquier persona a tu alrededor lo escanee con la cámara de su móvil y comience a leer al instante."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "⚡" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Nostr, Lumen Storage y Torrent: " }),
+											"Tu libro se replica en relays globales y queda alojado 24/7 en almacenamiento P2P, disponible en la Lumen Store sin censura ni servidores centrales."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "📲 Canales de Difusión" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "🔗 Link corto Lumen" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "📷 Código QR interactivo" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "🟢 Lumen Storage 24/7" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "📡 Red Nostr" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-nav",
+				children: [
+					paso > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn ghost sm",
+						onClick: () => setPaso(paso - 1),
+						children: "← Anterior"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-nav-dots",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 1 ? "activa" : ""}`, onClick: () => setPaso(1) }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 2 ? "activa" : ""}`, onClick: () => setPaso(2) }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 3 ? "activa" : ""}`, onClick: () => setPaso(3) })
+						]
+					}),
+					paso < 3 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn primary sm",
+						onClick: () => setPaso(paso + 1),
+						children: "Siguiente →"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn primary sm",
+						onClick: () => onCerrar?.(),
+						children: "¡Comenzar! 🚀"
+					})
+				]
+			})
+		]
+	});
+}
 function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, editar = null, libroInicial = null, onAbrirAds = null, onAjustes = null }) {
 	const [paso, setPaso] = (0, import_react.useState)(editar ? 2 : 1);
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
@@ -133,6 +420,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 	const [publicando, setPublicando] = (0, import_react.useState)(false);
 	const [progreso, setProgreso] = (0, import_react.useState)("");
 	const [resultado, setResultado] = (0, import_react.useState)(null);
+	const [tutAbierto, setTutAbierto] = (0, import_react.useState)(false);
 
 	// Selección granular de metadatos para publicar (.lumen vs original)
 	const [compartirMusica, setCompartirMusica] = (0, import_react.useState)(false);
@@ -365,7 +653,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 			setProgreso("Enviando a los relays de internet (Damus, Primal, Nostr)…");
 			let resultados = [];
 			try {
-				resultados = await publicarEnRelays(ev);
+				resultados = await publicarEnRelays(ev, 10000);
 			} catch (eRel) {
 				console.warn("[relays publicación offline fallback]", eRel);
 			}
@@ -399,7 +687,7 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 					ok: r.ok,
 					detalle: r.detalle || ""
 				})),
-				_accion: editar ? `Editado (${ok}/${resultados.length} relays)` : (ok > 0 ? `Publicado (${ok}/${resultados.length} relays)` : `Guardado en dispositivo (sin conexión)`)
+				_accion: editar ? (ok > 0 ? `Editado (${ok}/${resultados.length} relays ok)` : "Editado (guardado localmente)") : (ok > 0 ? `Publicado (${ok}/${resultados.length} relays ok)` : "Guardado localmente (reintentará al conectar)")
 			});
 			try { localStorage.setItem("lumen_anon_autor", autor); } catch {}
 			setResultado({
@@ -711,6 +999,28 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 								className: "pb-paso1",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "¿Qué libro quieres publicar?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-banner",
+										onClick: () => setTutAbierto(!tutAbierto),
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-banner-ic", children: "💡" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "bc-tut-banner-txt",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Tutorial ilustrado: Cómo Crear, Publicar y Compartir" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Aprende el flujo de 3 pasos: redacción, metadatos y canales de difusión." })
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "btn sm ghost",
+												children: tutAbierto ? "Ocultar guía" : "Ver tutorial"
+											})
+										]
+									}),
+									tutAbierto ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TutorialCrearLibro, {
+										onCerrar: () => setTutAbierto(false),
+										onIrAEditor: () => setTutAbierto(false)
+									}) : null,
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "row-sub",
 										children: "Elige uno de tus libros, sube un archivo o escribe texto directamente para compartirlo en la comunidad con tu perfil anónimo."
@@ -797,6 +1107,28 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 									className: "pb-paso2",
 									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "bc-tut-banner",
+											onClick: () => setTutAbierto(!tutAbierto),
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-banner-ic", children: "💡" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "bc-tut-banner-txt",
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Tutorial ilustrado: Cómo Crear, Publicar y Compartir" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Aprende el flujo de 3 pasos: redacción, metadatos y canales de difusión." })
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "btn sm ghost",
+													children: tutAbierto ? "Ocultar guía" : "Ver tutorial"
+												})
+											]
+										}),
+										tutAbierto ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TutorialCrearLibro, {
+											onCerrar: () => setTutAbierto(false),
+											onIrAEditor: () => setTutAbierto(false)
+										}) : null,
 										/* Tarjeta de Perfil Anónimo */
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "pb-autor-perfil",

@@ -11421,7 +11421,8 @@ html[data-fuente-app='antigua'] textarea {
 .mp-estado-parcial { color: #fbbf24; border-color: rgba(251,191,36,.4); }
 .mp-estado-local { color: #f87171; border-color: rgba(248,113,113,.4); }
 .mp-acciones { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; }
-.mp-botones { display: flex; flex-wrap: wrap; gap: 7px; }
+.mp-botones { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; max-width: 100%; box-sizing: border-box; }
+.mp-botones .btn { padding: 4px 7px !important; font-size: 11px !important; line-height: 1.2 !important; min-height: 28px !important; white-space: nowrap; flex: 0 1 auto; border-radius: 7px; max-width: 100%; box-sizing: border-box; }
 .mp-relays { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; background: var(--bg-soft); border-radius: 10px; }
 .mp-relay { display: flex; align-items: center; gap: 8px; font-size: 12px; }
 .mp-relay code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-dim); }
@@ -16357,4 +16358,205 @@ body:has(.stories) .sidebar,
   background: var(--accent);
   padding: 2px 8px;
   border-radius: 6px;
+}
+
+/* ═══════════════════════════════════════════════════════
+   v245 · TUTORIAL CREAR, PUBLICAR Y COMPARTIR
+   ═══════════════════════════════════════════════════════ */
+.bc-tut-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  margin: 0 0 14px;
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.14), rgba(0, 212, 255, 0.07));
+  border: 1px solid rgba(124, 92, 255, 0.32);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.bc-tut-banner:hover {
+  background: linear-gradient(135deg, rgba(124, 92, 255, 0.22), rgba(0, 212, 255, 0.12));
+  border-color: rgba(124, 92, 255, 0.5);
+  transform: translateY(-1px);
+}
+.bc-tut-banner-ic {
+  font-size: 24px;
+  line-height: 1;
+}
+.bc-tut-banner-txt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.bc-tut-banner-txt b {
+  font-size: 13.5px;
+  color: var(--fg, #f0f0f5);
+}
+.bc-tut-banner-txt small {
+  font-size: 11.5px;
+  color: var(--fg-dim, #999);
+}
+.bc-tut-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 4px 0 20px;
+}
+.bc-tut-pills {
+  display: flex;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.28);
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+.bc-tut-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--fg-dim, #aaa);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.bc-tut-pill.activa {
+  background: #7c5cff;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(124, 92, 255, 0.35);
+}
+.bc-tut-card {
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.09));
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+.bc-tut-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.bc-tut-card-ic {
+  font-size: 30px;
+  line-height: 1;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(124, 92, 255, 0.15);
+  border: 1px solid rgba(124, 92, 255, 0.3);
+}
+.bc-tut-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(124, 92, 255, 0.2);
+  color: #b3a2ff;
+  margin-bottom: 6px;
+}
+.bc-tut-card-head h4 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--fg, #f0f0f5);
+}
+.bc-tut-card-head p {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--fg-dim, #aaa);
+}
+.bc-tut-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bc-tut-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.bc-tut-item-ic {
+  font-size: 18px;
+  line-height: 1.2;
+}
+.bc-tut-item-txt {
+  flex: 1;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg, #e0e0e8);
+}
+.bc-tut-item-txt strong {
+  color: #fff;
+  display: inline;
+}
+.bc-tut-illus {
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px dashed rgba(124, 92, 255, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.bc-tut-illus-tit {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #7c5cff;
+  letter-spacing: 0.5px;
+}
+.bc-tut-illus-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bc-tut-illus-chip {
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(124, 92, 255, 0.2);
+  color: #e0d8ff;
+  border: 1px solid rgba(124, 92, 255, 0.3);
+}
+.bc-tut-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+}
+.bc-tut-nav-dots {
+  display: flex;
+  gap: 6px;
+}
+.bc-tut-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.bc-tut-dot.activa {
+  background: #7c5cff;
+  width: 22px;
+  border-radius: 4px;
 }

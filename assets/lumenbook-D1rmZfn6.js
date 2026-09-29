@@ -100,28 +100,40 @@ p { margin: 0 0 16px; }
 `;
 function portadaSvg(titulo, autor = "") {
 	let h = 0;
-	const s = String(titulo || "L");
+	const s = `${String(titulo || "L").trim()} ${String(autor || "").trim()}`.toLowerCase();
 	for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
-	const iniciales = s.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0] || "").join("").toUpperCase() || "L";
-	const h2 = (h + 45) % 360;
-	const esc = (t) => t.replace(/[<>&"']/g, (m) => ({
+	const iniciales = String(titulo || "L").split(" ").filter(Boolean).slice(0, 2).map((p) => p[0] || "").join("").toUpperCase() || "L";
+	const h2 = (h + 42) % 360;
+	const esc = (t) => String(t || "").replace(/[<>&"']/g, (m) => ({
 		"<": "&lt;",
 		">": "&gt;",
 		"&": "&amp;",
-		"\"": "&quot;",
+		""": "&quot;",
 		"'": "&#39;"
 	})[m]);
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
-<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-<stop offset="0" stop-color="hsl(${h} 60% 44%)"/>
-<stop offset="1" stop-color="hsl(${h2} 56% 24%)"/>
-</linearGradient></defs>
+<defs>
+  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="hsl(${h} 58% 36%)"/>
+    <stop offset="100%" stop-color="hsl(${h2} 52% 16%)"/>
+  </linearGradient>
+  <linearGradient id="spine" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0" stop-color="rgba(0,0,0,0.6)"/>
+    <stop offset="25px" stop-color="rgba(0,0,0,0.15)"/>
+    <stop offset="35px" stop-color="transparent"/>
+  </linearGradient>
+</defs>
 <rect width="600" height="900" fill="url(#g)"/>
-<text x="300" y="420" font-family="Georgia, serif" font-size="150" font-weight="bold"
-  fill="rgba(255,255,255,0.92)" text-anchor="middle">${esc(iniciales)}</text>
-<text x="300" y="560" font-family="Georgia, serif" font-size="34"
-  fill="rgba(255,255,255,0.8)" text-anchor="middle">${esc(titulo.slice(0, 32))}</text>
-${autor ? `<text x="300" y="620" font-family="sans-serif" font-size="22" fill="rgba(255,255,255,0.6)" text-anchor="middle">${esc(autor.slice(0, 32))}</text>` : ""}
+<rect width="600" height="900" fill="url(#spine)"/>
+<rect x="25" y="25" width="550" height="850" rx="12" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+<rect x="35" y="35" width="530" height="830" rx="8" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
+<circle cx="300" cy="380" r="90" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+<text x="300" y="425" font-family="Georgia, serif" font-size="110" font-weight="bold"
+  fill="rgba(255,255,255,0.95)" text-anchor="middle">${esc(iniciales)}</text>
+<text x="300" y="560" font-family="Georgia, serif" font-size="34" font-weight="bold"
+  fill="#ffffff" text-anchor="middle">${esc(titulo.slice(0, 32))}</text>
+${autor ? `<text x="300" y="625" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-style="italic" fill="rgba(255,255,255,0.8)" text-anchor="middle">${esc(autor.slice(0, 32))}</text>` : ""}
+<line x1="220" y1="670" x2="380" y2="670" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
 </svg>`;
 }
 /** Extrae el texto plano de un capítulo XHTML (para búsquedas/resumen). */

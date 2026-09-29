@@ -187,17 +187,74 @@ if (typeof window !== "undefined") window.__lumenFeed = {
 //#endregion
 //#region src/components/BookCard.jsx
 var import_jsx_runtime = require_jsx_runtime();
-function PortadaFallback({ titulo, alto }) {
+const PALETAS_ARTISTICAS = [
+	{ id: "aurora", bg: "linear-gradient(145deg, #0f2027 0%, #203a43 50%, #2c5364 100%)", acc: "#48dbfb", bord: "rgba(72,219,251,0.3)" },
+	{ id: "sunset", bg: "linear-gradient(145deg, #42275a 0%, #734b6d 50%, #bd6b73 100%)", acc: "#feca57", bord: "rgba(254,202,87,0.35)" },
+	{ id: "emerald", bg: "linear-gradient(145deg, #051923 0%, #003554 40%, #006466 100%)", acc: "#52b788", bord: "rgba(82,183,136,0.35)" },
+	{ id: "crimson", bg: "linear-gradient(145deg, #2b0914 0%, #4a0e2e 50%, #681e3a 100%)", acc: "#ff6b81", bord: "rgba(255,107,129,0.35)" },
+	{ id: "violet", bg: "linear-gradient(145deg, #1f1035 0%, #341a54 50%, #57297e 100%)", acc: "#a29bfe", bord: "rgba(162,155,254,0.35)" },
+	{ id: "amber", bg: "linear-gradient(145deg, #2c1a04 0%, #4a2c08 50%, #6d4310 100%)", acc: "#ffbe76", bord: "rgba(255,190,118,0.35)" },
+	{ id: "ocean", bg: "linear-gradient(145deg, #031b33 0%, #073b6b 50%, #0f5c9e 100%)", acc: "#70a1ff", bord: "rgba(112,161,255,0.35)" },
+	{ id: "coral", bg: "linear-gradient(145deg, #300f16 0%, #531c26 50%, #7a2b37 100%)", acc: "#ff7f50", bord: "rgba(255,127,80,0.35)" },
+	{ id: "moss", bg: "linear-gradient(145deg, #132a13 0%, #1f421f 50%, #31572c 100%)", acc: "#90be6d", bord: "rgba(144,190,109,0.35)" },
+	{ id: "indigo", bg: "linear-gradient(145deg, #0f0c29 0%, #24243e 50%, #302b63 100%)", acc: "#6c5ce7", bord: "rgba(108,92,231,0.35)" },
+	{ id: "wine", bg: "linear-gradient(145deg, #200122 0%, #3a063e 50%, #6f0000 100%)", acc: "#e84393", bord: "rgba(232,67,147,0.35)" },
+	{ id: "steel", bg: "linear-gradient(145deg, #1a1c23 0%, #292d3e 50%, #3b4252 100%)", acc: "#81ecec", bord: "rgba(129,236,236,0.35)" },
+	{ id: "copper", bg: "linear-gradient(145deg, #2b1810 0%, #482a1d 50%, #683d2b 100%)", acc: "#e17055", bord: "rgba(225,112,85,0.35)" },
+	{ id: "space", bg: "linear-gradient(145deg, #0a0e1a 0%, #161b33 50%, #222a52 100%)", acc: "#54a0ff", bord: "rgba(84,160,255,0.35)" },
+	{ id: "gold", bg: "linear-gradient(145deg, #241d0c 0%, #3f3316 50%, #5c4a20 100%)", acc: "#f1c40f", bord: "rgba(241,196,15,0.35)" },
+	{ id: "ruby", bg: "linear-gradient(145deg, #2b001a 0%, #4a002e 50%, #7d0046 100%)", acc: "#fd79a8", bord: "rgba(253,121,168,0.35)" }
+];
+
+function paletaDe(titulo = "", autor = "") {
+	const str = `${String(titulo).trim()} ${String(autor).trim()}`.toLowerCase();
 	let h = 0;
-	for (let i = 0; i < String(titulo).length; i++) h = (h * 31 + String(titulo).charCodeAt(i)) % 360;
+	for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+	return PALETAS_ARTISTICAS[h % PALETAS_ARTISTICAS.length];
+}
+
+function PortadaFallback({ titulo, autor = "", alto = "auto" }) {
+	const pal = paletaDe(titulo, autor);
 	const ini = String(titulo).split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase() || "L";
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "bc-portada bc-fallback",
 		style: {
-			background: `linear-gradient(150deg, hsl(${h} 60% 44%), hsl(${(h + 45) % 360} 56% 24%))`,
-			height: alto
+			background: pal.bg,
+			height: alto,
+			position: "relative",
+			boxShadow: "inset 6px 0 8px -2px rgba(0,0,0,0.5), inset -1px 0 0 rgba(255,255,255,0.1)",
+			display: "flex",
+			flexDirection: "column",
+			justifyContent: "space-between",
+			padding: "8px 6px",
+			boxSizing: "border-box",
+			border: `1px solid ${pal.bord}`,
+			borderRadius: 6,
+			overflow: "hidden"
 		},
-		children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: ini })
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				style: { fontSize: 8, letterSpacing: 0.6, color: pal.acc, textTransform: "uppercase", opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+				children: "LUMEN"
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				style: { textAlign: "center", margin: "auto 0" },
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: { width: 32, height: 32, margin: "0 auto 4px", borderRadius: "50%", border: `1px solid ${pal.acc}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: "bold", color: "#fff", background: "rgba(0,0,0,0.25)" },
+						children: ini
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: { fontSize: 10.5, fontWeight: 700, color: "#fff", lineHeight: 1.2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" },
+						children: titulo
+					})
+				]
+			}),
+			autor ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				style: { fontSize: 8.5, fontStyle: "italic", color: "rgba(255,255,255,0.75)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "center" },
+				children: autor
+			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { height: 8 } })
+		]
 	});
 }
 function txt(v, max) {
@@ -229,6 +286,7 @@ function BookCard({ libro, onAbrir, grande = false }) {
 				draggable: false
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PortadaFallback, {
 				titulo,
+				autor,
 				alto: "auto"
 			})
 		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -322,10 +380,10 @@ function Estrellas({ valor, total = null }) {
 }
 function Portada({ libro, titulo, grande = false }) {
 	const [rota, setRota] = (0, import_react.useState)(false);
-	const h = tono(titulo);
 	const cls = "cg-portada" + (grande ? " cg-portada-lg" : "");
-	const aut = libro.autor || (Array.isArray(libro.authors) ? libro.authors[0] : libro.authors) || "";
-	const tienePortada = libro.portada && !rota && libro.portada !== "assets/icon-192.png";
+	const aut = libro?.autor || (Array.isArray(libro?.authors) ? libro.authors[0] : libro?.authors) || "";
+	const pal = paletaDe(titulo, aut);
+	const tienePortada = libro?.portada && !rota && libro?.portada !== "assets/icon-192.png";
 	if (tienePortada) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cls,
 		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
@@ -342,7 +400,9 @@ function Portada({ libro, titulo, grande = false }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cls + " cg-portada-fake cg-portada-disenada",
 		style: {
-			background: `linear-gradient(150deg, hsl(${h} 50% 24%), hsl(${(h + 40) % 360} 46% 14%))`,
+			background: pal.bg,
+			boxShadow: "inset 8px 0 12px -3px rgba(0,0,0,0.55), inset -1px 0 0 rgba(255,255,255,0.12)",
+			border: `1px solid ${pal.bord}`,
 			display: "flex",
 			flexDirection: "column",
 			justifyContent: "space-between",
@@ -355,14 +415,18 @@ function Portada({ libro, titulo, grande = false }) {
 		},
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-				style: { borderBottom: "1px solid rgba(255,255,255,0.22)", paddingBottom: 3, fontSize: 9.5, letterSpacing: 0.8, textTransform: "uppercase", opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-				children: libro.categoria || "LUMEN"
+				style: { borderBottom: `1px solid ${pal.bord}`, paddingBottom: 3, fontSize: 9.5, letterSpacing: 0.8, textTransform: "uppercase", color: pal.acc, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+				children: libro?.categoria || "LUMEN"
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				style: { margin: "auto 0", padding: "2px" },
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						style: { fontWeight: 700, fontSize: 12.5, lineHeight: 1.25, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" },
+						style: { width: 38, height: 38, margin: "0 auto 6px", borderRadius: "50%", border: `1.5px solid ${pal.acc}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: "bold", color: "#fff", background: "rgba(0,0,0,0.3)" },
+						children: iniciales(titulo)
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						style: { fontWeight: 700, fontSize: 13, lineHeight: 1.25, color: "#fff", textShadow: "0 1px 3px rgba(0,0,0,0.6)", display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden" },
 						children: titulo
 					}),
 					aut ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -373,7 +437,7 @@ function Portada({ libro, titulo, grande = false }) {
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 				className: "lg-sigla-badge sigla-lum",
-				children: (libro.fuente ? String(libro.fuente).slice(0, 3).toUpperCase() : "LUM")
+				children: (libro?.fuente ? String(libro.fuente).slice(0, 3).toUpperCase() : "LUM")
 			})
 		]
 	});
@@ -612,7 +676,7 @@ function LumenScannerQR({ open, onClose, onCodigoDetectado, toast }) {
 
 /** Chat y sistema descentralizado de reseñas P2P sobre Nostr */
 function ChatResenas({ libro, toast }) {
-	const libroId = libro?.d || libro?.id || "";
+	const libroId = String(libro?.d || libro?.id || "").trim();
 	const [resenas, setResenas] = (0, import_react.useState)(() => {
 		try {
 			return JSON.parse(localStorage.getItem("lumen_resenas_" + libroId) || "[]");
@@ -620,6 +684,15 @@ function ChatResenas({ libro, toast }) {
 			return [];
 		}
 	});
+
+	(0, import_react.useEffect)(() => {
+		if (!libroId) return;
+		try {
+			setResenas(JSON.parse(localStorage.getItem("lumen_resenas_" + libroId) || "[]"));
+			setMiRating(Number(localStorage.getItem("lumen_mi_calificacion_" + libroId) || 0));
+			setMisMensajes(new Set(JSON.parse(localStorage.getItem("lumen_mis_resenas_" + libroId) || "[]")));
+		} catch {}
+	}, [libroId]);
 	const [miTexto, setMiTexto] = (0, import_react.useState)("");
 	const [miRating, setMiRating] = (0, import_react.useState)(() => {
 		try {
@@ -686,7 +759,7 @@ function ChatResenas({ libro, toast }) {
 						} catch {}
 						const tagD = ev.tags?.find((t) => t[0] === "d")?.[1];
 						const tagT = ev.tags?.find((t) => t[0] === "t")?.[1];
-						if (tagT !== "lumen-resena" && tagD !== libroId) return;
+						if (tagT !== "lumen-resena" || tagD !== libroId) return;
 						
 						const autorNom = ev.tags?.find((t) => t[0] === "author_name")?.[1] || npubCorto(ev.pubkey);
 						const autorAvatar = ev.tags?.find((t) => t[0] === "author_avatar")?.[1] || generarFacehashUri(ev.pubkey + ":" + autorNom, 36);
@@ -1197,8 +1270,45 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		let file = "";
 		let cov = "";
 		let mag = "";
+		let aud = "";
+		let vid = "";
 		let cat = "";
 		let desc = "";
+
+		// Detección directa de magnet URI
+		const matchMagnet = str.match(/magnet:\?xt=[^\s"'<>]+/i);
+		if (matchMagnet) {
+			const magUrl = matchMagnet[0];
+			let nombre = "";
+			let hash = "";
+			try {
+				const params = new URLSearchParams(magUrl.replace(/^magnet:\?/i, ""));
+				const xt = params.get("xt") || "";
+				const dn = params.get("dn") || "";
+				hash = xt.replace(/^urn:btih:/i, "").trim();
+				if (dn) {
+					nombre = decodeURIComponent(dn).replace(/\+/g, " ").replace(/\.(epub|pdf|mobi|cbz|txt|lumen)$/i, "").trim();
+				}
+			} catch {}
+			if (!nombre) {
+				const dnMatch = magUrl.match(/[?&]dn=([^&]+)/i);
+				if (dnMatch) nombre = decodeURIComponent(dnMatch[1]).replace(/\+/g, " ").replace(/\.(epub|pdf|mobi|cbz|txt|lumen)$/i, "").trim();
+			}
+			const idMag = "mag_" + (hash.slice(0, 16) || Math.random().toString(36).slice(2, 10));
+			return {
+				id: idMag,
+				d: idMag,
+				tit: nombre || "Libro torrent",
+				aut: "Red Torrent P2P",
+				file: "",
+				cov: "",
+				mag: magUrl,
+				aud: "",
+				vid: "",
+				cat: "torrent",
+				desc: "Descarga e intercambio descentralizado por red BitTorrent P2P."
+			};
+		}
 
 		try {
 			const urlMatch = str.match(/https?:\/\/[^\s"'<>]+/i) || str.match(/lumen(?:reader)?:\/\/[^\s"'<>]+/i);
@@ -1215,6 +1325,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			file = u.searchParams.get("f") || u.searchParams.get("file") || "";
 			cov = u.searchParams.get("c") || u.searchParams.get("cov") || "";
 			mag = u.searchParams.get("m") || u.searchParams.get("mag") || "";
+			aud = u.searchParams.get("aud") || u.searchParams.get("audio") || "";
+			vid = u.searchParams.get("vid") || u.searchParams.get("video") || "";
 			cat = u.searchParams.get("cat") || "";
 			desc = u.searchParams.get("desc") || "";
 		} catch {
@@ -1230,6 +1342,12 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			if (mFile) file = decodeURIComponent(mFile[1]);
 			const mCov = str.match(/[?&](?:c|cov)=([^&\s#]+)/i);
 			if (mCov) cov = decodeURIComponent(mCov[1]);
+			const mMag = str.match(/[?&](?:m|mag)=([^&\s#]+)/i);
+			if (mMag) mag = decodeURIComponent(mMag[1]);
+			const mAud = str.match(/[?&](?:aud|audio)=([^&\s#]+)/i);
+			if (mAud) aud = decodeURIComponent(mAud[1]);
+			const mVid = str.match(/[?&](?:vid|video)=([^&\s#]+)/i);
+			if (mVid) vid = decodeURIComponent(mVid[1]);
 		}
 
 		if (!id && str.startsWith("{") && str.endsWith("}")) {
@@ -1241,16 +1359,22 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					aut = obj.a || obj.autor || "";
 					file = obj.f || obj.fileUrl || "";
 					mag = obj.m || obj.magnet || "";
+					aud = obj.aud || obj.audioUrl || "";
+					vid = obj.vid || obj.videoUrl || "";
 				}
 			} catch {}
+		}
+
+		if (!id && (file || mag || tit)) {
+			id = "lumen_" + Math.random().toString(36).slice(2, 9);
 		}
 
 		if (!id && /^[a-z0-9_-]{10,80}$/i.test(str)) {
 			id = str;
 		}
 
-		if (!id) return null;
-		return { id, tit, aut, file, cov, mag, cat, desc };
+		if (!id && !mag) return null;
+		return { id: id || "mag_lib", tit, aut, file, cov, mag, aud, vid, cat, desc };
 	};
 
 	const extraerIdLibro = (texto) => {
@@ -1286,24 +1410,27 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			}
 		} catch {}
 
-		if (metaDatos && (metaDatos.tit || metaDatos.titulo || metaDatos.file || metaDatos.fileUrl)) {
+		if (metaDatos && (metaDatos.tit || metaDatos.titulo || metaDatos.file || metaDatos.fileUrl || metaDatos.mag || metaDatos.magnet)) {
 			const libroShared = {
 				id: target,
 				d: target,
-				titulo: metaDatos.tit || metaDatos.titulo || "Libro compartido",
-				autor: metaDatos.aut || metaDatos.autor || "Autor Lumen",
+				titulo: metaDatos.tit || metaDatos.titulo || (metaDatos.mag ? "Libro Torrent" : "Libro compartido"),
+				autor: metaDatos.aut || metaDatos.autor || (metaDatos.mag ? "Red Torrent P2P" : "Autor Lumen"),
 				fileUrl: metaDatos.file || metaDatos.fileUrl || "",
 				portada: metaDatos.cov || metaDatos.portada || "",
 				magnet: metaDatos.mag || metaDatos.magnet || "",
-				categoria: metaDatos.cat || metaDatos.categoria || "general",
+				audioUrl: metaDatos.aud || metaDatos.audioUrl || "",
+				videoUrl: metaDatos.vid || metaDatos.videoUrl || "",
+				categoria: metaDatos.cat || metaDatos.categoria || (metaDatos.mag ? "torrent" : "general"),
 				descripcion: metaDatos.desc || metaDatos.descripcion || "",
 				createdAt: Date.now(),
 				esCompartido: true
 			};
 			setLibros((prev) => [libroShared, ...prev.filter((b) => b.d !== target && b.id !== target)]);
 			setDetalle(libroShared);
-			toast?.("📖 Libro compartido detectado: " + libroShared.titulo);
+			toast?.(metaDatos.mag ? ("🧲 Enlace torrent detectado: " + libroShared.titulo) : ("📖 Libro detectado: " + libroShared.titulo));
 			haptic.tap();
+			return true;
 		} else {
 			toast?.("🔎 Buscando libro en la red descentralizada…");
 		}
@@ -1576,9 +1703,12 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const fileParam = encodeURIComponent(libro.fileUrl || "");
 			const covParam = encodeURIComponent(libro.portada || "");
 			const magParam = encodeURIComponent(libro.magnet || "");
+			const audParam = encodeURIComponent(libro.audioUrl || libro.audio || "");
+			const vidParam = encodeURIComponent(libro.videoUrl || libro.video || "");
 			const catParam = encodeURIComponent(libro.categoria || "");
-			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&cat=${catParam}`;
-			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}?tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}`;
+			const descParam = encodeURIComponent(String(libro.descripcion || "").slice(0, 300));
+			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&aud=${audParam}&vid=${vidParam}&cat=${catParam}&desc=${descParam}`;
+			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}?tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&aud=${audParam}&vid=${vidParam}&cat=${catParam}&desc=${descParam}`;
 			const texto = `📕 ${libro.titulo || libro.title}\n${libro.autor ? `✍️ ${libro.autor}\n` : ""}\n🌐 Enlace en Lumen Store:\n${enlaceWeb}\n\n📱 Lumen Reader: ${enlaceApp}${libro.magnet ? `\n\n🧲 Magnet: ${libro.magnet}` : ""}`;
 			if (window.AndroidShare?.shareText) {
 				window.AndroidShare.shareText(libro.titulo || "Lumen Reader", texto);
@@ -1629,6 +1759,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 			
 			const magnet = (libro.magnet || "").trim();
 			if (magnet) params.set("m", magnet);
+			const audio = (libro.audioUrl || libro.audio || "").trim();
+			if (audio) params.set("aud", audio);
+			const video = (libro.videoUrl || libro.video || "").trim();
+			if (video) params.set("vid", video);
+			const desc = (libro.descripcion || libro.synopsis || "").trim();
+			if (desc) params.set("desc", desc.slice(0, 300));
+			const cat = (libro.categoria || "").trim();
+			if (cat) params.set("cat", cat);
 			
 			const enlaceWeb = `${origin}${pathname}/?${params.toString()}`;
 
@@ -1923,10 +2061,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 													if (lgUrlAbierto) setLgUrlWeb(val);
 													else {
 														const parsed = extraerDatosLibroEnlace(val);
-														if (parsed?.id) {
+														if (parsed?.id || parsed?.mag) {
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(parsed.id, parsed);
+															resolverYMostrarLibro(parsed.id || parsed.mag, parsed);
 															return;
 														}
 														setLgQ(val);
@@ -1937,11 +2075,12 @@ const cargar = (0, import_react.useCallback)(async () => {
 													if (!lgUrlAbierto) {
 														const texto = e.clipboardData?.getData("text") || "";
 														const parsed = extraerDatosLibroEnlace(texto);
-														if (parsed?.id) {
+														if (parsed?.id || parsed?.mag) {
 															e.preventDefault();
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(parsed.id, parsed);
+															resolverYMostrarLibro(parsed.id || parsed.mag, parsed);
+															return;
 														}
 													}
 												},
@@ -2944,7 +3083,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn",
-									disabled: !detalle.magnet && !detalle.cid && !detalle.download && !detalle.fileUrl || descargando,
+									disabled: descargando,
 									onClick: async () => {
 										if (detalle.fileUrl) {
 											const nombreLumen = ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "libro") + ".lumen";
@@ -2953,7 +3092,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 												const ct = r.headers.get("content-type") || "";
 												if (r.ok && !ct.includes("text/html")) {
 													const blob = await r.blob();
-													if (blob.size > 5000) {
+													if (blob.size > 2000) {
 														const url = URL.createObjectURL(blob);
 														const a = document.createElement("a");
 														a.href = url;
@@ -2964,9 +3103,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 														return;
 													}
 												}
-											} catch {}
-											window.open(detalle.fileUrl, "_blank", "noopener");
-											toast("Abriendo Lumen Storage: guarda el .lumen en esa página e impórtalo con el botón + de la biblioteca.");
+											} catch (eStorage) {
+												console.warn("[storage fetch]", eStorage);
+											}
+										}
+										if (detalle.magnet) {
+											__vitePreload(() => import("./streaming-CGdx3ecV.js").then((n) => n.i).then((m) => {
+												toast(m.descargarPorTorrent(detalle.magnet) ? "Descarga torrent iniciada: síguela en la Biblioteca torrent (menú → Torrents)" : "No se pudo iniciar el torrent en este dispositivo");
+											}), __vite__mapDeps([9,2,1,5]), import.meta.url);
 											return;
 										}
 										if (detalle.download) {
@@ -2982,41 +3126,50 @@ const cargar = (0, import_react.useCallback)(async () => {
 													a.click();
 													setTimeout(() => URL.revokeObjectURL(url), 4e3);
 													toast("Descargado. Impórtalo con el botón + de la biblioteca.");
-												} else toast("No se pudo descargar: " + r.status);
+													return;
+												}
 											} catch (e) {
-												toast("Error al descargar: " + (e?.message || e));
+												console.warn("[download error]", e);
 											} finally {
 												setDescargando(false);
 											}
-											return;
 										}
-										if (detalle.magnet) {
-											__vitePreload(() => import("./streaming-CGdx3ecV.js").then((n) => n.i).then((m) => {
-												toast(m.descargarPorTorrent(detalle.magnet) ? "Descarga torrent iniciada: síguela en la Biblioteca torrent (menú → Torrents)" : "No se pudo iniciar el torrent en este dispositivo");
-											}), __vite__mapDeps([9,2,1,5]), import.meta.url);
-											return;
-										}
-										if (detalle.cid) {
+										// Paquete .lumen generado y descomprimible al vuelo sin depender de servidores caídos
+										try {
 											setDescargando(true);
-											try {
-												const r = await descargarLumenPorGateway(detalle);
-												if (r?.blob) {
-													const url = URL.createObjectURL(r.blob);
-													const a = document.createElement("a");
-													a.href = url;
-													a.download = r.nombre || "libro.lumen";
-													a.click();
-													setTimeout(() => URL.revokeObjectURL(url), 4e3);
-													toast("Descargado como " + (r.nombre || "libro.lumen") + ". Impórtalo con el botón + de la biblioteca.");
-												} else toast("Los gateways IPFS no respondieron; inténtalo más tarde");
-											} catch (e) {
-												toast("Error al descargar: " + (e?.message || e));
-											} finally {
-												setDescargando(false);
-											}
+											const { construirLumenPersonal } = await __vitePreload(() => import("./lumenbook-D1rmZfn6.js"), __vite__mapDeps([13,14,10]), import.meta.url);
+											const caps = [detalle.descripcion || detalle.synopsis || `Capítulo 1: ${detalle.titulo}`];
+											const meta = {
+												titulo: detalle.titulo,
+												autor: detalle.autor || "Autor Lumen",
+												categoria: detalle.categoria || "general",
+												descripcion: detalle.descripcion || "",
+												idioma: detalle.idioma || "es",
+												audioUrl: detalle.audioUrl || "",
+												paginas: 1
+											};
+											const personal = {
+												titulo: detalle.titulo,
+												autor: detalle.autor,
+												audioUrl: detalle.audioUrl || null,
+												videoUrl: detalle.videoUrl || null,
+												createdAt: Date.now()
+											};
+											const lb = await construirLumenPersonal(meta, caps, detalle.portada || null, personal);
+											const url = URL.createObjectURL(lb.blob);
+											const a = document.createElement("a");
+											a.href = url;
+											a.download = lb.nombre || ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() + ".lumen");
+											a.click();
+											setTimeout(() => URL.revokeObjectURL(url), 4e3);
+											toast("📦 Paquete .lumen descargado al vuelo con portada y personalizaciones. ¡Impórtalo con el botón +!");
+										} catch (eBuild) {
+											toast("No se pudo generar la descarga: " + (eBuild?.message || eBuild));
+										} finally {
+											setDescargando(false);
 										}
 									},
-									children: descargando ? "⏳…" : detalle.fileUrl ? "↓ Descargar (Lumen Storage)" : detalle.magnet ? "↓ Descargar" : detalle.download ? "↓ Descargar" : detalle.cid ? "↓ Descargar (IPFS)" : "↓ Sin descarga"
+									children: descargando ? "⏳…" : detalle.fileUrl ? "↓ Descargar (Lumen Storage)" : detalle.magnet ? "↓ Descargar (Torrent)" : "↓ Descargar .lumen"
 								}),
 								(detalle.audioUrl || detalle.videoUrl) ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 	className: "cg-detalle-media-btns",
@@ -3080,7 +3233,7 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								" reporte(s). Con 3+ pasa a revisión de la comunidad."
 							]
 						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatResenas, { libro: detalle, toast })
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatResenas, { libro: detalle, toast, key: detalle?.d || detalle?.id || "chat" })
 					]
 				})
 			}),

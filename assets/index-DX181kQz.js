@@ -11340,7 +11340,7 @@ async function importFile(file, onProgress = () => {}, opts = {}) {
 		addedAt: now,
 		openedAt: now,
 		status: "importing",
-		hasOriginal: kind === "pdf" || kind === "image" || kind === "epub" || kind === "docx" || kind === "md" || kind === "html" || kind === "txt" || kind === "pptx" || kind === "xlsx",
+		hasOriginal: true,
 		ocrPages: [],
 		needsOcrPages: [],
 		percentRead: 0
@@ -11372,7 +11372,8 @@ async function importFile(file, onProgress = () => {}, opts = {}) {
 		throw err;
 	}
 	try {
-		if (["docx", "md", "html", "txt", "pptx", "xlsx", "rtf", "fb2", "srt"].includes(kind)) await stashOriginal(book.id, file, file.type || "application/octet-stream");
+		await putBlob(book.id, file).catch(() => {});
+		if (["docx", "md", "html", "txt", "pptx", "xlsx", "rtf", "fb2", "srt", "lumen", "epub", "pdf"].includes(kind)) await stashOriginal(book.id, file, file.type || "application/octet-stream").catch(() => {});
 	} catch {}
 	onProgress({
 		percent: 100,
@@ -11884,6 +11885,8 @@ async function importarLumen(file, book, onProgress, opts) {
 		percent: 5,
 		label: "Abriendo el contenedor .lumen…"
 	});
+	await putBlob(book.id, file).catch(() => {});
+	await stashOriginal(book.id, file, "application/octet-stream").catch(() => {});
 	const buf = await file.arrayBuffer();
 	const { parsearLumen } = await __vitePreload(async () => {
 		const { parsearLumen } = await import("./lumenbook-D1rmZfn6.js");
@@ -12008,6 +12011,7 @@ async function importarLumen(file, book, onProgress, opts) {
 	let todo = "";
 	for (const c of r.capitulos) todo += await extraerTextoXhtml(c.html) + "\n\n";
 	await savePaginated(book, todo, onProgress, "lumen");
+	await patchBook(book.id, { hasOriginal: true, kind: "lumen" });
 	const stPersTxt = await aplicarPersonalLumen(book.id, r.personal, r.audios);
 	if (stPersTxt) opts?.onPersonal?.(stPersTxt);
 }
@@ -33617,6 +33621,293 @@ async function leerArchivo(file) {
 	}
 	return file.text();
 }
+function TutorialCrearLibro({ onCerrar, onIrAEditor }) {
+	const [paso, setPaso] = (0, import_react.useState)(1);
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "bc-tut-wrap",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-pills",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 1 ? "activa" : ""}`,
+						onClick: () => setPaso(1),
+						children: ["✍️ 1. Crear"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 2 ? "activa" : ""}`,
+						onClick: () => setPaso(2),
+						children: ["🚀 2. Publicar"]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						className: `bc-tut-pill ${paso === 3 ? "activa" : ""}`,
+						onClick: () => setPaso(3),
+						children: ["🌐 3. Compartir"]
+					})
+				]
+			}),
+			paso === 1 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "✍️" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 1 de 3 · Creación" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se crea un libro?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Lumen te ofrece múltiples métodos para comenzar o digitalizar tus textos:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "✏️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Escribe en el editor enriquecido: " }),
+											"Redacta con soporte Markdown para títulos (#), negritas (**), cursivas y listas, con contador de palabras y páginas en tiempo real."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🎙️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Voz, cámara y portapapeles: " }),
+											"Dicta con tu voz mediante el micrófono, captura hojas impresas con la cámara para extraer texto por OCR, o pega texto copiado."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📎" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Importa un archivo existente: " }),
+											"Sube documentos en .epub, .pdf, .docx, .txt, .md, .fb2 o .lumen y se transformarán al instante en un libro listo para leer."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "⚡ Flujo de Creación" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "1. Redacta o importa" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#7c5cff" }, children: "→" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "2. Formato y título" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#7c5cff" }, children: "→" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", style: { background: "#7c5cff", color: "#fff" }, children: "3. Pulsar «Crear libro»" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			paso === 2 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "🚀" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 2 de 3 · Publicación" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se publica en la comunidad?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Al terminar de redactar o desde «Publicar libro», configuras tu obra con total privacidad:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🏷️" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Ficha, seudónimo y portada: " }),
+											"Define título, autor anónimo o alias, sinopsis y sube tu propia imagen de portada o genera un diseño automático."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "✨" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Personalizaciones a compartir: " }),
+											"Elige con las casillas si incluir música ambiental y volumen (con canciones locales), capítulos divididos, resaltados y diseño de lectura."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📦" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Decisión inteligente de formato: " }),
+											"Si no marcas casillas, se publica en su formato original (.epub, .pdf, .docx, .txt). Si marcas alguna, se empaqueta automáticamente como LumenBook (.lumen)."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "📦 Selector Granular de Metadatos" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Música y volumen" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Capítulos" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "☑️ Notas & Resaltados" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", style: { background: "rgba(16, 185, 129, 0.2)", color: "#34d399", borderColor: "rgba(16, 185, 129, 0.4)" }, children: "✓ Empaquetado .lumen listo" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			paso === 3 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-card",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-card-head",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "bc-tut-card-ic", children: "🌐" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-badge", children: "Paso 3 de 3 · Compartir" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h4", { children: "¿Cómo se comparte una vez publicado?" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "Al publicarse, Lumen te proporciona canales inmediatos y descentralizados:" })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-items",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "🔗" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Enlace directo de Lumen: " }),
+											"Copia el enlace único (lumenreader://b/... o enlace web) y envíalo por WhatsApp, Telegram o redes; quien lo toque abrirá el libro de inmediato."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "📱" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Código QR instantáneo: " }),
+											"Muestra el QR en tu pantalla para que cualquier persona a tu alrededor lo escanee con la cámara de su móvil y comience a leer al instante."
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-item",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-item-ic", children: "⚡" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "bc-tut-item-txt",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("strong", { children: "Nostr, Lumen Storage y Torrent: " }),
+											"Tu libro se replica en relays globales y queda alojado 24/7 en almacenamiento P2P, disponible en la Lumen Store sin censura ni servidores centrales."
+										]
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-illus",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-tit", children: "📲 Canales de Difusión" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-illus-row",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "🔗 Link corto Lumen" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "📷 Código QR interactivo" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "🟢 Lumen Storage 24/7" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-illus-chip", children: "📡 Red Nostr" })
+								]
+							})
+						]
+					})
+				]
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "bc-tut-nav",
+				children: [
+					paso > 1 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn ghost sm",
+						onClick: () => setPaso(paso - 1),
+						children: "← Anterior"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-nav-dots",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 1 ? "activa" : ""}`, onClick: () => setPaso(1) }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 2 ? "activa" : ""}`, onClick: () => setPaso(2) }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: `bc-tut-dot ${paso === 3 ? "activa" : ""}`, onClick: () => setPaso(3) })
+						]
+					}),
+					paso < 3 ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn primary sm",
+						onClick: () => setPaso(paso + 1),
+						children: "Siguiente →"
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						className: "btn primary sm",
+						onClick: () => onIrAEditor?.(),
+						children: "¡Empezar a redactar! ✍️"
+					})
+				]
+			})
+		]
+	});
+}
 function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 	const [tab, setTab] = (0, import_react.useState)("editor");
 	const [hayCam, setHayCam] = (0, import_react.useState)(false);
@@ -33766,12 +34057,15 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 				addedAt: now,
 				openedAt: now,
 				status: "ready",
-				hasOriginal: false,
+				hasOriginal: true,
 				ocrPages: [],
 				needsOcrPages: [],
 				percentRead: 0,
 				own: true
 			});
+			const blobTxt = new Blob([body], { type: "text/plain;charset=utf-8" });
+			await putBlob(id, blobTxt).catch(() => {});
+			await stashOriginal(id, blobTxt, "text/plain").catch(() => {});
 			await putPages(pages.map((t, i) => ({
 				bookId: id,
 				index: i,
@@ -33935,6 +34229,11 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 						"Editor"
 					],
 					[
+						"tutorial",
+						"💡",
+						"Tutorial"
+					],
+					[
 						"convertir",
 						"🔄",
 						"Convertir"
@@ -33950,9 +34249,28 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: ico }), label]
 				}, id))
 			}),
+			tab === "tutorial" && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TutorialCrearLibro, {
+				onCerrar: () => setTab("editor"),
+				onIrAEditor: () => setTab("editor")
+			}),
 			tab === "editor" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "bc-editor-wrap",
 				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "bc-tut-banner",
+						onClick: () => setTab("tutorial"),
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "bc-tut-banner-ic", children: "💡" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "bc-tut-banner-txt",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Tutorial ilustrado: Cómo Crear, Publicar y Compartir" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Aprende el flujo de 3 pasos: redacción, metadatos y canales de difusión." })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "btn sm ghost", children: "Ver tutorial" })
+						]
+					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "bc-title-row",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
@@ -38574,7 +38892,12 @@ const toquesDev = (0, import_react.useRef)(0);
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "book-cover",
-						style: b.color ? { background: b.color } : void 0,
+						style: b.color ? { background: b.color } : (b.cover ? void 0 : (() => {
+							const s = `${String(b.title || b.name || "").trim()} ${String(b.author || "").trim()}`.toLowerCase();
+							let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+							const deg = h % 360;
+							return { background: `linear-gradient(145deg, hsl(${deg} 55% 36%), hsl(${(deg + 45) % 360} 52% 18%))`, boxShadow: "inset 5px 0 8px -2px rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 6 };
+						})()),
 						children: b.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 							src: b.cover,
 							alt: ""
@@ -44865,6 +45188,47 @@ function origCachePoner(id, val) {
 	origCacheBytes += b;
 }
 /** Visor del archivo ORIGINAL para epub/docx/pptx/xlsx/md/html/txt. */
+async function extraerLumenHtml(buf, bookId) {
+	try {
+		const { parsearLumen } = await __vitePreload(async () => {
+			const { parsearLumen } = await import("./lumenbook-D1rmZfn6.js");
+			return { parsearLumen };
+		}, __vite__mapDeps([5,1,4]), import.meta.url);
+		const r = await parsearLumen(buf);
+		if (r && r.ok) {
+			if (r.tipo === "paged") {
+				const zip = await cargarZipOriginal(buf);
+				const pdfName = Object.keys(zip.files).find((n) => /^original\.pdf$/i.test(n) || /\.pdf$/i.test(n));
+				if (pdfName) {
+					const pdfBlob = await zip.file(pdfName).async("blob");
+					return { tipo: "iframe", url: URL.createObjectURL(pdfBlob) };
+				}
+				if (r.paginas && r.paginas.length) {
+					const partes = r.paginas.map((pg, pi) => `<div class="orig-lumen-page" style="margin-bottom:24px;padding:16px;background:rgba(255,255,255,0.02);border-radius:8px;">${pg.texto ? sanearHtmlDoc(pg.texto) : `<p>Página ${pi + 1}</p>`}</div>`);
+					return { tipo: "html", partes, bytes: partes.join("").length };
+				}
+			} else if (r.capitulos && r.capitulos.length) {
+				const partes = r.capitulos.map((cap) => `<div class="orig-lumen-chapter" style="margin-bottom:30px;padding:18px;background:rgba(255,255,255,0.02);border-radius:10px;">${sanearHtmlDoc(cap.html || "")}</div>`);
+				return { tipo: "html", partes, bytes: partes.join("").length };
+			}
+		}
+	} catch (e) {
+		console.warn("[extraerLumenHtml error]", e);
+	}
+	try {
+		const zip = await cargarZipOriginal(buf);
+		const capFiles = Object.keys(zip.files).filter((n) => /\.xhtml$/i.test(n) || /\.html$/i.test(n)).sort();
+		if (capFiles.length) {
+			const partes = [];
+			for (const nom of capFiles) {
+				const htmlCont = await zip.file(nom).async("string");
+				partes.push(`<div class="orig-lumen-file" style="margin-bottom:28px;">${sanearHtmlDoc(htmlCont)}</div>`);
+			}
+			return { tipo: "html", partes, bytes: partes.join("").length };
+		}
+	} catch {}
+	return null;
+}
 function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 	const [st, setSt] = (0, import_react.useState)({ cargando: true });
 	(0, import_react.useEffect)(() => {
@@ -44882,18 +45246,31 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 				else setSt({ texto: cached.texto });
 				return;
 			}
-			const blob = await getOriginal(book.id);
+			let blob = await getOriginal(book.id).catch(() => null);
 			if (!vivo) return;
 			if (!blob) {
-				setSt({ error: "Este libro se importó en una versión anterior y no guardó su archivo original. Vuelve a importarlo para verlo aquí en su formato original." });
+				// Respaldo universal si no hay blob guardado
+				const pags = await getAllPages(book.id).catch(() => []);
+				if (vivo && pags && pags.length) {
+					let fullHtml = "";
+					for (let i = 0; i < pags.length; i++) {
+						const t = pags[i].text || "";
+						fullHtml += `<div class="orig-fallback-page" style="margin-bottom:28px;padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;"><h4 style="color:#7c5cff;margin:0 0 10px;font-size:0.95em;">Página ${i + 1}</h4><div style="white-space:pre-wrap;line-height:1.75;">${t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div></div>`;
+					}
+					const partes = trozarHtml(fullHtml || "<p>Documento sin texto.</p>");
+					origCachePoner(book.id, { tipo: "html", partes, bytes: fullHtml.length });
+					setSt({ partes, shown: 1 });
+					return;
+				}
+				setSt({ error: "No se encontró el archivo original ni páginas de texto para este libro." });
 				return;
 			}
 			const kind = book.kind;
-			if (kind === "html") {
+			if (kind === "html" || kind === "pdf") {
 				setSt({ iframe: URL.createObjectURL(blob) });
 				return;
 			}
-			if (kind === "txt" || kind === "srt") {
+			if (kind === "txt" || kind === "srt" || kind === "propio") {
 				const t = await blob.text();
 				if (!vivo) return;
 				origCachePoner(book.id, { tipo: "texto", texto: t, bytes: t.length });
@@ -44909,6 +45286,18 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 				return;
 			}
 			const buf = await blob.arrayBuffer();
+			if (kind === "lumen") {
+				const resLumen = await extraerLumenHtml(buf, book.id);
+				if (vivo && resLumen) {
+					if (resLumen.tipo === "iframe") {
+						setSt({ iframe: resLumen.url });
+						return;
+					}
+					origCachePoner(book.id, { tipo: "html", partes: resLumen.partes, bytes: resLumen.bytes });
+					setSt({ partes: resLumen.partes, shown: 1 });
+					return;
+				}
+			}
 			if (kind === "docx") {
 				const mammoth = await __vitePreload(() => import("./docx-C8HcItRg.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1)), __vite__mapDeps([3,1]), import.meta.url);
 				const r = await (mammoth.default || mammoth).convertToHtml({ arrayBuffer: buf });
@@ -44946,8 +45335,33 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 				}
 				return;
 			}
+			// Fallback universal para fb2, rtf, mobi, cbz, doc, propio, etc.
+			const pags = await getAllPages(book.id).catch(() => []);
+			if (vivo && pags && pags.length) {
+				let fullHtml = "";
+				for (let i = 0; i < pags.length; i++) {
+					const t = pags[i].text || "";
+					fullHtml += `<div class="orig-fallback-page" style="margin-bottom:28px;padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;"><h4 style="color:#7c5cff;margin:0 0 10px;font-size:0.95em;">Página ${i + 1}</h4><div style="white-space:pre-wrap;line-height:1.75;">${t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div></div>`;
+				}
+				const partes = trozarHtml(fullHtml);
+				origCachePoner(book.id, { tipo: "html", partes, bytes: fullHtml.length });
+				setSt({ partes, shown: 1 });
+				return;
+			}
 			if (vivo) setSt({ error: "Este formato no tiene visor original." });
 		} catch (e) {
+			console.warn("[OriginalDoc error general]", e);
+			const pags = await getAllPages(book.id).catch(() => []);
+			if (vivo && pags && pags.length) {
+				let fullHtml = "";
+				for (let i = 0; i < pags.length; i++) {
+					const t = pags[i].text || "";
+					fullHtml += `<div class="orig-fallback-page" style="margin-bottom:28px;padding:16px;background:rgba(255,255,255,0.03);border-radius:8px;"><h4 style="color:#7c5cff;margin:0 0 10px;font-size:0.95em;">Página ${i + 1}</h4><div style="white-space:pre-wrap;line-height:1.75;">${t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div></div>`;
+				}
+				const partes = trozarHtml(fullHtml);
+				setSt({ partes, shown: 1 });
+				return;
+			}
 			if (vivo) setSt({ error: "No se pudo abrir el original: " + String(e?.message || e) });
 		}
 	})();
@@ -44955,10 +45369,6 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 			vivo = false;
 		};
 	}, [book.id]);
-	// v191 (#1): los fragmentos se añaden al DOM UNA sola vez (efecto de
-	// abajo): el viejo slice(0, shown).map() re-renderizaba TODOS los
-	// fragmentos ya pintados en cada tick (O(n²) en libros largos) — por eso
-	// el contenido «nunca terminaba de cargar».
 	const origPartesEl = (0, import_react.useRef)(null);
 	const origPartesHechas = (0, import_react.useRef)(0);
 	const origPartesId = (0, import_react.useRef)(null);
@@ -44977,9 +45387,6 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 			origPartesHechas.current += 1;
 		}
 	}, [st.partes, st.shown]);
-	// v183 (#3): pintura progresiva — añade 3 fragmentos por tick (40 ms) hasta
-	// completar el documento. El contenido crece en pantalla en vez de esperar
-	// un spinner eterno (libros largos); cada fragmento se parsea una sola vez.
 	(0, import_react.useEffect)(() => {
 		if (!st.partes || st.shown >= st.partes.length) return;
 		const t = setTimeout(() => setSt((s) => (s && s.partes && s.shown < s.partes.length) ? { ...s, shown: Math.min(s.shown + 3, s.partes.length) } : s), 40);
@@ -45022,8 +45429,6 @@ function OriginalDoc({ book, onVerTexto, fontStyle, flowStyle, onFlowScroll }) {
 				style: { color: fontStyle && fontStyle.color },
 				children: st.texto
 			}),
-			// v191 (#1): contenedor vacío — el efecto v191 va añadiendo los
-			// fragmentos al DOM a medida que st.shown crece.
 			st.partes && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "orig-html",
 				style: { color: fontStyle && fontStyle.color },
@@ -45141,7 +45546,20 @@ async function extraerImagenesDeLibro(b) {
 					} catch {}
 				}
 			}
-		} else if (k === "md" || k === "html" || k === "txt") {
+		} else if (k === "lumen") {
+			const zip = await cargarZipOriginal(buf);
+			const mimeExt = { png: "image/png", gif: "image/gif", webp: "image/webp", jpg: "image/jpeg", jpeg: "image/jpeg" };
+			for (const [nom, f] of Object.entries(zip.files)) {
+				if (f.dir) continue;
+				const ext = (nom.split(".").pop() || "").toLowerCase();
+				if (["png", "jpg", "jpeg", "webp"].includes(ext)) {
+					try {
+						const bytes = await f.async("uint8array");
+						imgs.push(URL.createObjectURL(new Blob([bytes], { type: mimeExt[ext] || "image/jpeg" })));
+					} catch {}
+				}
+			}
+		} else if (k === "md" || k === "html" || k === "txt" || k === "propio") {
 			if (b.cover) imgs.push(b.cover);
 		}
 	} catch (e) {
@@ -50384,7 +50802,7 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							className: mode === "original" ? "on" : "",
 							onClick: () => setMode("original"),
-							disabled: !book.hasOriginal,
+							disabled: false,
 							title: "Original (documento fuente)",
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IconBook, {
 								width: 15,
@@ -55952,8 +56370,15 @@ function App() {
 		const onPedirImportar = (ev) => {
 			if (ev.detail) manejarAbrirLibro(ev.detail);
 		};
+		const onPedirPublicar = (ev) => {
+			setPublicarOpen({ modo: "nuevo", libroId: ev?.detail?.libroId });
+		};
 		window.addEventListener("lumen:importar-y-abrir", onPedirImportar);
-		return () => window.removeEventListener("lumen:importar-y-abrir", onPedirImportar);
+		window.addEventListener("lumen:abrir-publicar", onPedirPublicar);
+		return () => {
+			window.removeEventListener("lumen:importar-y-abrir", onPedirImportar);
+			window.removeEventListener("lumen:abrir-publicar", onPedirPublicar);
+		};
 	}, [manejarAbrirLibro]);
 	const goLibrary = (0, import_react.useCallback)((pushHistory = true) => {
 		// v195 (#7): al cerrar el libro, mostrar los logros de esa lectura.
