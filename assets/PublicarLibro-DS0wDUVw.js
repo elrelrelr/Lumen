@@ -331,7 +331,18 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 			let blob = null;
 			if (editar && fuente?.tipo === "editar" && !capsFuente.length) {
 				blob = await obtenerBlobLumen(editar.d);
-				if (!blob) throw new Error("No se encuentra el .lumen original");
+				if (!blob) {
+					blob = (await construirLumen({
+						titulo,
+						autor,
+						categoria,
+						idioma,
+						descripcion,
+						ad: null,
+						donacion,
+						zap
+					}, [descripcion || titulo], portada || null)).blob;
+				}
 			} else {
 				blob = (await construirLumen({
 					titulo,

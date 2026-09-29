@@ -15,10 +15,10 @@ var __vitePreload = (fn, deps) => {
 	return fn();
 };
 import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, A as importarDesdeUrl, B as paginate } from "./index-DX181kQz.js";
-import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados } from "./nostr-zC6Qsl2z.js";
+import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados, conectarRelay, suscribir, crearEvento, firmarEvento, libroDeEvento } from "./nostr-zC6Qsl2z.js";
 import { n as disponibilidad, t as descargarLumenPorGateway } from "./streaming-CGdx3ecV.js";
-import { c as libroDePublicado, l as listarPublicados } from "./publicados-63Om61aj.js";
-import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
+import { c as libroDePublicado, l as listarPublicados, borrarPublicadoLocal, borrarBlobLumen } from "./publicados-63Om61aj.js";
+import { t as qrDataUrl, decodificarQr } from "./qrLumen-BDUGNJQb.js";
 //#region src/lib/bookCard.js
 var import_react = require_react();
 var URL_SAFE = /^(https:|magnet:|ipfs:|lumenreader:)/i;
@@ -273,26 +273,51 @@ var tono = (s) => {
 	return h;
 };
 var iniciales = (s) => String(s).split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]).join("").toUpperCase();
-/** Rating decorativo determinístico: mismo libro → mismas estrellas. */
+/** Calificación real otorgada por usuarios lectores. */
 function ratingDe(libro) {
-	const s = String(libro.id || libro.d || "");
-	let h = 0;
-	for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1e3;
-	const estrellas = 3.6 + h % 15 / 10;
-	const reseñas = 4 + h % 2400;
+	if (!libro) return { estrellas: 0, reseñas: 0, esReal: false };
+	const id = libro.d || libro.id || "";
+	let reviews = [];
+	try {
+		reviews = JSON.parse(localStorage.getItem("lumen_resenas_" + id) || "[]");
+	} catch {}
+	let userRatings = [];
+	try {
+		userRatings = JSON.parse(localStorage.getItem("lumen_ratings_" + id) || "[]");
+	} catch {}
+	const allStars = [
+		...reviews.map((r) => r.rating).filter((n) => typeof n === "number" && n >= 1 && n <= 5),
+		...userRatings.map(Number).filter((n) => !isNaN(n) && n >= 1 && n <= 5)
+	];
+	if (allStars.length > 0) {
+		const sum = allStars.reduce((a, b) => a + b, 0);
+		const avg = Math.round((sum / allStars.length) * 10) / 10;
+		return {
+			estrellas: avg,
+			reseñas: allStars.length,
+			esReal: true
+		};
+	}
 	return {
-		estrellas: Math.round(estrellas * 10) / 10,
-		reseñas
+		estrellas: 0,
+		reseñas: 0,
+		esReal: false
 	};
 }
-function Estrellas({ valor }) {
+function Estrellas({ valor, total = null }) {
+	const val = typeof valor === "number" && !isNaN(valor) ? Math.max(0, Math.min(5, valor)) : 0;
+	const llenas = Math.round(val);
+	const vacias = 5 - llenas;
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 		className: "cg-stars",
-		title: `${valor} de 5`,
-		children: ["★".repeat(Math.round(valor)), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {
-			style: { color: "var(--fg-mute)" },
-			children: "★".repeat(5 - Math.round(valor))
-		})]
+		title: val > 0 ? `${val} de 5 estrellas` + (total !== null ? ` (${total} reseñas)` : "") : "Sin valoraciones aún",
+		children: [
+			llenas > 0 ? "★".repeat(llenas) : "",
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", {
+				style: { color: "var(--fg-mute)", opacity: 0.35 },
+				children: "★".repeat(vacias)
+			})
+		]
 	});
 }
 function Portada({ libro, titulo, grande = false }) {
@@ -373,6 +398,600 @@ const BIBLIOTECAS_INFO = [
 	["annas", "Anna's Archive", "📕"]
 ];
 const BIB_DEFECTO = { gutendex: true, openlibrary: true, archive: true, "wikisource-es": true, "wikisource-en": true, royalroad: true, wattpad: true, arxiv: true, annas: true };
+
+/** Escáner QR integrado de Lumen con soporte para cámara en vivo y carga de imágenes */
+function LumenScannerQR({ open, onClose, onCodigoDetectado, toast }) {
+	const videoRef = (0, import_react.useRef)(null);
+	const canvasRef = (0, import_react.useRef)(null);
+	const fileInputRef = (0, import_react.useRef)(null);
+	const streamRef = (0, import_react.useRef)(null);
+	const animRef = (0, import_react.useRef)(null);
+	const [estatus, setEstatus] = (0, import_react.useState)("Iniciando cámara…");
+
+	(0, import_react.useEffect)(() => {
+		if (!open) {
+			if (streamRef.current) {
+				streamRef.current.getTracks().forEach((t) => t.stop());
+				streamRef.current = null;
+			}
+			if (animRef.current) cancelAnimationFrame(animRef.current);
+			return;
+		}
+
+		let activo = true;
+		setEstatus("Buscando código QR…");
+
+		const iniciarCamara = async () => {
+			try {
+				if (!navigator.mediaDevices?.getUserMedia) {
+					setEstatus("Tu navegador no soporta cámara en vivo. Puedes subir una foto con el QR.");
+					return;
+				}
+				const stream = await navigator.mediaDevices.getUserMedia({
+					video: { facingMode: { ideal: "environment" } }
+				});
+				if (!activo) {
+					stream.getTracks().forEach((t) => t.stop());
+					return;
+				}
+				streamRef.current = stream;
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream;
+					await videoRef.current.play().catch(() => {});
+				}
+				bucleEscaneo();
+			} catch (err) {
+				setEstatus("No se pudo acceder a la cámara. Selecciona o toma una foto con el código QR abajo.");
+			}
+		};
+
+		const bucleEscaneo = async () => {
+			if (!activo) return;
+			const video = videoRef.current;
+			const canvas = canvasRef.current;
+			if (video && canvas && video.readyState >= 2 && video.videoWidth > 0) {
+				canvas.width = video.videoWidth;
+				canvas.height = video.videoHeight;
+				const ctx = canvas.getContext("2d", { willReadFrequently: true });
+				if (ctx) {
+					ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+					const resultado = await decodificarQr(canvas);
+					if (resultado && activo) {
+						activo = false;
+						if (streamRef.current) {
+							streamRef.current.getTracks().forEach((t) => t.stop());
+							streamRef.current = null;
+						}
+						haptic.tap();
+						onCodigoDetectado?.(resultado);
+						onClose();
+						return;
+					}
+				}
+			}
+			animRef.current = requestAnimationFrame(bucleEscaneo);
+		};
+
+		iniciarCamara();
+
+		return () => {
+			activo = false;
+			if (animRef.current) cancelAnimationFrame(animRef.current);
+			if (streamRef.current) {
+				streamRef.current.getTracks().forEach((t) => t.stop());
+				streamRef.current = null;
+			}
+		};
+	}, [open]);
+
+	const procesarArchivoImagen = async (e) => {
+		const archivo = e.target.files?.[0];
+		if (!archivo) return;
+		setEstatus("Analizando imagen…");
+		try {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const img = new Image();
+				img.onload = async () => {
+					const canvas = canvasRef.current || document.createElement("canvas");
+					canvas.width = img.naturalWidth || img.width;
+					canvas.height = img.naturalHeight || img.height;
+					const ctx = canvas.getContext("2d", { willReadFrequently: true });
+					ctx.drawImage(img, 0, 0);
+					const resultado = await decodificarQr(canvas);
+					if (resultado) {
+						haptic.tap();
+						onCodigoDetectado?.(resultado);
+						onClose();
+					} else {
+						setEstatus("No se encontró ningún código QR en la imagen.");
+						toast?.("No se detectó ningún código QR en esa imagen.");
+					}
+				};
+				img.src = reader.result;
+			};
+			reader.readAsDataURL(archivo);
+		} catch (err) {
+			setEstatus("Error al leer el archivo de imagen.");
+		}
+	};
+
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
+		open,
+		onClose: () => {
+			if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
+			onClose();
+		},
+		title: "📷 Escáner QR de Lumen",
+		children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			className: "cg-qr-scanner-modal",
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "cg-scanner-viewport",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("video", {
+							ref: videoRef,
+							playsInline: true,
+							autoPlay: true,
+							muted: true,
+							className: "cg-scanner-video"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("canvas", {
+							ref: canvasRef,
+							style: { display: "none" }
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-scanner-reticle",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-scanner-laser" })
+							]
+						})
+					]
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+					className: "cg-scanner-status",
+					children: estatus
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "cg-scanner-acciones",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							type: "file",
+							accept: "image/*",
+							ref: fileInputRef,
+							onChange: procesarArchivoImagen,
+							style: { display: "none" }
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "btn",
+							onClick: () => fileInputRef.current?.click(),
+							children: "📁 Subir foto o imagen con QR"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "btn sm",
+							onClick: onClose,
+							children: "Cerrar"
+						})
+					]
+				})
+			]
+		})
+	});
+}
+
+/** Chat y sistema descentralizado de reseñas P2P sobre Nostr */
+function ChatResenas({ libro, toast }) {
+	const libroId = libro?.d || libro?.id || "";
+	const [resenas, setResenas] = (0, import_react.useState)(() => {
+		try {
+			return JSON.parse(localStorage.getItem("lumen_resenas_" + libroId) || "[]");
+		} catch {
+			return [];
+		}
+	});
+	const [miTexto, setMiTexto] = (0, import_react.useState)("");
+	const [miRating, setMiRating] = (0, import_react.useState)(() => {
+		try {
+			return Number(localStorage.getItem("lumen_mi_calificacion_" + libroId) || 0);
+		} catch {
+			return 0;
+		}
+	});
+	const [respondiendoA, setRespondiendoA] = (0, import_react.useState)(null);
+	const [notifRespuesta, setNotifRespuesta] = (0, import_react.useState)(null);
+	const [enviando, setEnviando] = (0, import_react.useState)(false);
+	const [miIdentidad, setMiIdentidad] = (0, import_react.useState)(null);
+	const [misMensajes, setMisMensajes] = (0, import_react.useState)(() => {
+		try {
+			return new Set(JSON.parse(localStorage.getItem("lumen_mis_resenas_" + libroId) || "[]"));
+		} catch {
+			return new Set();
+		}
+	});
+	const chatEndRef = (0, import_react.useRef)(null);
+	const inputRef = (0, import_react.useRef)(null);
+
+	(0, import_react.useEffect)(() => {
+		(async () => {
+			let id = await identidadGuardada();
+			if (!id) {
+				id = generarIdentidad();
+				await guardarIdentidad(id);
+			}
+			setMiIdentidad(id);
+		})();
+	}, []);
+
+	(0, import_react.useEffect)(() => {
+		if (!libroId) return;
+		let vivo = true;
+		(async () => {
+			try {
+				const relays = await relaysGuardados();
+				for (const url of relays) {
+					const subId = "chat-" + libroId.slice(0, 8) + "-" + Math.random().toString(36).slice(2, 6);
+					conectarRelay(url, (ev, sId) => {
+						if (!vivo || sId !== subId || !ev || ev.kind !== 1) return;
+						const tagD = ev.tags?.find((t) => t[0] === "d")?.[1];
+						const tagT = ev.tags?.find((t) => t[0] === "t")?.[1];
+						if (tagT !== "lumen-resena" && tagD !== libroId) return;
+						
+						const autorNom = ev.tags?.find((t) => t[0] === "author_name")?.[1] || npubCorto(ev.pubkey);
+						const autorAvatar = ev.tags?.find((t) => t[0] === "author_avatar")?.[1] || generarFacehashUri(ev.pubkey + ":" + autorNom, 36);
+						const tagRating = ev.tags?.find((t) => t[0] === "rating")?.[1];
+						const ratingNum = tagRating ? parseInt(tagRating, 10) : null;
+						const replyTo = ev.tags?.find((t) => t[0] === "reply_to")?.[1] || null;
+						const replyAuthor = ev.tags?.find((t) => t[0] === "reply_author")?.[1] || null;
+						const tagP = ev.tags?.find((t) => t[0] === "p")?.[1] || null;
+
+						const nueva = {
+							id: ev.id,
+							pubkey: ev.pubkey,
+							autor: autorNom,
+							avatar: autorAvatar,
+							texto: String(ev.content || "").slice(0, 1000),
+							rating: ratingNum,
+							createdAt: ev.created_at ? ev.created_at * 1000 : Date.now(),
+							replyTo,
+							replyAuthor,
+							esAutor: Boolean(libro.pubkey && (ev.pubkey === libro.pubkey || (libro.evento?.pubkey && ev.pubkey === libro.evento.pubkey)))
+						};
+
+						setResenas((prev) => {
+							if (prev.some((r) => r.id === nueva.id)) return prev;
+							const lista = [...prev, nueva].sort((a, b) => a.createdAt - b.createdAt);
+							try {
+								localStorage.setItem("lumen_resenas_" + libroId, JSON.stringify(lista));
+							} catch {}
+							return lista;
+						});
+
+						if (replyTo && (misMensajes.has(replyTo) || (miIdentidad?.pubHex && tagP === miIdentidad.pubHex))) {
+							setNotifRespuesta({
+								autor: autorNom,
+								texto: nueva.texto,
+								targetId: nueva.id
+							});
+							haptic.tap();
+						}
+					});
+					suscribir(url, subId, [
+						{ kinds: [1], "#t": ["lumen-resena"], "#d": [libroId], limit: 60 }
+					]);
+				}
+			} catch (e) {
+				console.warn("[chat] error relays", e);
+			}
+		})();
+		return () => {
+			vivo = false;
+		};
+	}, [libroId, misMensajes, miIdentidad]);
+
+	const hacerScrollA = (id) => {
+		const el = document.getElementById("resena-" + id);
+		if (el) {
+			el.scrollIntoView({ behavior: "smooth", block: "center" });
+			el.classList.add("resena-destacada");
+			setTimeout(() => el.classList.remove("resena-destacada"), 2200);
+		}
+	};
+
+	const enviarMensaje = async (e) => {
+		e?.preventDefault?.();
+		const textoLimpio = miTexto.trim();
+		if (!textoLimpio) {
+			toast?.("Escribe tu comentario o reseña");
+			return;
+		}
+		if (!miIdentidad) {
+			toast?.("Iniciando identidad anónima…");
+			return;
+		}
+		setEnviando(true);
+		try {
+			const nombreAnon = localStorage.getItem("lumen_anon_autor") || "Lector anónimo";
+			const seed = localStorage.getItem("lumen_anon_avatar_seed") || ("seed-" + miIdentidad.pubHex.slice(0, 8));
+			const avatarUri = generarFacehashUri(seed + ":" + nombreAnon, 36);
+
+			const tags = [
+				["t", "lumen-resena"],
+				["d", libroId],
+				["author_name", nombreAnon],
+				["author_avatar", avatarUri]
+			];
+			if (miRating > 0) tags.push(["rating", String(miRating)]);
+			if (respondiendoA) {
+				tags.push(["reply_to", respondiendoA.id]);
+				tags.push(["reply_author", respondiendoA.autor]);
+				if (respondiendoA.pubkey) tags.push(["p", respondiendoA.pubkey]);
+			}
+
+			const ev = firmarEvento(crearEvento({
+				pubkey: miIdentidad.pubHex,
+				kind: 1,
+				tags,
+				content: textoLimpio
+			}), miIdentidad.privHex);
+
+			await publicarEnRelays(ev);
+
+			const nueva = {
+				id: ev.id,
+				pubkey: miIdentidad.pubHex,
+				autor: nombreAnon,
+				avatar: avatarUri,
+				texto: textoLimpio,
+				rating: miRating > 0 ? miRating : null,
+				createdAt: Date.now(),
+				replyTo: respondiendoA?.id || null,
+				replyAuthor: respondiendoA?.autor || null,
+				esAutor: Boolean(libro.esMio || (libro.pubkey && miIdentidad.pubHex === libro.pubkey))
+			};
+
+			const nuevaLista = [...resenas, nueva].sort((a, b) => a.createdAt - b.createdAt);
+			setResenas(nuevaLista);
+			try {
+				localStorage.setItem("lumen_resenas_" + libroId, JSON.stringify(nuevaLista));
+				const mset = new Set([...misMensajes, ev.id]);
+				setMisMensajes(mset);
+				localStorage.setItem("lumen_mis_resenas_" + libroId, JSON.stringify([...mset]));
+				if (miRating > 0) {
+					localStorage.setItem("lumen_mi_calificacion_" + libroId, String(miRating));
+					const ratingsActuales = JSON.parse(localStorage.getItem("lumen_ratings_" + libroId) || "[]");
+					ratingsActuales.push(miRating);
+					localStorage.setItem("lumen_ratings_" + libroId, JSON.stringify(ratingsActuales));
+				}
+			} catch {}
+
+			setMiTexto("");
+			setRespondiendoA(null);
+			toast?.("💬 Reseña enviada a la red descentralizada");
+			haptic.tap();
+			setTimeout(() => {
+				chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+			}, 100);
+		} catch (err) {
+			toast?.("Error al enviar mensaje: " + (err?.message || err));
+		} finally {
+			setEnviando(false);
+		}
+	};
+
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "cg-resenas-chat",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-chat-header",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "💬 Reseñas y Chat Descentralizado" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+						className: "cg-chat-sub",
+						children: [
+							resenas.length,
+							" ",
+							resenas.length === 1 ? "mensaje" : "mensajes",
+							" · Nostr P2P"
+						]
+					})
+				]
+			}),
+
+			notifRespuesta && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-resena-notif",
+				onClick: () => {
+					hacerScrollA(notifRespuesta.targetId);
+					setNotifRespuesta(null);
+				},
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						children: [
+							"🔔 ",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: notifRespuesta.autor }),
+							" respondió a tu reseña: «",
+							notifRespuesta.texto.slice(0, 42),
+							notifRespuesta.texto.length > 42 ? "…" : "",
+							"»"
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+						className: "cg-notif-ir",
+						children: "Ver respuesta ↓"
+					})
+				]
+			}),
+
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-chat-lista",
+				children: [
+					resenas.length === 0 ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-chat-vacio",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { children: "✍️ Aún no hay reseñas ni comentarios para este libro." }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Sé el primero en calificarlo o dejar tu opinión. El autor y los lectores se comunican de forma abierta y directa sin servidores centrales." })
+						]
+					}) : resenas.map((m) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						id: "resena-" + m.id,
+						className: "cg-resena-item" + (m.esAutor ? " autor" : ""),
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-resena-meta",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+										src: m.avatar,
+										alt: m.autor,
+										className: "cg-resena-avatar"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-resena-autor-wrap",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+												className: "cg-resena-autor",
+												children: m.autor
+											}),
+											m.esAutor ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "cg-badge-autor",
+												children: "✍️ Autor"
+											}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "cg-badge-lector",
+												children: "📖 Lector"
+											}),
+											m.rating > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "cg-resena-stars",
+												children: "★".repeat(m.rating)
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+										className: "cg-resena-tiempo",
+										children: new Date(m.createdAt).toLocaleDateString("es-CO", {
+											month: "short",
+											day: "numeric",
+											hour: "2-digit",
+											minute: "2-digit"
+										})
+									})
+								]
+							}),
+
+							m.replyTo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "cg-resena-quote",
+								onClick: () => hacerScrollA(m.replyTo),
+								title: "Ir al mensaje respondido",
+								children: [
+									"↩ En respuesta a ",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: m.replyAuthor ? `@${m.replyAuthor}` : "mensaje previo" }),
+									" ↑"
+								]
+							}),
+
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "cg-resena-texto",
+								children: m.texto
+							}),
+
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-resena-pie",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									type: "button",
+									className: "cg-resena-btn-resp",
+									onClick: () => {
+										setRespondiendoA({
+											id: m.id,
+											autor: m.autor,
+											pubkey: m.pubkey,
+											texto: m.texto
+										});
+										inputRef.current?.focus?.();
+									},
+									children: "↩ Responder"
+								})
+							})
+						]
+					}, m.id)),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { ref: chatEndRef })
+				]
+			}),
+
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("form", {
+				className: "cg-chat-form",
+				onSubmit: enviarMensaje,
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-star-picker",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "cg-star-picker-label",
+								children: "Tu calificación:"
+							}),
+							[1, 2, 3, 4, 5].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								key: s,
+								type: "button",
+								className: "cg-star-btn" + (s <= miRating ? " on" : ""),
+								onClick: () => setMiRating(s === miRating ? 0 : s),
+								title: `${s} estrellas`,
+								children: "★"
+							}))
+						]
+					}),
+
+					respondiendoA && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-chat-resp-banner",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								children: [
+									"↩ Respondiendo a ",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: `@${respondiendoA.autor}` }),
+									": «",
+									respondiendoA.texto.slice(0, 36),
+									respondiendoA.texto.length > 36 ? "…" : "",
+									"»"
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "button",
+								className: "cg-chat-resp-cancel",
+								onClick: () => setRespondiendoA(null),
+								children: "✕ Cancelar"
+							})
+						]
+					}),
+
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-chat-input-row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+								ref: inputRef,
+								className: "cg-chat-input",
+								placeholder: respondiendoA ? `Escribe tu respuesta a @${respondiendoA.autor}…` : "Escribe tu reseña u opinión sobre este libro…",
+								value: miTexto,
+								maxLength: 1000,
+								rows: 2,
+								onChange: (e) => setMiTexto(e.target.value),
+								onKeyDown: (e) => {
+									if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+										e.preventDefault();
+										enviarMensaje();
+									}
+								}
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								type: "submit",
+								className: "btn primary cg-chat-enviar-btn",
+								disabled: enviando || !miTexto.trim(),
+								children: enviando ? "⏳…" : respondiendoA ? "↩ Responder" : "💬 Publicar"
+							})
+						]
+					})
+				]
+			})
+		]
+	});
+}
+
 function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
@@ -391,6 +1010,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [panelRelays, setPanelRelays] = (0, import_react.useState)(false);
 	const [misLibros, setMisLibros] = (0, import_react.useState)([]);
 	const [descargando, setDescargando] = (0, import_react.useState)(false);
+	const [escanerAbierto, setEscanerAbierto] = (0, import_react.useState)(false);
 	const [feeds, setFeeds] = (0, import_react.useState)([]);
 	const [librosFeed, setLibrosFeed] = (0, import_react.useState)([]);
 	// v198: el catálogo de LIBROS GRATIS vive embebido aquí (sección):
@@ -477,6 +1097,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			setPanelRelays(false);
 			return true;
 		}
+		if (escanerAbierto) {
+			setEscanerAbierto(false);
+			return true;
+		}
 		if (qrAbierto) {
 			setQrAbierto(false);
 			return true;
@@ -491,7 +1115,154 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		}
 		return false;
 	});
-	const cargar = (0, import_react.useCallback)(async () => {
+	
+	const extraerIdLibro = (texto) => {
+		if (!texto || typeof texto !== "string") return null;
+		const str = texto.trim();
+		const matchLibro = str.match(/[?&]libro=([^&\s#]+)/i);
+		if (matchLibro) return decodeURIComponent(matchLibro[1]);
+		const matchHash = str.match(/#[^?\s]*[?&]?b=([^&\s#]+)/i) || str.match(/#libro=([^&\s#]+)/i);
+		if (matchHash) return decodeURIComponent(matchHash[1]);
+		const matchProto = str.match(/lumen(?:reader)?:\/\/b\/([^&\s#?]+)/i);
+		if (matchProto) return decodeURIComponent(matchProto[1]);
+		const matchPath = str.match(/\/b\/([^&\s#?]+)/i);
+		if (matchPath) return decodeURIComponent(matchPath[1]);
+		if (str.startsWith("{") && str.endsWith("}")) {
+			try {
+				const obj = JSON.parse(str);
+				if (obj.d || obj.id) return obj.d || obj.id;
+			} catch {}
+		}
+		return null;
+	};
+
+	const resolverYMostrarLibro = async (targetId) => {
+		if (!targetId) return false;
+		const target = String(targetId).trim();
+		const pool = [...(libros || []), ...(misLibros || []), ...(librosFeed || [])];
+		const enMemoria = pool.find(
+			(b) => b.d === target || b.id === target || b.slug === target || (b.d && b.d.toLowerCase() === target.toLowerCase())
+		);
+		if (enMemoria) {
+			setDetalle(enMemoria);
+			toast?.("📖 Libro detectado: " + (enMemoria.titulo || enMemoria.title));
+			haptic.tap();
+			return true;
+		}
+		try {
+			const cat = JSON.parse(localStorage.getItem("lumen_catalogo") || "[]");
+			const pubs = JSON.parse(localStorage.getItem("lumen_publicados") || "[]");
+			const enStorage = [...cat, ...pubs.map(libroDePublicado)].find(
+				(b) => b.d === target || b.id === target || b.slug === target
+			);
+			if (enStorage) {
+				setDetalle(enStorage);
+				toast?.("📖 Libro detectado: " + (enStorage.titulo || enStorage.title));
+				haptic.tap();
+				return true;
+			}
+		} catch {}
+		toast?.("🔎 Buscando libro en la red descentralizada…");
+		try {
+			const relays = await relaysGuardados();
+			let encontrado = null;
+			for (const url of relays) {
+				if (encontrado) break;
+				await new Promise((resolve) => {
+					const subId = "b-look-" + Math.random().toString(36).slice(2, 7);
+					const filtros = [
+						{ kinds: [30023, 30004], "#d": [target], limit: 1 },
+						{ kinds: [30023, 30004], ids: [target], limit: 1 }
+					];
+					let timeout = setTimeout(() => resolve(), 3000);
+					conectarRelay(url, (ev, sId) => {
+						if (sId === subId && ev && (ev.kind === 30023 || ev.kind === 30004)) {
+							clearTimeout(timeout);
+							encontrado = libroDeEvento(ev);
+							resolve();
+						}
+					});
+					suscribir(url, subId, filtros);
+				});
+			}
+			if (encontrado) {
+				setLibros((prev) => [encontrado, ...prev.filter((b) => b.d !== encontrado.d)]);
+				setDetalle(encontrado);
+				toast?.("📖 Libro encontrado: " + encontrado.titulo);
+				haptic.tap();
+				return true;
+			}
+		} catch (e) {
+			console.warn("[lookup error]", e);
+		}
+		toast?.("No se encontró el libro con identificador: " + target);
+		return false;
+	};
+
+	(0, import_react.useEffect)(() => {
+		try {
+			if (typeof window !== "undefined") {
+				const params = new URLSearchParams(window.location.search);
+				const p = params.get("libro") || params.get("b");
+				if (p) {
+					resolverYMostrarLibro(p);
+				} else if (window.location.hash) {
+					const tid = extraerIdLibro(window.location.hash);
+					if (tid) resolverYMostrarLibro(tid);
+				}
+			}
+		} catch {}
+	}, []);
+
+	const confirmarEliminar = async (libro) => {
+		if (!libro) return;
+		const nombre = libro.titulo || libro.title || "este libro";
+		if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente «${nombre}» de tus libros?`)) return;
+		try {
+			setMisLibros((prev) => prev.filter((b) => (b.d ? b.d !== libro.d : b.id !== libro.id)));
+			setLibros((prev) => prev.filter((b) => (b.d ? b.d !== libro.d : b.id !== libro.id)));
+			if (detalle?.d === libro.d || detalle?.id === libro.id) {
+				setDetalle(null);
+			}
+			if (libro.d || libro.id) {
+				const idTarget = libro.d || libro.id;
+				await borrarPublicadoLocal(idTarget);
+				await borrarBlobLumen(idTarget);
+			}
+			try {
+				const cat = JSON.parse(localStorage.getItem("lumen_catalogo") || "[]");
+				const filtrado = cat.filter((b) => (libro.d ? b.d !== libro.d : b.id !== libro.id));
+				localStorage.setItem("lumen_catalogo", JSON.stringify(filtrado));
+			} catch {}
+			try {
+				const pubs = JSON.parse(localStorage.getItem("lumen_publicados") || "[]");
+				const filtradoPubs = pubs.filter((b) => (libro.d ? b.d !== libro.d : b.id !== libro.id));
+				localStorage.setItem("lumen_publicados", JSON.stringify(filtradoPubs));
+			} catch {}
+			const id = identidad || (await identidadGuardada());
+			if (id && (libro.evento?.id || libro.id)) {
+				try {
+					const tags = [["e", libro.evento?.id || libro.id]];
+					if (libro.d) tags.push(["a", `30023:${id.pubHex}:${libro.d}`]);
+					const ev = firmarEvento(crearEvento({
+						pubkey: id.pubHex,
+						kind: 5,
+						tags,
+						content: "Borrado por el autor desde Lumen Store"
+					}), id.privHex);
+					await publicarEnRelays(ev);
+				} catch (errRelay) {
+					console.warn("[borrado relays]", errRelay);
+				}
+			}
+			haptic.tap();
+			toast?.("🗑 Libro eliminado definitivamente de Mis libros");
+		} catch (e) {
+			toast?.("Error al eliminar libro: " + (e?.message || e));
+		}
+	};
+
+const cargar = (0, import_react.useCallback)(async () => {
 		setEstado("cargando");
 		setRelaysActivos(0);
 		try {
@@ -629,27 +1400,39 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	};
 	const compartirLibro = async (libro) => {
 		try {
-			const enlace = "lumenreader://b/" + (libro.d || libro.id);
-			const texto = `📕 ${libro.titulo}\n` + (libro.autor ? `✍️ ${libro.autor}\n` : "") + (libro.descripcion ? `${String(libro.descripcion).slice(0, 120)}...\n` : "") + `\nAbrir en Lumen Reader: ${enlace}` + (libro.magnet ? `\n\nMagnet: ${libro.magnet}` : "");
+			const idLibro = libro.d || libro.id;
+			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
+			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
+			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}`;
+			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}`;
+			const texto = `📕 ${libro.titulo || libro.title}\n${libro.autor ? `✍️ ${libro.autor}\n` : ""}\n🌐 Enlace en Lumen Store:\n${enlaceWeb}\n\n📱 Lumen Reader: ${enlaceApp}${libro.magnet ? `\n\n🧲 Magnet: ${libro.magnet}` : ""}`;
 			if (window.AndroidShare?.shareText) {
-				window.AndroidShare.shareText("Lumen Reader", texto);
+				window.AndroidShare.shareText(libro.titulo || "Lumen Reader", texto);
 				haptic.tap();
 				return;
 			}
 			if (navigator.share) {
-				await navigator.share({
-					title: libro.titulo,
-					text: texto
-				});
-				return;
+				try {
+					await navigator.share({
+						title: libro.titulo || libro.title,
+						text: texto,
+						url: enlaceWeb
+					});
+					return;
+				} catch (err) {
+					if (err.name === "AbortError") return;
+				}
 			}
 			const { copyText } = await __vitePreload(async () => {
 				const { copyText } = await import("./index-DX181kQz.js").then((n) => n.o);
 				return { copyText };
 			}, __vite__mapDeps([3,2,4,1,5,6,7,8]), import.meta.url);
-			await copyText(texto);
-			toast?.("Enlace copiado");
-		} catch {}
+			await copyText(enlaceWeb);
+			toast?.("📋 Enlace universal copiado. ¡Pégalo en la búsqueda de Lumen Store en cualquier dispositivo!");
+			haptic.tap();
+		} catch (e) {
+			toast?.("No se pudo compartir: " + (e?.message || e));
+		}
 	};
 	const delRelay = buscarLibros(filtrarLibros(libros, { categoria }), lgQ).filter((b) => !ocultarAdultos || b.rating !== "adulto");
 	const miosFiltrados = buscarLibros(misLibros, lgQ).filter((b) => !categoria || b.categoria === categoria);
@@ -753,8 +1536,27 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 													const val = e.target.value;
 													if (lgUrlAbierto) setLgUrlWeb(val);
 													else {
+														const tid = extraerIdLibro(val);
+														if (tid) {
+															setLgQ("");
+															setSugVisible(false);
+															resolverYMostrarLibro(tid);
+															return;
+														}
 														setLgQ(val);
-														if (/^https?:\/\//i.test(val.trim())) setLgUrlWeb(val.trim());
+														if (/^https?:\/\//i.test(val.trim()) && !val.includes("libro=")) setLgUrlWeb(val.trim());
+													}
+												},
+												onPaste: (e) => {
+													if (!lgUrlAbierto) {
+														const texto = e.clipboardData?.getData("text") || "";
+														const tid = extraerIdLibro(texto);
+														if (tid) {
+															e.preventDefault();
+															setLgQ("");
+															setSugVisible(false);
+															resolverYMostrarLibro(tid);
+														}
 													}
 												},
 												onKeyDown: (e) => {
@@ -783,6 +1585,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 													}
 													if (e.key === "Enter") {
 														setSugVisible(false);
+														const tid = extraerIdLibro(lgQ);
+														if (tid) {
+															e.preventDefault();
+															setLgQ("");
+															resolverYMostrarLibro(tid);
+															return;
+														}
 														if (lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) {
 															if (!lgUrlWeb.trim() && /^https?:\/\//i.test((lgQ || "").trim())) setLgUrlWeb(lgQ.trim());
 															importarPaginaWeb();
@@ -844,6 +1653,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										"aria-label": "Buscar en la web",
 										onClick: () => onBuscarWeb?.(lgQ.trim()),
 										children: "🌐"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "cg-busq-btn",
+										title: "📷 Escanear código QR de Lumen",
+										"aria-label": "Escanear QR",
+										onClick: () => setEscanerAbierto(true),
+										children: "📷"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "cg-busq-btn" + (lgUrlAbierto ? " on" : ""),
@@ -1014,6 +1830,22 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 										onAbrir: () => {
 											haptic.tap();
 											setDetalle({ ...libro, esMio: true });
+										},
+										onLeer: (b) => {
+											haptic.tap();
+											onAbrirLibro?.(b);
+										},
+										onEditar: (b) => {
+											haptic.tap();
+											onPublicar?.({ modo: "editar", pub: b });
+										},
+										onQr: (b) => {
+											haptic.tap();
+											setDetalle({ ...b, esMio: true });
+											setQrAbierto(true);
+										},
+										onEliminar: (b) => {
+											confirmarEliminar(b);
 										}
 									}, libro.id || libro.d))
 								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -1245,7 +2077,6 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									className: "btn primary",
-									disabled: disponibilidad(detalle).nivel === "none",
 									onClick: () => {
 										onAbrirLibro?.(detalle);
 										setDetalle(null);
@@ -1335,7 +2166,21 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		detalle.videoUrl && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { className: "btn", onClick: () => window.open(detalle.videoUrl, "_blank", "noopener"), children: "🎬 Vídeo del autor" })
 	]
 }),
-/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn",
+									onClick: () => {
+										const b = detalle;
+										setDetalle(null);
+										onPublicar?.({ modo: "editar", pub: b });
+									},
+									children: "✏️ Editar"
+								}),
+								detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "btn danger",
+									onClick: () => confirmarEliminar(detalle),
+									children: "🗑️ Eliminar"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn",
 									onClick: () => compartirLibro(detalle),
 									children: "🔗 Compartir"
@@ -1370,7 +2215,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 								contarReportes(reportes, detalle.id),
 								" reporte(s). Con 3+ pasa a revisión de la comunidad."
 							]
-						})
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)(ChatResenas, { libro: detalle, toast })
 					]
 				})
 			}),
@@ -1445,39 +2291,96 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						]
 					}, id))]
 				})
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(LumenScannerQR, {
+				open: escanerAbierto,
+				onClose: () => setEscanerAbierto(false),
+				onCodigoDetectado: (codigo) => {
+					const tid = extraerIdLibro(codigo) || codigo;
+					resolverYMostrarLibro(tid);
+				},
+				toast
 			})
 		]
 	});
 }
-function Tarjeta({ libro, reportes, onAbrir }) {
+function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar }) {
 	const disp = disponibilidad(libro);
 	const rep = contarReportes(reportes, libro.id);
 	const r = ratingDe(libro);
-	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-		className: "cg-tarjeta",
-		onClick: onAbrir,
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
-			libro,
-			titulo: libro.titulo
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-			className: "cg-tarjeta-info",
-			children: [
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: libro.titulo }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: libro.autor }),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-					className: "cg-tarjeta-meta",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "lg-sigla-desc",
-						children: "LUM · "
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: r.estrellas }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "cg-tarjeta-wrap",
+		style: { display: "flex", flexDirection: "column" },
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+				type: "button",
+				className: "cg-tarjeta",
+				onClick: onAbrir,
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
 						libro,
-						reportes,
-						rep,
-						disp
-					})]
-				})
-			]
-		})]
+						titulo: libro.titulo
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-tarjeta-info",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: libro.titulo }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: libro.autor }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+								className: "cg-tarjeta-meta",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "lg-sigla-desc",
+										children: "LUM · "
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Estrellas, { valor: r.estrellas, total: r.reseñas }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Badges, {
+										libro,
+										reportes,
+										rep,
+										disp
+									})
+								]
+							})
+						]
+					})
+				]
+			}),
+			libro.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-card-actions",
+				onClick: (e) => e.stopPropagation(),
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini prim",
+						title: "Leer ahora",
+						onClick: () => onLeer?.(libro),
+						children: "▶ Leer"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini",
+						title: "Editar publicación",
+						onClick: () => onEditar?.(libro),
+						children: "✏️"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini",
+						title: "Código QR",
+						onClick: () => onQr?.(libro),
+						children: "▦"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+						type: "button",
+						className: "cg-btn-mini danger",
+						title: "Eliminar permanentemente",
+						onClick: () => onEliminar?.(libro),
+						children: "🗑️"
+					})
+				]
+			})
+		]
 	});
 }
 function Badges({ libro, reportes, rep, disp }) {
@@ -1516,14 +2419,11 @@ function QrLibro({ libro }) {
 	(0, import_react.useEffect)(() => {
 		if (!ref.current) return;
 		try {
-			const data = JSON.stringify({
-				v: 1,
-				d: libro.d,
-				t: libro.titulo,
-				a: libro.npub,
-				cid: libro.cid,
-				m: libro.magnet
-			});
+			const idLibro = libro.d || libro.id;
+			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
+			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
+			const shareUrl = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}`;
+			const data = shareUrl;
 			const img = new Image();
 			img.onload = () => {
 				const ctx = ref.current.getContext("2d");

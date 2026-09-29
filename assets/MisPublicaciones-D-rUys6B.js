@@ -192,7 +192,7 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 	const borrar = async (pub) => {
 		setTrabajando("borrar");
 		try {
-			if (identidad) await borrarPublicadoRed(pub, identidad);
+			await borrarPublicadoRed(pub, identidad);
 			await cargar();
 			toast("🗑 Libro borrado de tu historial y pedida su retirada a los relays.");
 		} finally {

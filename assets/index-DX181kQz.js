@@ -55803,6 +55803,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 					},
 					onPublicar: (opts) => {
 						if (opts?.modo === "ajustes") setPublicarOpen({ modo: "ajustes" });
+						else if (opts?.modo === "editar") setPublicarOpen({ modo: "editar", pub: opts.pub });
 						else setPublicarOpen({ modo: "nuevo" });
 					},
 					onAbrirLibro: (libro) => {

@@ -16,7 +16,7 @@ var __vitePreload = (fn, deps) => {
 import { c as haptic, d as hideNativeOverlay, f as isPremium, h as showNativeOverlay, m as onAdEvent, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { contarReportes, npubCorto } from "./nostr-zC6Qsl2z.js";
 import { a as traerCapitulo, n as disponibilidad, o as traerManifest, r as precargarCapitulos } from "./streaming-CGdx3ecV.js";
-import { u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
+import { u as obtenerBlobLumen, o as guardarBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { onTorrent, validarEnlace } from "./torrent-DS6cTKT6.js";
 import { leerLumen, portadaSvg } from "./lumenbook-D1rmZfn6.js";
@@ -244,8 +244,8 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 					return;
 				}
 			}
-			if (libro._local && libro.d) try {
-				setPaso("Abriendo tu copia local…");
+			if (libro.d) try {
+				setPaso("Abriendo copia local…");
 				const blob = await obtenerBlobLumen(libro.d);
 				if (blob && vivo) {
 					const bytes = new Uint8Array(await blob.arrayBuffer()).buffer;
@@ -254,7 +254,7 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 						setManifest(lumen.manifest);
 						setMetadata(lumen.metadata);
 						setTipo(lumen.tipo || (lumen.paginas.length ? "paged" : "text"));
-						setOrigen("tu teléfono");
+						setOrigen("tu dispositivo");
 						setCapitulos(lumen.capitulos);
 						setPaginas(lumen.paginas || []);
 						setCargando(false);
@@ -263,6 +263,50 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 				}
 			} catch (e) {
 				console.warn("[lector] local", e?.message || e);
+			}
+			if (libro.fileUrl) try {
+				setPaso("Descargando libro desde Lumen Storage…");
+				const res = await fetch(libro.fileUrl, { signal: AbortSignal.timeout(30000) });
+				if (res.ok && vivo) {
+					const buf = await res.arrayBuffer();
+					if (libro.d) {
+						try { await guardarBlobLumen(libro.d, new Blob([buf])); } catch {}
+					}
+					try {
+						const lumen = await leerLumen(buf);
+						if ((lumen.capitulos?.length || lumen.paginas?.length) && vivo) {
+							setManifest(lumen.manifest);
+							setMetadata(lumen.metadata);
+							setTipo(lumen.tipo || (lumen.paginas?.length ? "paged" : "text"));
+							setOrigen("Lumen Storage");
+							setCapitulos(lumen.capitulos);
+							setPaginas(lumen.paginas || []);
+							setCargando(false);
+							return;
+						}
+					} catch (parseErr) {
+						const txt = new TextDecoder().decode(buf);
+						if (txt && txt.trim().length > 0 && vivo) {
+							const html = /<\/?(html|p|div|h[1-6])/i.test(txt) ? txt : `<div style="white-space:pre-wrap;padding:18px;line-height:1.7;">${txt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+							setCapitulos([{ nombre: "Lectura", html }]);
+							setOrigen("Lumen Storage");
+							setCargando(false);
+							return;
+						}
+					}
+				}
+			} catch (e) {
+				console.warn("[lector] fileUrl error", e?.message || e);
+			}
+			if ((libro.content || libro.evento?.content || libro.descripcion) && vivo) {
+				const cont = String(libro.content || libro.evento?.content || libro.descripcion);
+				if (cont.trim().length > 0) {
+					const html = /<\/?(html|p|div|h[1-6])/i.test(cont) ? cont : `<div style="white-space:pre-wrap;padding:18px;line-height:1.7;">${cont.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+					setCapitulos([{ nombre: "Lectura", html }]);
+					setOrigen("Lumen");
+					setCargando(false);
+					return;
+				}
 			}
 			if (libro.cid) {
 				setPaso("Pidiendo el índice del libro (manifest)…");

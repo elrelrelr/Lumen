@@ -1,17 +1,28 @@
-import { C as putBlob, O as setMeta, h as getMeta, p as getBlob } from "./db-Ii3ipPL7.js";
+import { C as putBlob, M as withDb, O as setMeta, h as getMeta, p as getBlob } from "./db-Ii3ipPL7.js";
 import { crearEvento, firmarEvento, npubDeHex, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
 //#region src/lib/publicados.js
 var CLAVE = "lumen_publicados";
 var KIND_BORRADO = 5;
 /** Lista de publicaciones, de la más reciente a la más antigua. */
 async function listarPublicados() {
-	return ((await getMeta(CLAVE, null))?.lista || []).sort((a, b) => (b.updated || b.createdAt || 0) - (a.updated || a.createdAt || 0));
+	let l = (await getMeta(CLAVE, null))?.lista;
+	if (!l || !l.length) {
+		try {
+			l = JSON.parse(localStorage.getItem(CLAVE) || "[]");
+		} catch {
+			l = [];
+		}
+	}
+	return (l || []).sort((a, b) => (b.updated || b.createdAt || 0) - (a.updated || a.createdAt || 0));
 }
 async function guardarLista(lista) {
 	await setMeta({
 		id: CLAVE,
 		lista
 	});
+	try {
+		localStorage.setItem(CLAVE, JSON.stringify(lista));
+	} catch {}
 }
 /** Crea o actualiza una publicación (por `d`), anotando en el historial. */
 async function guardarPublicado(pub) {
@@ -49,7 +60,15 @@ async function parchearPublicado(d, patch) {
 }
 /** Elimina una publicación del historial local (no toca la red). */
 async function borrarPublicadoLocal(d) {
-	await guardarLista((await listarPublicados()).filter((p) => p.d !== d));
+	const lista = await listarPublicados();
+	await guardarLista(lista.filter((p) => p.d !== d && p.id !== d));
+	try {
+		const raw = localStorage.getItem(CLAVE);
+		if (raw) {
+			const pubs = JSON.parse(raw);
+			localStorage.setItem(CLAVE, JSON.stringify(pubs.filter((p) => p.d !== d && p.id !== d)));
+		}
+	} catch {}
 }
 var claveBlobLumen = (d) => "lumen_pub:" + d;
 /** Guarda el blob .lumen de una publicación. */
@@ -57,6 +76,15 @@ async function guardarBlobLumen(d, blob) {
 	await putBlob(claveBlobLumen(d), blob, { nombre: d + ".lumen" });
 }
 /** Recupera el blob .lumen (o null si no está). */
+
+async function borrarBlobLumen(d) {
+	try {
+		await withDb((db) => db.delete("blobs", claveBlobLumen(d)), { label: "borrarBlobLumen" });
+	} catch (e) {
+		console.warn("[publicados] error borrar blob", e);
+	}
+}
+
 async function obtenerBlobLumen(d) {
 	try {
 		return (await getBlob(claveBlobLumen(d)))?.blob || null;
@@ -132,17 +160,26 @@ async function reenviarPublicado(pub) {
 async function borrarPublicadoRed(pub, identidad) {
 	let resultados = [];
 	try {
-		const tags = [["e", pub.evento?.id || ""]];
-		if (pub.evento?.id) resultados = await publicarEnRelays(firmarEvento(crearEvento({
-			pubkey: identidad.pubHex,
-			kind: KIND_BORRADO,
-			tags,
-			content: "Borrado por su autor desde LumenReader"
-		}), identidad.privHex));
+		if (identidad && (pub.evento?.id || pub.id)) {
+			const tags = [["e", pub.evento?.id || pub.id || ""]];
+			if (pub.d) tags.push(["a", `30023:${identidad.pubHex}:${pub.d}`]);
+			resultados = await publicarEnRelays(firmarEvento(crearEvento({
+				pubkey: identidad.pubHex,
+				kind: KIND_BORRADO,
+				tags,
+				content: "Borrado por su autor desde LumenReader"
+			}), identidad.privHex));
+		}
 	} catch (e) {
 		console.warn("[publicados] borrado en red", e?.message || e);
 	}
 	await borrarPublicadoLocal(pub.d);
+	await borrarBlobLumen(pub.d);
+	try {
+		const cat = JSON.parse(localStorage.getItem("lumen_catalogo") || "[]");
+		const filtrado = cat.filter((b) => b.d !== pub.d && b.id !== pub.id && b.id !== pub.evento?.id);
+		localStorage.setItem("lumen_catalogo", JSON.stringify(filtrado));
+	} catch {}
 	return resultados;
 }
 /** Convierte una publicación al formato de libro que usan Catalogo/Lector. */
@@ -288,4 +325,4 @@ function exportarJson(pubs) {
 	})), null, 2);
 }
 //#endregion
-export { generarVitrinaHtml as a, libroDePublicado as c, reenviarPublicado as d, exportarJson as i, listarPublicados as l, enlaceDe as n, guardarBlobLumen as o, estadoDe as r, guardarPublicado as s, borrarPublicadoRed as t, obtenerBlobLumen as u };
+export { generarVitrinaHtml as a, libroDePublicado as c, reenviarPublicado as d, exportarJson as i, listarPublicados as l, enlaceDe as n, guardarBlobLumen as o, estadoDe as r, guardarPublicado as s, borrarPublicadoRed as t, obtenerBlobLumen as u, borrarPublicadoLocal, borrarBlobLumen };
