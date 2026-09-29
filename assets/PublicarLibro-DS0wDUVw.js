@@ -1,11 +1,11 @@
 import { t as require_react } from "./react-1WJTggxS.js";
-import { f as getAllPages, r as allBooks } from "./db-Ii3ipPL7.js";
+import { f as getAllPages, r as allBooks, h as getMeta, y as highlightsByBook, x as notesByBook } from "./db-Ii3ipPL7.js";
 import { c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, z as subirAGoFile } from "./index-DX181kQz.js";
 import { eventoDeLibro, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays } from "./nostr-zC6Qsl2z.js";
 import { o as guardarBlobLumen, s as guardarPublicado, u as obtenerBlobLumen } from "./publicados-63Om61aj.js";
 import { t as qrDataUrl } from "./qrLumen-BDUGNJQb.js";
 import { onTorrent } from "./torrent-DS6cTKT6.js";
-import { construirLumen, dividirEnCapitulos, portadaSvg } from "./lumenbook-D1rmZfn6.js";
+import { construirLumen, construirLumenPersonal, dividirEnCapitulos, portadaSvg } from "./lumenbook-D1rmZfn6.js";
 import { abrirEnlace, copiarTexto } from "./NostrAjustes-CIgc9tj_.js";
 //#region src/components/PublicarLibro.jsx
 var import_react = require_react();
@@ -337,6 +337,35 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 			const { titulo, autor, categoria, idioma, descripcion, donacion, zap, portada, capsFuente } = datosRef.current;
 			setProgreso("Creando formato LumenBook (.lumen)…");
 			let blob = null;
+			let personal = null;
+			if (fuente?.tipo === "local" && fuente.id) {
+				try {
+					const hl = await highlightsByBook(fuente.id).catch(() => []);
+					const nt = await notesByBook(fuente.id).catch(() => []);
+					const fondoTema = await getMeta("fondoTema_" + fuente.id, null).catch(() => null);
+					personal = {
+						version: 1,
+						app: "lumen",
+						creado: Math.floor(Date.now() / 1e3),
+						book: {
+							title: fuente.libro?.title || titulo,
+							fondo: fuente.libro?.fondo || null,
+							fondoAjuste: fuente.libro?.fondoAjuste ?? null,
+							fondoAnimado: fuente.libro?.fondoAnimado ?? null,
+							fondoVelo: fuente.libro?.fondoVelo ?? null,
+							fondoBlur: fuente.libro?.fondoBlur ?? null,
+							musicOnOpen: !!fuente.libro?.musicOnOpen,
+							marcador: fuente.libro?.marcador || null,
+							marcadores: fuente.libro?.marcadores || [],
+							lastPage: fuente.libro?.lastPage || 0,
+							percentRead: fuente.libro?.percentRead || 0
+						},
+						fondoTema: fondoTema && fondoTema.usar ? { usar: true, tema: fondoTema.tema || "" } : null,
+						highlights: hl || [],
+						notes: nt || []
+					};
+				} catch {}
+			}
 			if (editar && fuente?.tipo === "editar" && !capsFuente.length) {
 				blob = await obtenerBlobLumen(editar.d);
 				if (!blob) {
@@ -351,6 +380,17 @@ function PublicarLibro({ onSalir, toast, onPublicado, onVerMisPublicaciones, edi
 						zap
 					}, [descripcion || titulo], portada || null)).blob;
 				}
+			} else if (personal) {
+				blob = (await construirLumenPersonal({
+					titulo,
+					autor,
+					categoria,
+					idioma,
+					descripcion,
+					ad: null,
+					donacion,
+					zap
+				}, capsFuente.length ? capsFuente : [descripcion || titulo], portada || null, personal)).blob;
 			} else {
 				blob = (await construirLumen({
 					titulo,

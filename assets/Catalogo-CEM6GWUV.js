@@ -1204,30 +1204,32 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			const urlMatch = str.match(/https?:\/\/[^\s"'<>]+/i) || str.match(/lumen(?:reader)?:\/\/[^\s"'<>]+/i);
 			const urlStr = urlMatch ? urlMatch[0] : str;
 			const u = new URL(urlStr, "https://lumenreader.app");
-			id = u.searchParams.get("libro") || u.searchParams.get("b");
+			id = u.searchParams.get("b") || u.searchParams.get("libro");
 			if (!id && u.pathname.startsWith("/b/")) id = decodeURIComponent(u.pathname.slice(3));
 			if (!id && u.hash) {
-				const hm = u.hash.match(/[?&]libro=([^&\s#]+)/i) || u.hash.match(/#libro=([^&\s#]+)/i) || u.hash.match(/[?&]b=([^&\s#]+)/i);
+				const hm = u.hash.match(/[?&]b=([^&\s#]+)/i) || u.hash.match(/[?&]libro=([^&\s#]+)/i) || u.hash.match(/#libro=([^&\s#]+)/i);
 				if (hm) id = decodeURIComponent(hm[1]);
 			}
-			tit = u.searchParams.get("tit") || u.searchParams.get("t") || "";
-			aut = u.searchParams.get("aut") || u.searchParams.get("a") || "";
-			file = u.searchParams.get("file") || u.searchParams.get("f") || "";
-			cov = u.searchParams.get("cov") || u.searchParams.get("c") || "";
-			mag = u.searchParams.get("mag") || u.searchParams.get("m") || "";
+			tit = u.searchParams.get("t") || u.searchParams.get("tit") || "";
+			aut = u.searchParams.get("a") || u.searchParams.get("aut") || "";
+			file = u.searchParams.get("f") || u.searchParams.get("file") || "";
+			cov = u.searchParams.get("c") || u.searchParams.get("cov") || "";
+			mag = u.searchParams.get("m") || u.searchParams.get("mag") || "";
 			cat = u.searchParams.get("cat") || "";
 			desc = u.searchParams.get("desc") || "";
 		} catch {
-			const mLib = str.match(/[?&]libro=([^&\s#]+)/i);
+			const mLib = str.match(/[?&](?:b|libro)=([^&\s#]+)/i);
 			if (mLib) id = decodeURIComponent(mLib[1]);
 			const mProto = str.match(/lumen(?:reader)?:\/\/b\/([^&\s#?]+)/i);
 			if (mProto) id = decodeURIComponent(mProto[1]);
-			const mTit = str.match(/[?&]tit=([^&\s#]+)/i);
+			const mTit = str.match(/[?&](?:t|tit)=([^&\s#]+)/i);
 			if (mTit) tit = decodeURIComponent(mTit[1]);
-			const mAut = str.match(/[?&]aut=([^&\s#]+)/i);
+			const mAut = str.match(/[?&](?:a|aut)=([^&\s#]+)/i);
 			if (mAut) aut = decodeURIComponent(mAut[1]);
-			const mFile = str.match(/[?&]file=([^&\s#]+)/i);
+			const mFile = str.match(/[?&](?:f|file)=([^&\s#]+)/i);
 			if (mFile) file = decodeURIComponent(mFile[1]);
+			const mCov = str.match(/[?&](?:c|cov)=([^&\s#]+)/i);
+			if (mCov) cov = decodeURIComponent(mCov[1]);
 		}
 
 		if (!id && str.startsWith("{") && str.endsWith("}")) {
@@ -1346,15 +1348,15 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		try {
 			if (typeof window !== "undefined") {
 				const params = new URLSearchParams(window.location.search);
-				const p = params.get("libro") || params.get("b");
+				const p = params.get("b") || params.get("libro");
 				if (p) {
 					resolverYMostrarLibro(p, {
 						id: p,
-						tit: params.get("tit") || params.get("t") || "",
-						aut: params.get("aut") || params.get("a") || "",
-						file: params.get("file") || params.get("f") || "",
-						cov: params.get("cov") || params.get("c") || "",
-						mag: params.get("mag") || params.get("m") || "",
+						tit: params.get("t") || params.get("tit") || "",
+						aut: params.get("a") || params.get("aut") || "",
+						file: params.get("f") || params.get("file") || "",
+						cov: params.get("c") || params.get("cov") || "",
+						mag: params.get("m") || params.get("mag") || "",
 						cat: params.get("cat") || "",
 						desc: params.get("desc") || ""
 					});
@@ -1611,14 +1613,24 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const idLibro = libro.d || libro.id;
 			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
 			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			const titParam = encodeURIComponent(libro.titulo || libro.title || "");
-			const autParam = encodeURIComponent(libro.autor || "");
-			const fileParam = encodeURIComponent(libro.fileUrl || "");
-			const covParam = encodeURIComponent(libro.portada || "");
-			const magParam = encodeURIComponent(libro.magnet || "");
-			const catParam = encodeURIComponent(libro.categoria || "");
-			const descParam = encodeURIComponent(libro.descripcion || "");
-			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&cat=${catParam}&desc=${descParam}`;
+			
+			const params = new URLSearchParams();
+			if (idLibro) params.set("b", idLibro);
+			const titulo = (libro.titulo || libro.title || "").trim();
+			if (titulo) params.set("t", titulo);
+			const autor = (libro.autor || "").trim();
+			if (autor && autor !== "Anon" && autor !== "Autor anónimo") params.set("a", autor);
+			
+			const file = (libro.fileUrl || libro.file || libro.download || libro.epub || "").trim();
+			if (file && /^https?:\/\//i.test(file)) params.set("f", file);
+			
+			const portada = (libro.portada || "").trim();
+			if (portada && /^https?:\/\//i.test(portada) && portada.length < 250) params.set("c", portada);
+			
+			const magnet = (libro.magnet || "").trim();
+			if (magnet) params.set("m", magnet);
+			
+			const enlaceWeb = `${origin}${pathname}/?${params.toString()}`;
 
 			let copiado = false;
 			if (navigator?.clipboard?.writeText) {
@@ -1918,7 +1930,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 															return;
 														}
 														setLgQ(val);
-														if (/^https?:\/\//i.test(val.trim()) && !val.includes("libro=")) setLgUrlWeb(val.trim());
+														if (/^https?:\/\//i.test(val.trim()) && !val.includes("libro=") && !val.includes("?b=") && !val.includes("&b=")) setLgUrlWeb(val.trim());
 													}
 												},
 												onPaste: (e) => {
@@ -2720,6 +2732,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 							onClick: () => setPanelRelays(true),
 							title: "Estado de los relays",
 							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									style: { color: "#4ade80", fontSize: "10px", lineHeight: 1 },
+									children: "● "
+								}),
 								libros.length,
 								" libros · 📡 ",
 								relaysActivos,
@@ -2729,6 +2745,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							]
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 							onClick: cargar,
+							title: "Actualizar catálogo",
 							children: "↻ Actualizar"
 						})]
 					})

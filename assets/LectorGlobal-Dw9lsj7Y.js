@@ -264,39 +264,43 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 			} catch (e) {
 				console.warn("[lector] local", e?.message || e);
 			}
-			if (libro.fileUrl) try {
-				setPaso("Descargando libro desde Lumen Storage…");
-				const res = await fetch(libro.fileUrl, { signal: AbortSignal.timeout(6000) });
-				if (res.ok && vivo) {
-					const buf = await res.arrayBuffer();
-					if (libro.d) {
-						try { await guardarBlobLumen(libro.d, new Blob([buf])); } catch {}
-					}
-					try {
-						const lumen = await leerLumen(buf);
-						if ((lumen.capitulos?.length || lumen.paginas?.length) && vivo) {
-							setManifest(lumen.manifest);
-							setMetadata(lumen.metadata);
-							setTipo(lumen.tipo || (lumen.paginas?.length ? "paged" : "text"));
-							setOrigen("Lumen Storage");
-							setCapitulos(lumen.capitulos);
-							setPaginas(lumen.paginas || []);
-							setCargando(false);
-							return;
+			if (libro.fileUrl || libro.file || libro.download) {
+				const fUrl = libro.fileUrl || libro.file || libro.download;
+				try {
+					setPaso("Descargando libro desde Lumen Storage…");
+					const res = await fetch(fUrl, { signal: AbortSignal.timeout(60000) });
+					if (res.ok && vivo) {
+						const buf = await res.arrayBuffer();
+						setLocalBytes(buf);
+						if (libro.d) {
+							try { await guardarBlobLumen(libro.d, new Blob([buf])); } catch {}
 						}
-					} catch (parseErr) {
-						const txt = new TextDecoder().decode(buf);
-						if (txt && txt.trim().length > 0 && vivo) {
-							const html = /<\/?(html|p|div|h[1-6])/i.test(txt) ? txt : `<div style="white-space:pre-wrap;padding:18px;line-height:1.7;">${txt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
-							setCapitulos([{ nombre: "Lectura", html }]);
-							setOrigen("Lumen Storage");
-							setCargando(false);
-							return;
+						try {
+							const lumen = await leerLumen(buf);
+							if ((lumen.capitulos?.length || lumen.paginas?.length) && vivo) {
+								setManifest(lumen.manifest);
+								setMetadata(lumen.metadata);
+								setTipo(lumen.tipo || (lumen.paginas?.length ? "paged" : "text"));
+								setOrigen("Lumen Storage");
+								setCapitulos(lumen.capitulos);
+								setPaginas(lumen.paginas || []);
+								setCargando(false);
+								return;
+							}
+						} catch (parseErr) {
+							const txt = new TextDecoder().decode(buf);
+							if (txt && txt.trim().length > 0 && vivo && !txt.includes("<html")) {
+								const html = /<\/?(html|p|div|h[1-6])/i.test(txt) ? txt : `<div style="white-space:pre-wrap;padding:18px;line-height:1.7;">${txt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</div>`;
+								setCapitulos([{ nombre: "Lectura", html }]);
+								setOrigen("Lumen Storage");
+								setCargando(false);
+								return;
+							}
 						}
 					}
+				} catch (e) {
+					console.warn("[lector] fileUrl error", e?.message || e);
 				}
-			} catch (e) {
-				console.warn("[lector] fileUrl error", e?.message || e);
 			}
 			if ((libro.content || libro.evento?.content || libro.descripcion) && vivo) {
 				const cont = String(libro.content || libro.evento?.content || libro.descripcion);
@@ -676,6 +680,9 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 					metadata,
 					onEmpezar: () => {
 						haptic.tap();
+						if (typeof window !== "undefined" && (libro.fileUrl || libro.file || libro.d || libro.download || localBytes)) {
+							window.dispatchEvent(new CustomEvent("lumen:importar-y-abrir", { detail: { ...libro, _bytes: localBytes } }));
+						}
 						setEnPortada(false);
 					}
 				}) : fin ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PantallaFin, {

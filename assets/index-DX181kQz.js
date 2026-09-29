@@ -55795,6 +55795,107 @@ function App() {
 			bookId
 		});
 	}, []);
+	const manejarAbrirLibro = (0, import_react.useCallback)(async (libro) => {
+		if (!libro) return;
+		try {
+			// 1. Verificar si ya existe en la biblioteca local
+			const targetId = libro.d || libro.id;
+			const titNorm = String(libro.titulo || libro.title || "").trim().toLowerCase();
+			const autNorm = String(libro.autor || libro.author || "").trim().toLowerCase();
+			const librosLocales = await allBooks().catch(() => []);
+			const existente = librosLocales.find((b) => {
+				if (!b) return false;
+				if (targetId && (b.id === targetId || b.d === targetId)) return true;
+				const bTit = String(b.title || "").trim().toLowerCase();
+				if (titNorm && bTit && titNorm === bTit) {
+					if (!autNorm) return true;
+					const bAut = String(b.author || "").trim().toLowerCase();
+					return !bAut || bAut === autNorm || titNorm.length > 5;
+				}
+				return false;
+			});
+			if (existente) {
+				setCatalogoAbierto(false);
+				setMisPubsAbierto(false);
+				setQrPendiente(null);
+				setLectorGlobal(null);
+				openBook(existente.id);
+				toast?.("📖 Abriendo «" + existente.title + "» desde tu biblioteca");
+				return;
+			}
+
+			// 2. Si tiene URL de descarga o archivo .lumen / epub
+			const urlDescarga = libro.fileUrl || libro.file || libro.download || libro.epub || libro.sourceUrl || "";
+			let blobDescargado = null;
+
+			// Verificar si hay copia en IndexedDB de blobs lumen o pasaron bytes directos
+			if (libro.blob) {
+				blobDescargado = libro.blob;
+			} else if (libro._bytes) {
+				blobDescargado = new Blob([libro._bytes]);
+			} else if (libro.d || libro.id) {
+				try {
+					const pubMod = await import("./publicados-63Om61aj.js");
+					const obtenerBlobLumen = pubMod.u || pubMod.obtenerBlobLumen;
+					if (obtenerBlobLumen) blobDescargado = await obtenerBlobLumen(libro.d, libro.id);
+				} catch (eBlob) {
+					console.warn("[obtenerBlobLumen]", eBlob);
+				}
+			}
+
+			// Si no está en IndexedDB pero tiene enlace web de archivo
+			if (!blobDescargado && urlDescarga && /^https?:\/\//i.test(urlDescarga)) {
+				toast?.("⬇️ Descargando libro en formato Lumen…");
+				try {
+					const res = await fetch(urlDescarga, { signal: AbortSignal.timeout(6e4) });
+					if (res.ok) {
+						const ct = (res.headers.get("content-type") || "").toLowerCase();
+						if (!ct.includes("text/html")) {
+							blobDescargado = await res.blob();
+						}
+					}
+				} catch (eDesc) {
+					console.warn("[descarga lumen]", eDesc);
+				}
+			}
+
+			// Si tenemos el blob (.lumen o .epub), importarlo a la pantalla principal
+			if (blobDescargado && blobDescargado.size > 200) {
+				toast?.("📖 Configurando capítulos, resaltados y fondos…");
+				const esEpub = /\.epub$/i.test(urlDescarga);
+				const ext = esEpub ? ".epub" : ".lumen";
+				const nombreArchivo = (libro.titulo || libro.title || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ext;
+				const f = new File([blobDescargado], nombreArchivo, { type: esEpub ? "application/epub+zip" : "application/octet-stream" });
+				const nuevo = await importFile(f, ({ percent, label }) => {
+					if (label) toast?.(label);
+				});
+				if (nuevo && nuevo.id) {
+					if (libro.d) await patchBook(nuevo.id, { d: libro.d }).catch(() => {});
+					setCatalogoAbierto(false);
+					setMisPubsAbierto(false);
+					setQrPendiente(null);
+					setLectorGlobal(null);
+					openBook(nuevo.id);
+					toast?.("✓ «" + (nuevo.title || libro.titulo) + "» listo en tu pantalla principal");
+					return;
+				}
+			}
+		} catch (err) {
+			console.warn("[manejarAbrirLibro]", err);
+		}
+
+		// Si no se pudo importar directamente como blob, abrir lector global con el libro
+		setCatalogoAbierto(false);
+		setMisPubsAbierto(false);
+		setLectorGlobal({ ...libro, _desdeCatalogo: true });
+	}, [openBook, toast]);
+	(0, import_react.useEffect)(() => {
+		const onPedirImportar = (ev) => {
+			if (ev.detail) manejarAbrirLibro(ev.detail);
+		};
+		window.addEventListener("lumen:importar-y-abrir", onPedirImportar);
+		return () => window.removeEventListener("lumen:importar-y-abrir", onPedirImportar);
+	}, [manejarAbrirLibro]);
 	const goLibrary = (0, import_react.useCallback)((pushHistory = true) => {
 		// v195 (#7): al cerrar el libro, mostrar los logros de esa lectura.
 		// v214 (#3): se espera ~1,2 s a que llegue el último onPageRead (el
@@ -56072,8 +56173,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						else setPublicarOpen({ modo: "nuevo" });
 					},
 					onAbrirLibro: (libro) => {
-						setCatalogoAbierto(false);
-						setLectorGlobal({ ...libro, _desdeCatalogo: true });
+						manejarAbrirLibro(libro);
 					},
 					onAbrirLibroLocal: (id) => {
 						setCatalogoAbierto(false);
@@ -56126,8 +56226,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 						pub
 					}),
 					onLeer: (libro) => {
-						setMisPubsAbierto(false);
-						setLectorGlobal({ ...libro, _desdeMisPubs: true });
+						manejarAbrirLibro(libro);
 					},
 					onAbrirCatalogo: () => {
 						setMisPubsAbierto(false);
