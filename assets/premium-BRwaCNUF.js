@@ -1,18 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DX181kQz.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
 import { O as setMeta, h as getMeta } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 //#region src/lib/premium.js
 var URL_CODIGOS = "https://telegra.ph/C%C3%B3digos-08-01-2";
 var CANAL_TELEGRAM = "https://t.me/LumenReader";
@@ -57,18 +45,25 @@ async function sincronizarCodigos({ forzar = false } = {}) {
 		origen: "cache"
 	};
 	let texto = null;
+	let origen = "cache";
 	try {
-		const r = await fetch(URL_CODIGOS, { cache: "no-store" });
-		if (r.ok) texto = await r.text();
-	} catch {}
-	let origen = "red";
-	if (!texto) try {
 		const nat = typeof window !== "undefined" ? window.AndroidNav : null;
 		if (nat && typeof nat.leerWeb === "function") {
 			texto = nat.leerWeb(URL_CODIGOS);
 			origen = "nativo";
 		}
 	} catch {}
+	if (!texto && typeof fetch === "function") {
+		try {
+			// Usar proxy CORS seguro para evitar el bloqueo del navegador
+			const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(URL_CODIGOS);
+			const r = await fetch(proxyUrl, { signal: AbortSignal.timeout(3000) });
+			if (r.ok) {
+				texto = await r.text();
+				origen = "red";
+			}
+		} catch {}
+	}
 	if (!texto) return {
 		ok: !!guardado?.p,
 		origen: guardado?.p ? "cache" : "respaldo"

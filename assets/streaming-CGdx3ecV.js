@@ -1,19 +1,7 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./epub-B8oVrWvJ.js","./rolldown-runtime-D1cXj70v.js"])))=>i.map(i=>d[i]);
 import { o as __toESM, r as __exportAll } from "./rolldown-runtime-D1cXj70v.js";
 import { O as setMeta, h as getMeta } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 //#region src/lib/streaming.js
 var streaming_exports = /* @__PURE__ */ __exportAll({
 	GATEWAYS: () => GATEWAYS,

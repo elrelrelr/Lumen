@@ -1,18 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./originals-D2DFW8Gx.js","./rolldown-runtime-D1cXj70v.js","./db-Ii3ipPL7.js"])))=>i.map(i=>d[i]);
 import { f as getAllPages, r as allBooks } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 //#region src/lib/espacio.js
 var sePuedeComprimir = () => typeof CompressionStream !== "undefined";
 /**

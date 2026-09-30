@@ -2728,11 +2728,8 @@ var KIND_VOTO = 30025;
 var RELAYS_DEFECTO = [
 	"wss://relay.nostr.band",
 	"wss://nos.lol",
-	"wss://nostr.oxtr.dev",
 	"wss://purplerelay.com",
-	"wss://relay.current.fyi",
-	"wss://relay.damus.io",
-	"wss://relay.primal.net"
+	"wss://nostr.oxtr.dev"
 ];
 var RELAY_NOMBRES = {
 	"wss://relay.nostr.band": "NostrBand",
@@ -2960,11 +2957,11 @@ function conectarRelay(url, onEvent = null, onEstado = null) {
 	};
 	const programar = () => {
 		if (c.apagado || c.tReconexion) return;
-		if (c.intentos >= 3) {
+		if (!c.abierto || c.intentos >= 1) {
 			c.apagado = true;
 			return;
 		}
-		const espera = Math.min(3e4, 1500 * 2 ** c.intentos);
+		const espera = Math.min(1e4, 2000 * 2 ** c.intentos);
 		c.intentos += 1;
 		c.tReconexion = setTimeout(() => {
 			c.tReconexion = null;
@@ -3112,7 +3109,7 @@ async function relaysGuardados() {
 		for (const p of prioritarios) {
 			if (!setActuales.has(p)) lista.push(p);
 		}
-		lista = lista.filter((r) => r !== "wss://relay.snort.social").slice(0, 8);
+		lista = lista.filter((r) => r !== "wss://relay.snort.social" && r !== "wss://relay.current.fyi" && r !== "wss://relay.damus.io").slice(0, 8);
 	}
 	return (lista && lista.length) ? lista : RELAYS_DEFECTO;
 }

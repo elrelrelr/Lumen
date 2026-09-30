@@ -1,18 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./index-DX181kQz.js","./rolldown-runtime-D1cXj70v.js","./react-1WJTggxS.js","./db-Ii3ipPL7.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css"])))=>i.map(i=>d[i]);
 import { D as saveSettings, M as withDb, O as setMeta, T as putPage, a as allNotes, f as getAllPages, h as getMeta, i as allHighlights, r as allBooks, v as getSettings, w as putBook } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 //#region src/lib/traspaso.js
 var FORMATO = 1;
 var APP_VERSION = "45.0.0";

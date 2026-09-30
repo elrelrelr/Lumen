@@ -1,18 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./lumenAds-bXJ8EPsD.js","./rolldown-runtime-D1cXj70v.js","./db-Ii3ipPL7.js","./nostr-zC6Qsl2z.js","./streaming-CGdx3ecV.js","./pdf-C3eksu0f.js"])))=>i.map(i=>d[i]);
 import { t as require_react } from "./react-1WJTggxS.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 import { c as haptic, d as hideNativeOverlay, f as isPremium, h as showNativeOverlay, m as onAdEvent, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
 import { contarReportes, npubCorto } from "./nostr-zC6Qsl2z.js";
 import { a as traerCapitulo, n as disponibilidad, o as traerManifest, r as precargarCapitulos } from "./streaming-CGdx3ecV.js";

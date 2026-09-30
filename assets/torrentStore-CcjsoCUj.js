@@ -1,18 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./torrent-DS6cTKT6.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js"])))=>i.map(i=>d[i]);
 import { O as setMeta, h as getMeta, k as uid } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 import { borrarDescarga, cancelar, descargar, pedirMetadatos, traerArchivo } from "./torrent-DS6cTKT6.js";
 //#region src/lib/torrentStore.js
 var CLAVE = "torrent_biblioteca";

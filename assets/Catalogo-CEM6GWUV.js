@@ -1,19 +1,7 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./nostr-zC6Qsl2z.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js","./index-DX181kQz.js","./react-1WJTggxS.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css","./streaming-CGdx3ecV.js"])))=>i.map(i=>d[i]);
 import { t as require_react } from "./react-1WJTggxS.js";
 import { O as setMeta, h as getMeta, E as putPages, k as uid, w as putBook } from "./db-Ii3ipPL7.js";
-var __vitePreload = (fn, deps) => {
-	try {
-		if (deps) for (const d of deps) {
-			if (d.includes("pdf-")) continue;
-			const l = document.createElement("link");
-			l.rel = "modulepreload";
-			l.href = d;
-			l.crossOrigin = "";
-			document.head.appendChild(l);
-		}
-	} catch {}
-	return fn();
-};
+var __vitePreload = (fn) => fn();
 import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, A as importarDesdeUrl, B as paginate } from "./index-DX181kQz.js";
 import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados, conectarRelay, suscribir, crearEvento, firmarEvento, libroDeEvento } from "./nostr-zC6Qsl2z.js";
 import { n as disponibilidad, t as descargarLumenPorGateway } from "./streaming-CGdx3ecV.js";
@@ -393,22 +381,64 @@ function Estrellas({ valor, total = null }) {
 }
 function Portada({ libro, titulo, grande = false }) {
 	const [rota, setRota] = (0, import_react.useState)(false);
+	const [cargada, setCargada] = (0, import_react.useState)(false);
+	const [enPantalla, setEnPantalla] = (0, import_react.useState)(false);
+	const refEl = (0, import_react.useRef)(null);
 	const cls = "cg-portada" + (grande ? " cg-portada-lg" : "");
 	const aut = libro?.autor || (Array.isArray(libro?.authors) ? libro.authors[0] : libro?.authors) || "";
 	const pal = paletaDe(titulo, aut);
 	const tienePortada = libro?.portada && !rota && libro?.portada !== "assets/icon-192.png";
+
+	(0, import_react.useEffect)(() => {
+		if (!tienePortada) return;
+		if (typeof IntersectionObserver === "undefined") {
+			setEnPantalla(true);
+			return;
+		}
+		const node = refEl.current;
+		if (!node) return;
+		const obs = new IntersectionObserver((entries) => {
+			for (const e of entries) {
+				if (e.isIntersecting) {
+					setEnPantalla(true);
+					obs.disconnect();
+					break;
+				}
+			}
+		}, { rootMargin: "350px 0px" });
+		obs.observe(node);
+		return () => obs.disconnect();
+	}, [tienePortada, libro?.portada]);
+
 	if (tienePortada) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-		className: cls,
-		children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
-			src: libro.portada,
-			alt: titulo,
-			loading: "lazy",
-			onError: () => setRota(true),
-			draggable: false
-		}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-			className: "lg-sigla-badge sigla-lum",
-			children: (libro.fuente ? String(libro.fuente).slice(0, 3).toUpperCase() : "LUM")
-		})]
+		ref: refEl,
+		className: cls + " cg-portada-con-img" + (cargada ? " cg-portada-cargada" : " cg-portada-cargando"),
+		children: [
+			!cargada && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-shimmer-placeholder",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" }),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-silueta", children: "📖" })
+				]
+			}),
+			enPantalla && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: libro.portada,
+				alt: titulo,
+				loading: "lazy",
+				onLoad: () => setCargada(true),
+				onError: () => setRota(true),
+				draggable: false,
+				style: {
+					opacity: cargada ? 1 : 0,
+					transform: cargada ? "scale(1)" : "scale(0.97)",
+					transition: "opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s ease"
+				}
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+				className: "lg-sigla-badge sigla-lum",
+				children: (libro.fuente ? String(libro.fuente).slice(0, 3).toUpperCase() : "LUM")
+			})
+		]
 	});
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: cls + " cg-portada-lujo cg-portada-textura " + (pal.claseCuero || "cg-cuero-burdeos"),
@@ -1743,39 +1773,49 @@ const cargar = (0, import_react.useCallback)(async () => {
 			setMisLibros(mios.map(libroDePublicado));
 		} catch {}
 		try {
-			const fs = await cargarFeeds();
-			setFeeds(fs);
-			const libros = [];
-			for (const f of fs) try {
-				const r = await fetch(f.url, { signal: AbortSignal.timeout(12e3) });
-				if (r.ok) libros.push(...parsearFeed(await r.json()));
+			const [c, rep] = await Promise.all([
+				import("./nostr-zC6Qsl2z.js").then((m) => m.catalogoGuardado()),
+				import("./nostr-zC6Qsl2z.js").then((m) => m.reportesGuardados())
+			]);
+			setLibros(c || []);
+			setReportes(rep || []);
+		} catch {}
+		setEstado("listo");
+
+		// Actualización en segundo plano sin bloquear la apertura de la tienda
+		(async () => {
+			try {
+				const fs = await cargarFeeds();
+				setFeeds(fs);
+				if (fs && fs.length > 0) {
+					const libros = [];
+					for (const f of fs) try {
+						const r = await fetch(f.url, { signal: AbortSignal.timeout(3000) });
+						if (r.ok) libros.push(...parsearFeed(await r.json()));
+					} catch {}
+					if (libros.length > 0) setLibrosFeed(libros);
+				}
 			} catch {}
-			setLibrosFeed(libros);
-		} catch {}
-		try {
-			setListaRelays(await relaysGuardados());
-		} catch {}
-		let terminado = false;
-		await refrescarCatalogo({ onEstado: (est, url) => {
-			if (url) setRelaysInfo((prev) => prev[url] === "abierto" && est === "eose" ? prev : {
-				...prev,
-				[url]: est === "eose" ? prev[url] || "abierto" : est
-			});
-			if (est === "abierto") setRelaysActivos((n) => n + 1);
-			else if (est === "eose" && !terminado) {
-				terminado = true;
-				setTimeout(() => setEstado("listo"), 250);
-			}
-		} });
-		const [c, rep] = await Promise.all([__vitePreload(() => import("./nostr-zC6Qsl2z.js").then((m) => m.catalogoGuardado()), __vite__mapDeps([0,1,2]), import.meta.url), __vitePreload(() => import("./nostr-zC6Qsl2z.js").then((m) => m.reportesGuardados()), __vite__mapDeps([0,1,2]), import.meta.url)]);
-		setLibros(c);
-		setReportes(rep);
-		if (!terminado) setTimeout(() => setEstado("listo"), 1500);
+			try {
+				setListaRelays(await relaysGuardados());
+			} catch {}
+			try {
+				await refrescarCatalogo({ onEstado: (est, url) => {
+					if (url) setRelaysInfo((prev) => prev[url] === "abierto" && est === "eose" ? prev : {
+						...prev,
+						[url]: est === "eose" ? prev[url] || "abierto" : est
+					});
+					if (est === "abierto") setRelaysActivos((n) => n + 1);
+				} });
+				const cActualizado = await import("./nostr-zC6Qsl2z.js").then((m) => m.catalogoGuardado());
+				if (cActualizado?.length) setLibros(cActualizado);
+			} catch {}
+		})();
 	}, []);
 	(0, import_react.useEffect)(() => {
 		cargar();
 		return () => {
-			__vitePreload(() => import("./nostr-zC6Qsl2z.js").then((m) => m.cierre()), __vite__mapDeps([0,1,2]), import.meta.url);
+			import("./nostr-zC6Qsl2z.js").then((m) => m.cierre()).catch(() => {});
 		};
 	}, [cargar]);
 	// v200: la store es UNA sola superficie: mientras está abierta se
@@ -3202,6 +3242,16 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							}),
+							cargandoMasCat && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion cg-seccion-cargando-shimmer",
+								style: { margin: "14px 0" },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "cg-fila cg-scroll-x-only",
+										children: [0, 1, 2, 3].map((i) => (0, import_jsx_runtime.jsx)(TarjetaSkeleton, { index: i }, i))
+									})
+								]
+							}),
 							/* cg-pie situado al fondo natural de las categorías dentro de cg-cuerpo */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-pie",
@@ -4439,6 +4489,43 @@ const nombreBonitoCat = (c) => {
 	if (c === "música" || c === "musica") return "Música";
 	return c ? c.charAt(0).toUpperCase() + c.slice(1) : "Categoría";
 };
+function TarjetaSkeleton({ index = 0 }) {
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+		className: "cg-tarjeta-wrap cg-skeleton-wrap",
+		style: { display: "flex", flexDirection: "column" },
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "cg-tarjeta cg-tarjeta-skeleton",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-portada cg-shimmer-placeholder",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-silueta", children: "📖" })
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-tarjeta-info",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-skeleton-bar cg-skeleton-tit",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-skeleton-bar cg-skeleton-aut",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" })
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-skeleton-bar cg-skeleton-meta",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" })
+							})
+						]
+					})
+				]
+			})
+		]
+	}, `skel-${index}`);
+}
 function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {
 	const disp = disponibilidad(libro);
 	const rep = contarReportes(reportes, libro.id);
