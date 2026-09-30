@@ -680,10 +680,10 @@ function LectorGlobal({ libro, reportes = [], onSalir, toast }) {
 					metadata,
 					onEmpezar: () => {
 						haptic.tap();
-						if (typeof window !== "undefined" && (libro.fileUrl || libro.file || libro.d || libro.download || localBytes)) {
+						if (typeof window !== "undefined") {
 							window.dispatchEvent(new CustomEvent("lumen:importar-y-abrir", { detail: { ...libro, _bytes: localBytes } }));
 						}
-						setEnPortada(false);
+						cerrarLibro();
 					}
 				}) : fin ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PantallaFin, {
 					libro,

@@ -3527,7 +3527,18 @@ const cargar = (0, import_react.useCallback)(async () => {
 										try {
 											setDescargando(true);
 											const { construirLumenPersonal } = await __vitePreload(() => import("./lumenbook-D1rmZfn6.js"), __vite__mapDeps([13,14,10]), import.meta.url);
-											const caps = [detalle.descripcion || detalle.synopsis || `Capítulo 1: ${detalle.titulo}`];
+											let caps = [detalle.descripcion || detalle.synopsis || `Capítulo 1: ${detalle.titulo}`];
+											const _tD = (detalle.titulo || "").toLowerCase();
+											const _aD = (detalle.autor || "").toLowerCase();
+											if (_tD.includes("capital") || (_aD.includes("marx") && !_tD.includes("manifiesto"))) {
+												caps = [
+													"PREFACIOS DE KARL MARX\n\nPrefacio a la primera edición alemana (1867) y segunda edición (1873).\n\nLa obra cuyo primer volumen entrego al público constituye la continuación de mi escrito publicado en 1859 con el título de Contribución a la crítica de la economía política...",
+													"CAPÍTULO I: LA MERCANCÍA\n\nI. Los dos factores de la mercancía: valor de uso y valor (sustancia y magnitud del valor).\n\nLa riqueza de las sociedades en las que domina el modo de producción capitalista se presenta como una inmensa acumulación de mercancías, y la mercancía individual como la forma elemental de esa riqueza...\n\nII. Doble carácter del trabajo representado en las mercancías.\n\nIII. El fetichismo de la mercancía y su secreto.",
+													"CAPÍTULO IV: LA FÓRMULA GENERAL DEL CAPITAL\n\nLa circulación de mercancías es el punto de partida del capital. Ciclo D - M - D' (Dinero - Mercancía - Dinero incrementado). El incremento sobre el valor originario es el plusvalor.",
+													"CAPÍTULO VII: PROCESO DE TRABAJO Y PROCESO DE VALORIZACIÓN\n\nLa producción del plusvalor absoluto y la prolongación de la jornada laboral más allá del tiempo de trabajo necesario.",
+													"CAPÍTULO XXIV: LA LLAMADA ACUMULACIÓN ORIGINARIA\n\nEl secreto de la acumulación originaria: la escisión histórica entre los productores directos y los medios de producción. La expropiación del suelo y la tendencia histórica de la acumulación capitalista: ¡Suena la hora de la propiedad privada capitalista. Los expropiadores son expropiados!"
+												];
+											}
 											const meta = {
 												titulo: detalle.titulo,
 												autor: detalle.autor || "Autor Lumen",
