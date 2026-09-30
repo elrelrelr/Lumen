@@ -1124,7 +1124,7 @@ function ChatResenas({ libro, toast }) {
 	});
 }
 
-function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast }) {
+function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast, qrPendiente, libroInicial }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
 	const [reportes, setReportes] = (0, import_react.useState)([]);
@@ -1221,6 +1221,53 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [paginas, setPaginas] = (0, import_react.useState)({});
 	const obtenerPagina = (k) => paginas[k] || 1;
 	const [cargandoMasCat, setCargandoMasCat] = (0, import_react.useState)(false);
+	const [paginaTodas, setPaginaTodas] = (0, import_react.useState)(1);
+
+	(0, import_react.useEffect)(() => {
+		const target = libroInicial || qrPendiente;
+		if (target) {
+			if (typeof target === "object" && (target.id || target.d)) {
+				setDetalle(target);
+			} else if (typeof target === "string") {
+				resolverYMostrarLibro(target);
+			}
+		}
+	}, [libroInicial, qrPendiente]);
+
+	(0, import_react.useEffect)(() => {
+		try {
+			const s = window.location.search || (window.location.hash.includes("?") ? ("?" + window.location.hash.split("?")[1]) : "");
+			if (s) {
+				const p = new URLSearchParams(s);
+				const bId = p.get("b") || p.get("libro") || p.get("id");
+				if (bId) {
+					const lObj = {
+						id: bId,
+						d: bId,
+						titulo: p.get("t") || p.get("tit") || p.get("titulo") || "Libro",
+						autor: p.get("a") || p.get("aut") || p.get("autor") || "",
+						portada: p.get("c") || p.get("cov") || p.get("portada") || "",
+						fileUrl: p.get("f") || p.get("file") || p.get("epub") || "",
+						epub: p.get("f") || p.get("file") || p.get("epub") || "",
+						magnet: p.get("m") || p.get("mag") || p.get("magnet") || "",
+						audioUrl: p.get("aud") || p.get("audio") || "",
+						videoUrl: p.get("vid") || p.get("video") || "",
+						categoria: p.get("cat") || p.get("categoria") || "",
+						descripcion: p.get("desc") || p.get("descripcion") || ""
+					};
+					setDetalle(lObj);
+				}
+			}
+		} catch {}
+	}, []);
+
+	const retrocederPaginaCategoria = (catId) => {
+		haptic.tap();
+		const pActual = obtenerPagina(catId || "__todas__");
+		if (pActual > 1) {
+			setPaginas((prev) => ({ ...prev, [catId || "__todas__"]: pActual - 1 }));
+		}
+	};
 	const avanzarPaginaCategoria = async (catId) => {
 		haptic.tap();
 		const pActual = obtenerPagina(catId || "__todas__");
@@ -1740,33 +1787,70 @@ const cargar = (0, import_react.useCallback)(async () => {
 			setPublicandoReporte(false);
 		}
 	};
+	const construirEnlaceWebLibro = (libro) => {
+		if (!libro) return "";
+		const idLibro = libro.d || libro.id || "";
+		const baseUrl = (typeof window !== "undefined" && window.location?.href)
+			? window.location.href.split("?")[0].split("#")[0]
+			: "https://lumenreader.app/";
+		const params = new URLSearchParams();
+		if (idLibro) params.set("b", idLibro);
+		const titulo = (libro.titulo || libro.title || "").trim();
+		if (titulo) params.set("t", titulo);
+		const autor = (libro.autor || (Array.isArray(libro.authors) ? libro.authors[0] : libro.authors) || "").trim();
+		if (autor && autor !== "Anon" && autor !== "Autor anónimo") params.set("a", autor);
+		const file = (libro.fileUrl || libro.file || libro.download || libro.epub || "").trim();
+		if (file && /^https?:\/\//i.test(file)) params.set("f", file);
+		const portada = (libro.portada || "").trim();
+		if (portada && /^https?:\/\//i.test(portada)) params.set("c", portada);
+		const magnet = (libro.magnet || "").trim();
+		if (magnet) params.set("m", magnet);
+		const audio = (libro.audioUrl || libro.audio || "").trim();
+		if (audio && /^https?:\/\//i.test(audio)) params.set("aud", audio);
+		const video = (libro.videoUrl || libro.video || "").trim();
+		if (video && /^https?:\/\//i.test(video)) params.set("vid", video);
+		const desc = (libro.descripcion || libro.synopsis || "").trim();
+		if (desc) params.set("desc", desc.slice(0, 260));
+		const cat = (libro.categoria || "").trim();
+		if (cat) params.set("cat", cat);
+		return `${baseUrl}?${params.toString()}`;
+	};
+
+	const copiarAlPortapapeles = async (texto) => {
+		if (navigator?.clipboard?.writeText) {
+			try {
+				await navigator.clipboard.writeText(texto);
+				return true;
+			} catch {}
+		}
+		try {
+			const el = document.createElement("textarea");
+			el.value = texto;
+			el.style.position = "fixed";
+			el.style.opacity = "0";
+			document.body.appendChild(el);
+			el.select();
+			const ok = document.execCommand("copy");
+			document.body.removeChild(el);
+			return ok;
+		} catch {
+			return false;
+		}
+	};
+
 	const compartirLibro = async (libro) => {
 		try {
-			const idLibro = libro.d || libro.id;
-			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
-			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			const titParam = encodeURIComponent(libro.titulo || libro.title || "");
-			const autParam = encodeURIComponent(libro.autor || "");
-			const fileParam = encodeURIComponent(libro.fileUrl || "");
-			const covParam = encodeURIComponent(libro.portada || "");
-			const magParam = encodeURIComponent(libro.magnet || "");
-			const audParam = encodeURIComponent(libro.audioUrl || libro.audio || "");
-			const vidParam = encodeURIComponent(libro.videoUrl || libro.video || "");
-			const catParam = encodeURIComponent(libro.categoria || "");
-			const descParam = encodeURIComponent(String(libro.descripcion || "").slice(0, 300));
-			const enlaceWeb = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}&tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&aud=${audParam}&vid=${vidParam}&cat=${catParam}&desc=${descParam}`;
-			const enlaceApp = `lumenreader://b/${encodeURIComponent(idLibro)}?tit=${titParam}&aut=${autParam}&file=${fileParam}&cov=${covParam}&mag=${magParam}&aud=${audParam}&vid=${vidParam}&cat=${catParam}&desc=${descParam}`;
-			const texto = `📕 ${libro.titulo || libro.title}\n${libro.autor ? `✍️ ${libro.autor}\n` : ""}\n🌐 Enlace en Lumen Store:\n${enlaceWeb}\n\n📱 Lumen Reader: ${enlaceApp}${libro.magnet ? `\n\n🧲 Magnet: ${libro.magnet}` : ""}`;
+			const enlaceWeb = construirEnlaceWebLibro(libro);
+			const titulo = libro.titulo || libro.title || "Libro en Lumen";
 			if (window.AndroidShare?.shareText) {
-				window.AndroidShare.shareText(libro.titulo || "Lumen Reader", texto);
+				window.AndroidShare.shareText(titulo, enlaceWeb);
 				haptic.tap();
 				return;
 			}
 			if (navigator.share) {
 				try {
 					await navigator.share({
-						title: libro.titulo || libro.title,
-						text: texto,
+						title: titulo,
 						url: enlaceWeb
 					});
 					return;
@@ -1774,64 +1858,19 @@ const cargar = (0, import_react.useCallback)(async () => {
 					if (err.name === "AbortError") return;
 				}
 			}
-			const { copyText } = await __vitePreload(async () => {
-				const { copyText } = await import("./index-DX181kQz.js").then((n) => n.o);
-				return { copyText };
-			}, __vite__mapDeps([3,2,4,1,5,6,7,8]), import.meta.url);
-			await copyText(enlaceWeb);
-			toast?.("📋 Enlace universal copiado. ¡Pégalo en la búsqueda de Lumen Store en cualquier dispositivo!");
+			await copiarAlPortapapeles(enlaceWeb);
+			toast?.("📋 Link sencillo copiado al portapapeles");
 			haptic.tap();
 		} catch (e) {
 			toast?.("No se pudo compartir: " + (e?.message || e));
 		}
 	};
+
 	const copiarLinkLumen = async (libro) => {
 		try {
-			const idLibro = libro.d || libro.id;
-			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
-			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			
-			const params = new URLSearchParams();
-			if (idLibro) params.set("b", idLibro);
-			const titulo = (libro.titulo || libro.title || "").trim();
-			if (titulo) params.set("t", titulo);
-			const autor = (libro.autor || "").trim();
-			if (autor && autor !== "Anon" && autor !== "Autor anónimo") params.set("a", autor);
-			
-			const file = (libro.fileUrl || libro.file || libro.download || libro.epub || "").trim();
-			if (file && /^https?:\/\//i.test(file)) params.set("f", file);
-			
-			const portada = (libro.portada || "").trim();
-			if (portada && /^https?:\/\//i.test(portada) && portada.length < 250) params.set("c", portada);
-			
-			const magnet = (libro.magnet || "").trim();
-			if (magnet) params.set("m", magnet);
-			const audio = (libro.audioUrl || libro.audio || "").trim();
-			if (audio) params.set("aud", audio);
-			const video = (libro.videoUrl || libro.video || "").trim();
-			if (video) params.set("vid", video);
-			const desc = (libro.descripcion || libro.synopsis || "").trim();
-			if (desc) params.set("desc", desc.slice(0, 300));
-			const cat = (libro.categoria || "").trim();
-			if (cat) params.set("cat", cat);
-			
-			const enlaceWeb = `${origin}${pathname}/?${params.toString()}`;
-
-			let copiado = false;
-			if (navigator?.clipboard?.writeText) {
-				try {
-					await navigator.clipboard.writeText(enlaceWeb);
-					copiado = true;
-				} catch {}
-			}
-			if (!copiado) {
-				const { copyText } = await __vitePreload(async () => {
-					const { copyText } = await import("./index-DX181kQz.js").then((n) => n.o);
-					return { copyText };
-				}, __vite__mapDeps([3,2,4,1,5,6,7,8]), import.meta.url);
-				await copyText(enlaceWeb);
-			}
-			toast?.("📋 Link de Lumen copiado. ¡Pégalo en el buscador de Lumen Store para abrir el libro!");
+			const enlaceWeb = construirEnlaceWebLibro(libro);
+			await copiarAlPortapapeles(enlaceWeb);
+			toast?.("📋 Enlace de Lumen copiado. ¡Ábrelo en cualquier dispositivo para ver el libro!");
 			haptic.tap();
 		} catch (e) {
 			toast?.("No se pudo copiar el enlace: " + (e?.message || e));
@@ -1874,7 +1913,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 		...miosFiltrados.filter((b) => !idsRelay.has(b.d) && !feedsFiltrados.some((f) => f.d === b.d)),
 		...feedsFiltrados,
 		...delRelay
-	];
+	].filter((b) => matchesIdioma(b, filtroIdioma));
 	const recientes = [...visibles].sort((a, b) => b.createdAt - a.createdAt);
 	// v208: la sección de Libros Gratis se pinta ANTES que los resultados de la
 	// store cuando hay búsqueda (las bibliotecas primero, con sus portadas)
@@ -2132,6 +2171,9 @@ const cargar = (0, import_react.useCallback)(async () => {
 															return;
 														}
 														setLgQ(val);
+														if (val.trim() && categoria !== "") {
+															setCategoria("");
+														}
 														if (/^https?:\/\//i.test(val.trim()) && !val.includes("libro=") && !val.includes("?b=") && !val.includes("&b=")) setLgUrlWeb(val.trim());
 													}
 												},
@@ -2167,7 +2209,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 														if (e.key === "Enter" && sugIdx >= 0 && sugerencias[sugIdx]) {
 															e.preventDefault();
 															if (sugerencias[sugIdx].web) onBuscarWeb?.(lgQ.trim());
-															else setLgQ(sugerencias[sugIdx].texto);
+															else { setLgQ(sugerencias[sugIdx].texto); setCategoria(""); }
 															setSugVisible(false);
 															return;
 														}
@@ -2209,7 +2251,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 													onMouseDown: (e) => {
 														e.preventDefault();
 														if (s.web) onBuscarWeb?.(lgQ.trim());
-														else setLgQ(s.texto);
+														else { setLgQ(s.texto); setCategoria(""); }
 														setSugVisible(false);
 													},
 													children: [
@@ -2699,19 +2741,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 											))
 										})
 									]
-								}),
-
-								/* Paginación de 40 en 40 libros */
-								poolCategoriaActual.length > librosPantallaCat.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "cg-paginacion-wrap",
-									style: { textAlign: "center", margin: "24px 0 32px" },
-									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										type: "button",
-										className: "btn primary",
-										disabled: cargandoMasCat,
-										onClick: () => avanzarPaginaCategoria(categoria),
-										children: [cargandoMasCat ? "⏳ Cargando siguientes 40 libros desde bibliotecas abiertas…" : `📖 Siguientes 40 libros de ${nombreBonitoCat(categoria)} (${librosPantallaCat.length} de ${Math.max(poolCategoriaActual.length, librosPantallaCat.length + 40)})`]
-									})
 								})
 							]
 						});
@@ -2802,33 +2831,33 @@ const cargar = (0, import_react.useCallback)(async () => {
 							!lgQ.trim() && LISTA_CATS_UNIFICADAS.filter(c => c.id !== "politica").map((catItem) => {
 								const poolCat = obtenerLibrosDeCategoria(catItem.id);
 								if (!poolCat || poolCat.length === 0) return null;
-								const librosDiez = poolCat.slice(0, 10);
+								const tamano = poolCat.length;
+								const startIdx = ((paginaTodas - 1) * 10) % tamano;
+								let librosDiez = poolCat.slice(startIdx, startIdx + 10);
+								if (librosDiez.length < 10 && tamano >= 10) {
+									librosDiez = [...librosDiez, ...poolCat.slice(0, 10 - librosDiez.length)];
+								}
 								return (0, import_jsx_runtime.jsxs)("div", {
 									className: "cg-seccion",
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 											className: "cg-seccion-head",
 											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
-													children: [catItem.icon, " ", catItem.label]
-												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", { children: [catItem.icon, " ", catItem.label, ` (${startIdx + 1}–${Math.min(startIdx + 10, tamano)} de ${tamano})`] }),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 													type: "button",
-													className: "btn mini",
-													style: { fontSize: "11px", padding: "4px 10px", borderRadius: "8px", background: "var(--bg-soft)", color: "var(--fg)", border: "1px solid var(--line)" },
+													className: "cg-ver-todas-btn",
 													onClick: () => { haptic.tap(); setCategoria(catItem.id); },
 													children: "Ver todos ›"
 												})
 											]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "cg-fila cg-scroll-x-only",
-											ref: carrilRefCallback,
+											className: "cg-fila cg-fila-compacta",
 											onWheel: onWheelHorizontal,
 											children: librosDiez.map((b, idx) => (
 												(0, import_jsx_runtime.jsx)(Tarjeta, {
 													libro: b,
-													descargas: b.downloads ? formatearDescargas(b.downloads) + " descargas" : null,
 													reportes,
 													onAbrir: () => { haptic.tap(); setDetalle(b); },
 													onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
@@ -2837,8 +2866,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										})
 									]
 								}, `todas-cat-${catItem.id}`);
-							}),
-							lgSeccion
+							})
 						]
 					}),
 
@@ -2904,54 +2932,89 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}, libro.id))
 								})]
 							}),
-												]
-						})
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "cg-pie",
-						children: [lgVentana && lgVentana.listo ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "cg-pag",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "cg-pag-btn",
-								disabled: lgVentana.desde === 0,
-								onClick: () => lgVentana.api.current.irAnteriores(),
-								title: "Anteriores 40",
-								"aria-label": "Anteriores 40",
-								children: "⏪"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-								className: "cg-pag-info",
-								children: [lgVentana.desde + 1, "–", lgVentana.fin, " · ≈ ", lgVentana.total || "?"]
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "cg-pag-btn" + (lgVentana.navegando ? " busy" : ""),
-								/* v208: en carga el botón se anima pero NUNCA se oculta ni se troca por «…» */
-								disabled: lgVentana.navegando || (!lgVentana.hayMas && lgVentana.fin >= lgVentana.nCat),
-								onClick: () => lgVentana.api.current.irSiguientes(),
-								title: "Siguientes 40",
-								"aria-label": "Siguientes 40",
-								children: "⏩"
-							})]
-						}) : null, /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "cg-pie-relays",
-							onClick: () => setPanelRelays(true),
-							title: "Estado de los relays",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									style: { color: "#4ade80", fontSize: "10px", lineHeight: 1 },
-									children: "● "
-								}),
-								libros.length,
-								" libros · 📡 ",
-								relaysActivos,
-								"/",
-								listaRelays.length,
-								" relays"
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							onClick: cargar,
-							title: "Actualizar catálogo",
-							children: "↻ Actualizar"
-						})]
+							/* cg-pie situado al fondo natural de las categorías dentro de cg-cuerpo */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-pie",
+								children: [
+									categoria === "" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-pag",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "cg-pag-btn",
+												disabled: paginaTodas <= 1,
+												onClick: () => { haptic.tap(); setPaginaTodas((p) => Math.max(1, p - 1)); },
+												title: "Anteriores",
+												children: "⏪ Anteriores"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+												className: "cg-pag-info",
+												children: ["Página ", paginaTodas, " · 10 por categoría"]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "cg-pag-btn",
+												onClick: () => { haptic.tap(); setPaginaTodas((p) => p + 1); },
+												title: "Siguientes",
+												children: "Siguientes ⏩"
+											})
+										]
+									}) : (categoria !== "__mis_libros__" && !lgQ.trim()) ? (() => {
+										const pagCat = obtenerPagina(categoria);
+										const poolActual = obtenerLibrosDeCategoria(categoria);
+										return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "cg-pag",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "cg-pag-btn",
+													disabled: pagCat <= 1,
+													onClick: () => retrocederPaginaCategoria(categoria),
+													title: "Anteriores 40",
+													children: "⏪ Anteriores 40"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "cg-pag-info",
+													children: [
+														categoria === "__populares__" ? "Top Descargas" :
+														categoria === "__recientes__" ? "Recientes" :
+														`${(pagCat - 1) * 40 + 1}–${Math.min(pagCat * 40, poolActual.length)} de ${poolActual.length}`
+													]
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "cg-pag-btn" + (cargandoMasCat ? " busy" : ""),
+													disabled: cargandoMasCat,
+													onClick: () => avanzarPaginaCategoria(categoria),
+													title: "Siguientes 40",
+													children: [cargandoMasCat ? "⏳ Cargando…" : "Siguientes 40 ⏩"]
+												})
+											]
+										});
+									})() : null,
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										className: "cg-pie-relays",
+										onClick: () => setPanelRelays(true),
+										title: "Estado de los relays",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												style: { color: "#4ade80", fontSize: "10px", lineHeight: 1 },
+												children: "● "
+											}),
+											libros.length,
+											" libros · 📡 ",
+											relaysActivos,
+											"/",
+											listaRelays.length,
+											" relays"
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										onClick: cargar,
+										title: "Actualizar catálogo",
+										children: "↻ Actualizar"
+									})
+								]
+							})
+						]
 					})
+				})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
@@ -3880,12 +3943,12 @@ const LIBROS_MUSICA_CURADOS = [{"id": "mus-1", "d": "mus-beethoven-cartas", "tit
 
 const detectarIdiomaLibro = (b) => {
 	if (!b) return "es";
-	const raw = (b.idioma || b.language || b.lang || "").toLowerCase();
+	const raw = (b.idioma || b.language || b.lang || "").toLowerCase().trim();
 	if (raw) {
 		for (const p of ["es", "en", "fr", "de", "it", "pt"]) {
 			if (raw.startsWith(p)) return p;
 		}
-		if (raw === "spa" || raw === "spanish") return "es";
+		if (raw === "spa" || raw === "spanish" || raw === "castellano") return "es";
 		if (raw === "eng" || raw === "english") return "en";
 		if (raw === "fra" || raw === "fre" || raw === "french") return "fr";
 		if (raw === "deu" || raw === "ger" || raw === "german") return "de";
@@ -3893,11 +3956,28 @@ const detectarIdiomaLibro = (b) => {
 		if (raw === "por" || raw === "portuguese") return "pt";
 	}
 	const tit = (b.titulo || b.title || "").toLowerCase();
-	if (/(^|\s)(le|les|du|des|misérables|prince|étranger|bovary|swann|candide)($|\s)/i.test(tit)) return "fr";
-	if (/(^|\s)(der|die|das|ein|eine|verwandlung|faust|zarathustra|kritik|werther|steppenwolf)($|\s)/i.test(tit)) return "de";
-	if (/(^|\s)(del|della|dei|degli|commedia|decameron|avventure)($|\s)/i.test(tit)) return "it";
-	if (/(^|\s)(lusíadas|casmurro|memórias|mensagem|sertão)($|\s)/i.test(tit)) return "pt";
-	if (/(^|\s)(the|and|of|in|to|pride|prejudice|gatsby|war|peace|frankenstein|dracula|alice|republic)($|\s)/i.test(tit)) return "en";
+	const aut = (b.autor || (Array.isArray(b.authors) ? b.authors[0] : b.authors) || "").toLowerCase();
+	const desc = (b.descripcion || b.synopsis || "").toLowerCase();
+	const full = `${tit} ${aut} ${desc}`;
+
+	// Español inequívoco
+	if (/\b(de|en|el|la|los|las|un|una|del|y|por|para|con|historia|vida|cartas|cuentos|ensayos|poemas|tratado|libro|sobre|estudios|obras|memorias|pensamientos|filosofía|religión|música|principios)\b/i.test(tit)) return "es";
+	// Inglés inequívoco
+	if (/\b(the|and|of|in|to|for|with|on|by|from|at|about|into|through|after|life|history|story|stories|letters|essays|tales|great|world|young|little|man|woman|book|guide|songs|poems|novel)\b/i.test(tit)) return "en";
+	// Francés
+	if (/\b(le|la|les|du|des|un|une|pour|dans|sur|avec|lettres|histoire|vie|oeuvres|poèmes|contes)\b/i.test(tit)) return "fr";
+	// Alemán
+	if (/\b(der|die|das|ein|eine|und|von|mit|für|über|briefe|leben|geschichte|werke)\b/i.test(tit)) return "de";
+	// Italiano
+	if (/\b(il|lo|la|i|gli|le|del|della|dei|degli|con|per|storia|vita|lettere|opere)\b/i.test(tit)) return "it";
+	// Portugués
+	if (/\b(o|a|os|as|do|da|dos|das|com|para|história|vida|cartas|poemas)\b/i.test(tit)) return "pt";
+
+	if (/\b(the|and|of|in|for)\b/i.test(full)) return "en";
+	if (/\b(le|la|les|des)\b/i.test(full)) return "fr";
+	if (/\b(der|die|das|und)\b/i.test(full)) return "de";
+	if (/\b(il|del|della)\b/i.test(full)) return "it";
+
 	return "es";
 };
 
@@ -4160,7 +4240,7 @@ function QrLibro({ libro }) {
 			const idLibro = libro.d || libro.id;
 			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
 			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			const shareUrl = `${origin}${pathname}/?libro=${encodeURIComponent(idLibro)}`;
+			const shareUrl = typeof window !== "undefined" && window.location?.href ? `${window.location.href.split("?")[0].split("#")[0]}?b=${encodeURIComponent(idLibro)}&t=${encodeURIComponent(libro.titulo || libro.title || "")}&a=${encodeURIComponent(libro.autor || "")}` : `https://lumenreader.app/?b=${encodeURIComponent(idLibro)}`;
 			const data = shareUrl;
 			const img = new Image();
 			img.onload = () => {

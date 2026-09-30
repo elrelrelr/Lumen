@@ -56009,26 +56009,56 @@ function App() {
 		};
 	}, [toast]);
 	(0, import_react.useEffect)(() => {
-		const abrir = async (id) => {
+		const abrir = async (id, extra = {}) => {
 			try {
 				const libro = (await (await __vitePreload(() => import("./nostr-zC6Qsl2z.js"), __vite__mapDeps([21,2,1]), import.meta.url)).catalogoGuardado()).find((b) => b.d === id || b.id === id);
 				if (libro) {
-					setLectorGlobal(libro);
+					setLectorGlobal({ ...libro, ...extra });
 					return;
 				}
-				setQrPendiente(id);
+				setQrPendiente(extra.titulo ? { id, d: id, ...extra } : id);
 				setCatalogoAbierto(true);
 			} catch (e) {
 				console.warn("[qr deep link]", e?.message || e);
 			}
 		};
 		window.__lumenAbrirLibroQR = abrir;
+
+		try {
+			const search = window.location.search || (window.location.hash.includes("?") ? ("?" + window.location.hash.split("?")[1]) : "");
+			if (search) {
+				const p = new URLSearchParams(search);
+				const bId = p.get("b") || p.get("libro") || p.get("id");
+				if (bId) {
+					const libroLink = {
+						id: bId,
+						d: bId,
+						titulo: p.get("t") || p.get("tit") || p.get("titulo") || "Libro",
+						autor: p.get("a") || p.get("aut") || p.get("autor") || "",
+						portada: p.get("c") || p.get("cov") || p.get("portada") || "",
+						fileUrl: p.get("f") || p.get("file") || p.get("epub") || "",
+						epub: p.get("f") || p.get("file") || p.get("epub") || "",
+						magnet: p.get("m") || p.get("mag") || p.get("magnet") || "",
+						audioUrl: p.get("aud") || p.get("audio") || "",
+						videoUrl: p.get("vid") || p.get("video") || "",
+						categoria: p.get("cat") || p.get("categoria") || "",
+						descripcion: p.get("desc") || p.get("descripcion") || ""
+					};
+					setQrPendiente(libroLink);
+					setCatalogoAbierto(true);
+					toast?.("📖 Abriendo «" + libroLink.titulo + "» en Lumen Store...");
+				}
+			}
+		} catch (errDeep) {
+			console.warn("[deep-link parse]", errDeep);
+		}
+
 		return () => {
 			try {
 				delete window.__lumenAbrirLibroQR;
 			} catch {}
 		};
-	}, []);
+	}, [toast]);
 	(0, import_react.useEffect)(() => {
 		const mirar = () => {
 			try {
@@ -56650,6 +56680,7 @@ const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageI
 				}),
 				catalogoAbierto && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(CatalogoLazy, {
 					qrPendiente,
+					libroInicial: qrPendiente,
 					toast,
 					onSalir: () => {
 						setCatalogoAbierto(false);

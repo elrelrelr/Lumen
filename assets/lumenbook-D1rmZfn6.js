@@ -108,7 +108,7 @@ function portadaSvg(titulo, autor = "") {
 		"<": "&lt;",
 		">": "&gt;",
 		"&": "&amp;",
-		""": "&quot;",
+		'"': "&quot;",
 		"'": "&#39;"
 	})[m]);
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
