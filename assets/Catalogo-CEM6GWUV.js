@@ -2039,10 +2039,85 @@ const cargar = (0, import_react.useCallback)(async () => {
 		};
 	};
 
+	// v251: Deduplicación estricta por título y autor para asegurar que en ninguna fila se repitan libros
+	const normalizarParaComparar = (str) => {
+		return aTextoPlano(str || "")
+			.toLowerCase()
+			.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+			.replace(/[^\w\s]/g, " ")
+			.replace(/\s+/g, " ")
+			.trim();
+	};
+
+	const normalizarTituloClave = (tit) => {
+		let norm = normalizarParaComparar(tit);
+		return norm.replace(/^(el|la|los|las|un|una|unos|unas|the|a|an)\s+/i, "").trim();
+	};
+
+	const tokensAutorClave = (aut) => {
+		const norm = normalizarParaComparar(aut);
+		if (!norm || norm === "autor" || norm === "anon" || norm === "anonimo" || norm === "anonymous") return [];
+		const stopwords = new Set(["de", "del", "la", "el", "los", "las", "y", "van", "von", "san", "santa", "da", "di", "desconocido", "desconocida", "anonimo", "anonima", "anon", "anonymous", "varios", "autor", "autores", "sin"]);
+		return norm.split(" ").filter((w) => w.length >= 2 && !stopwords.has(w)).sort();
+	};
+
+	const sonMismoLibroFila = (b1, b2) => {
+		if (!b1 || !b2) return false;
+		if (b1 === b2) return true;
+		if (b1.id && b2.id && b1.id === b2.id) return true;
+
+		const t1 = normalizarTituloClave(b1.titulo || b1.title || "");
+		const t2 = normalizarTituloClave(b2.titulo || b2.title || "");
+		if (!t1 || !t2) return false;
+
+		let titulosSimilares = false;
+		if (t1 === t2) {
+			titulosSimilares = true;
+		} else if (Math.min(t1.length, t2.length) >= 5) {
+			if (t1.startsWith(t2) || t2.startsWith(t1) || t1.includes(t2) || t2.includes(t1)) {
+				titulosSimilares = true;
+			}
+		}
+		if (!titulosSimilares) return false;
+
+		const rawAut1 = b1.autor || (Array.isArray(b1.authors) ? (typeof b1.authors[0] === "string" ? b1.authors[0] : b1.authors[0]?.name) : b1.authors) || b1.author || "";
+		const rawAut2 = b2.autor || (Array.isArray(b2.authors) ? (typeof b2.authors[0] === "string" ? b2.authors[0] : b2.authors[0]?.name) : b2.authors) || b2.author || "";
+		const autToks1 = tokensAutorClave(rawAut1);
+		const autToks2 = tokensAutorClave(rawAut2);
+
+		if (autToks1.length === 0 || autToks2.length === 0) {
+			return true;
+		}
+		const comunes = autToks1.filter((t) => autToks2.includes(t));
+		return comunes.length > 0;
+	};
+
+	const desduplicarFila = (libros) => {
+		if (!Array.isArray(libros)) return [];
+		const resultado = [];
+		for (const b of libros) {
+			if (!b) continue;
+			const yaExiste = resultado.some((existente) => sonMismoLibroFila(existente, b));
+			if (!yaExiste) {
+				resultado.push(b);
+			}
+		}
+		return resultado;
+	};
+
 	const obtenerLibrosDeCategoria = (catId) => {
 		const cNorm = (catId || "").toLowerCase();
 		const seen = new Set();
 		const resultado = [];
+
+		const agregarSiNoExiste = (n) => {
+			if (!n) return;
+			const k = normalizarTituloClave(n.titulo) + ":::" + tokensAutorClave(n.autor).join(" ");
+			if (!seen.has(k) && !resultado.some((existente) => sonMismoLibroFila(existente, n))) {
+				seen.add(k);
+				resultado.push(n);
+			}
+		};
 
 		// Curated pool for biblias
 		if (cNorm === "biblias" || cNorm === "biblia") {
@@ -2050,10 +2125,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "biblias");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2063,10 +2135,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "romance");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2076,10 +2145,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "música");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2089,10 +2155,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "religion");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2102,10 +2165,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "biblias" && (bCat === "biblias" || /biblia|evangelio|testamento|salmos|proverbios/i.test(b.titulo))) || (cNorm === "romance" && (bCat === "romance" || /amor|romanc|enamor|coraz|pasion|amante|casamiento/i.test(b.titulo))) || (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo))) || ((cNorm === "música" || cNorm === "musica") && (bCat === "música" || bCat === "musica" || /músic|music|ópera|opera|sinfon|orquest|canto|piano|viol/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2115,10 +2175,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "biblias" && (bCat === "biblias" || /biblia|evangelio|testamento|salmos|proverbios/i.test(b.titulo))) || (cNorm === "romance" && (bCat === "romance" || /amor|romanc|enamor|coraz|pasion|amante|casamiento/i.test(b.titulo))) || (cNorm === "politica" && (bCat === "politica" || /polit|gobiern|rebel|estado|guerra|republic|principe|contrato|manifiesto|riqueza|democracia/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo))) || ((cNorm === "música" || cNorm === "musica") && (bCat === "música" || bCat === "musica" || /músic|music|ópera|opera|sinfon|orquest|canto|piano|viol/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2129,10 +2186,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 					if (!matchesIdioma(b, filtroIdioma)) continue;
 					const n = normalizarLibroGenerico(b, catId);
 					const k = (n.titulo + "|" + n.autor).toLowerCase();
-					if (!seen.has(k)) {
-						seen.add(k);
-						resultado.push(n);
-					}
+					agregarSiNoExiste(n);
 				}
 			} else if (cNorm === "__populares__" || cNorm === "__recientes__") {
 				for (const bks of Object.values(catPool)) {
@@ -2141,10 +2195,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							if (!matchesIdioma(b, filtroIdioma)) continue;
 							const n = normalizarLibroGenerico(b, "general");
 							const k = (n.titulo + "|" + n.autor).toLowerCase();
-							if (!seen.has(k)) {
-								seen.add(k);
-								resultado.push(n);
-							}
+							agregarSiNoExiste(n);
 						}
 					}
 				}
@@ -2156,10 +2207,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "general");
 				const k = (n.titulo + "|" + n.autor).toLowerCase();
-				if (!seen.has(k)) {
-					seen.add(k);
-					resultado.push(n);
-				}
+				agregarSiNoExiste(n);
 			}
 		}
 
@@ -2243,22 +2291,22 @@ const cargar = (0, import_react.useCallback)(async () => {
 		otrosResultados.push(...librosCoincidentes);
 	}
 
-	const listaPopulares = obtenerLibrosDeCategoria("__populares__").sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
+	const listaPopulares = desduplicarFila(obtenerLibrosDeCategoria("__populares__").sort((a, b) => (b.downloads || 0) - (a.downloads || 0)));
 
-	const listaRecientes = [
+	const listaRecientes = desduplicarFila([
 		...visibles.map((b) => normalizarLibroGenerico(b, "lumen")),
 		...obtenerLibrosDeCategoria("__recientes__").filter((b) => !visibles.some((v) => (v.titulo || v.title) === b.titulo))
-	];
+	]);
 
 	const pagActual = obtenerPagina(categoria || "__todas__");
-	const librosPantallaPop = listaPopulares.slice(0, pagActual * 40);
-	const librosPantallaRec = listaRecientes.slice(0, pagActual * 40);
+	const librosPantallaPop = desduplicarFila(listaPopulares.slice(0, pagActual * 40));
+	const librosPantallaRec = desduplicarFila(listaRecientes.slice(0, pagActual * 40));
 
-	const poolCategoriaActual = categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
+	const poolCategoriaActual = desduplicarFila(categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
 		? obtenerLibrosDeCategoria(categoria)
-		: [];
+		: []);
 	const librosPantallaCat = poolCategoriaActual.slice(0, pagActual * 40);
-	const top10Categoria = [...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 10);
+	const top10Categoria = desduplicarFila([...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0))).slice(0, 10);
 	const categorias = categoriasDe(libros);
 
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -2638,7 +2686,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-fila cg-fila-top",
 								onWheel: onWheelHorizontal,
-								children: listaPopulares.slice(0, 14).map((b, idx) => (
+								children: desduplicarFila(listaPopulares).slice(0, 14).map((b, idx) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro: b,
 										ranking: idx + 1,
@@ -2731,7 +2779,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-fila",
 								onWheel: onWheelHorizontal,
-								children: listaRecientes.slice(0, 14).map((libro) => (
+								children: desduplicarFila(listaRecientes).slice(0, 14).map((libro) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro,
 										reportes,
@@ -2824,7 +2872,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 											className: "lg-fila cg-fila cg-fila-top cg-scroll-x-only",
 											ref: carrilRefCallback,
 											onWheel: onWheelHorizontal,
-											children: top10Categoria.map((libro, idx) => (
+											children: desduplicarFila(top10Categoria).slice(0, 10).map((libro, idx) => (
 												(0, import_jsx_runtime.jsx)(Tarjeta, {
 													libro,
 													ranking: idx + 1,
@@ -2840,7 +2888,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 
 								/* Filas 2, 3, 4, 5 (y adicionales al paginar): Catálogo completo en 4 filas de 10 libros con portada adaptada */
 								...Array.from({ length: totalFilasCatalogo }, (_, fIdx) => {
-									const filaLibros = librosPantallaCat.slice(fIdx * 10, (fIdx + 1) * 10);
+									const filaLibros = desduplicarFila(librosPantallaCat.slice(fIdx * 10, (fIdx + 1) * 10));
 									const numFila = fIdx + 2; // Fila 2, 3, 4, 5...
 									return (0, import_jsx_runtime.jsxs)("div", {
 										className: "cg-seccion cg-seccion-fila-cat",
@@ -2864,7 +2912,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 												className: "lg-fila cg-fila cg-fila-compacta cg-scroll-x-only",
 												ref: carrilRefCallback,
 												onWheel: onWheelHorizontal,
-												children: filaLibros.map((libro, idx) => (
+												children: desduplicarFila(filaLibros).map((libro, idx) => (
 													(0, import_jsx_runtime.jsx)(Tarjeta, {
 														libro,
 														reportes,
@@ -2900,7 +2948,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 											className: "lg-fila cg-fila cg-fila-compacta cg-scroll-x-only",
 											ref: carrilRefCallback,
 											onWheel: onWheelHorizontal,
-											children: lumenLibrosCat.map((libro, idx) => (
+											children: desduplicarFila(lumenLibrosCat).map((libro, idx) => (
 												(0, import_jsx_runtime.jsx)(Tarjeta, {
 													libro,
 													reportes,
@@ -2932,7 +2980,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-fila-top cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: listaPopulares.slice(0, 10).map((b, idx) => (
+										children: desduplicarFila(listaPopulares).slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -2959,7 +3007,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: listaRecientes.slice(0, 10).map((libro) => (
+										children: desduplicarFila(listaRecientes).slice(0, 10).map((libro) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro,
 												reportes,
@@ -2984,7 +3032,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: obtenerLibrosDeCategoria("politica").slice(0, 10).map((b, idx) => (
+										children: desduplicarFila(obtenerLibrosDeCategoria("politica")).slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -2998,14 +3046,20 @@ const cargar = (0, import_react.useCallback)(async () => {
 								]
 							}),
 							!lgQ.trim() && LISTA_CATS_UNIFICADAS.filter(c => c.id !== "politica").map((catItem) => {
-								const poolCat = obtenerLibrosDeCategoria(catItem.id);
+								const poolCat = desduplicarFila(obtenerLibrosDeCategoria(catItem.id));
 								if (!poolCat || poolCat.length === 0) return null;
 								const tamano = poolCat.length;
 								const startIdx = ((paginaTodas - 1) * 10) % tamano;
 								let librosDiez = poolCat.slice(startIdx, startIdx + 10);
-								if (librosDiez.length < 10 && tamano >= 10) {
-									librosDiez = [...librosDiez, ...poolCat.slice(0, 10 - librosDiez.length)];
+								if (librosDiez.length < 10 && tamano > librosDiez.length) {
+									for (const cand of poolCat) {
+										if (librosDiez.length >= 10) break;
+										if (!librosDiez.some((b) => sonMismoLibroFila(b, cand))) {
+											librosDiez.push(cand);
+										}
+									}
 								}
+								librosDiez = desduplicarFila(librosDiez);
 								return (0, import_jsx_runtime.jsxs)("div", {
 									className: "cg-seccion",
 									children: [
@@ -3024,7 +3078,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 											className: "cg-fila cg-fila-compacta",
 											onWheel: onWheelHorizontal,
-											children: librosDiez.map((b, idx) => (
+											children: desduplicarFila(librosDiez).map((b, idx) => (
 												(0, import_jsx_runtime.jsx)(Tarjeta, {
 													libro: b,
 													reportes,
@@ -3106,7 +3160,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: librosDelAutor.map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
+										children: desduplicarFila(librosDelAutor).map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
 											libro,
 											reportes,
 											onAbrir: () => {

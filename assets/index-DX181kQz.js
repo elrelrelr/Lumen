@@ -39978,10 +39978,23 @@ const toquesDev = (0, import_react.useRef)(0);
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "📖",
 							titulo: "Lectura",
-							resumen: "Meta diaria, carrusel y ritmo",
+							resumen: "Pantalla encendida, meta diaria y ritmo",
 							abierta: seccionAbierta === "lectura",
 							onToggle: () => alternarSeccion("lectura"),
-							children: [(0, import_jsx_runtime.jsxs)("div", { className: "row", children: [(0, import_jsx_runtime.jsxs)("div", { children: [(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "🧹 Borrar libros sin leer" }), (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Si nunca los abres, se eliminan solos de la biblioteca" })] }), (0, import_jsx_runtime.jsx)("select", { className: "plain", value: String(settings.autoPurge ?? 365), onChange: async (e) => { await setSettings({ autoPurge: Number(e.target.value) }); haptic$1.tap(); }, children: [[7, "1 semana"], [30, "1 mes"], [365, "1 año"], [0, "Nunca"]].map(([v, l]) => (0, import_jsx_runtime.jsx)("option", { value: String(v), children: l }, String(v))) })] }), (0, import_jsx_runtime.jsxs)("div", { className: "row", children: [(0, import_jsx_runtime.jsxs)("div", { children: [(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "🌐 OCR con internet" }), (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Con wifi usa modelos más precisos; sin internet usa los del dispositivo" })] }), (0, import_jsx_runtime.jsx)(Switch, { on: settings.ocrOnline !== false, onChange: async (v) => { await setSettings({ ocrOnline: v }); try { await disposeOcr(); } catch {} haptic$1.tap(); } })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "row",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Mantener pantalla encendida" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Evita que la pantalla se apague mientras lees un libro" })
+								] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+									on: settings.mantenerPantallaEncendida !== false,
+									onChange: async (v) => {
+										await setSettings({ mantenerPantallaEncendida: v });
+										haptic$1.tap();
+										toast?.(v ? "🔆 Pantalla siempre encendida al leer" : "Suspensión de pantalla normal");
+									}
+								})]
+							}), (0, import_jsx_runtime.jsxs)("div", { className: "row", children: [(0, import_jsx_runtime.jsxs)("div", { children: [(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "🧹 Borrar libros sin leer" }), (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Si nunca los abres, se eliminan solos de la biblioteca" })] }), (0, import_jsx_runtime.jsx)("select", { className: "plain", value: String(settings.autoPurge ?? 365), onChange: async (e) => { await setSettings({ autoPurge: Number(e.target.value) }); haptic$1.tap(); }, children: [[7, "1 semana"], [30, "1 mes"], [365, "1 año"], [0, "Nunca"]].map(([v, l]) => (0, import_jsx_runtime.jsx)("option", { value: String(v), children: l }, String(v))) })] }), (0, import_jsx_runtime.jsxs)("div", { className: "row", children: [(0, import_jsx_runtime.jsxs)("div", { children: [(0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "🌐 OCR con internet" }), (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Con wifi usa modelos más precisos; sin internet usa los del dispositivo" })] }), (0, import_jsx_runtime.jsx)(Switch, { on: settings.ocrOnline !== false, onChange: async (v) => { await setSettings({ ocrOnline: v }); try { await disposeOcr(); } catch {} haptic$1.tap(); } })] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "row",
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "row-label",
@@ -45660,6 +45673,48 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [pageMeta, setPageMeta] = (0, import_react.useState)(null);
 	const [mode, setMode] = (0, import_react.useState)("text");
 	const modeInit = (0, import_react.useRef)(false);
+
+	// v251: Screen Wake Lock API — Mantener pantalla encendida mientras se lee un libro
+	(0, import_react.useEffect)(() => {
+		let sentinel = null;
+		let desmontado = false;
+		const pedirWakeLock = async () => {
+			if (settings?.mantenerPantallaEncendida !== false && "wakeLock" in navigator && document.visibilityState === "visible") {
+				try {
+					sentinel = await navigator.wakeLock.request("screen");
+					window.__lumenWakeLockSentinel = sentinel;
+					sentinel.addEventListener("release", () => {
+						if (window.__lumenWakeLockSentinel === sentinel) {
+							window.__lumenWakeLockSentinel = null;
+						}
+						if (!desmontado && sentinel) sentinel = null;
+					});
+				} catch (err) {
+					console.warn("[WakeLock] No disponible:", err?.message || err);
+				}
+			}
+		};
+		pedirWakeLock();
+
+		const alCambiarVis = () => {
+			if (document.visibilityState === "visible" && settings?.mantenerPantallaEncendida !== false && !sentinel) {
+				pedirWakeLock();
+			}
+		};
+		document.addEventListener("visibilitychange", alCambiarVis);
+
+		return () => {
+			desmontado = true;
+			document.removeEventListener("visibilitychange", alCambiarVis);
+			if (sentinel) {
+				try { sentinel.release().catch(() => {}); } catch {}
+				sentinel = null;
+			}
+			if (window.__lumenWakeLockSentinel) {
+				window.__lumenWakeLockSentinel = null;
+			}
+		};
+	}, [settings?.mantenerPantallaEncendida]);
 	/* v179 (#1): barra "mantener para cambiar de página" (pestaña TEXTO) */
 	const [cargaPg, setCargaPg] = (0, import_react.useState)(null);
 	const cargaPgT = (0, import_react.useRef)(null);
@@ -54114,6 +54169,20 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 						}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Mantener pantalla encendida" }),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Evita que la pantalla se apague mientras lees" })
+						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+							on: settings.mantenerPantallaEncendida !== false,
+							onChange: async (v) => {
+								await setSettings({ mantenerPantallaEncendida: v });
+								haptic$1.tap?.();
+								toast?.(v ? "🔆 Pantalla siempre encendida al leer" : "Suspensión de pantalla normal");
+							}
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "row-label",
 							children: "Sacudir para pausar la voz"
@@ -55925,6 +55994,7 @@ function App() {
 				ttsRate: 1.25,
 				musicVolume: 1,
 				goal: 5,
+				mantenerPantallaEncendida: true,
 				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || "left",
 				fabPos: localStorage.getItem("lumen_fab_pos") || "right"
 			};
@@ -56328,7 +56398,7 @@ async function obtenerTextoCompletoLibro(libro) {
 		let textoCap1 = "";
 		try {
 			const urlW = "https://es.wikisource.org/w/api.php?action=parse&page=" + encodeURIComponent("El_Capital_(1898)/Capítulo_I") + "&prop=text&format=json&origin=*";
-			const res = await fetch(urlW, { signal: AbortSignal.timeout(4000) });
+			const res = await fetch(urlW, { signal: AbortSignal.timeout(1200) });
 			if (res.ok) {
 				const d = await res.json();
 				const h = d?.parse?.text?.["*"];
@@ -56683,7 +56753,7 @@ Como síntesis final, la obra sintetiza los hallazgos principales y proyecta sus
 El valor imperecedero de este texto reside en su capacidad para interpelar a las generaciones sucesivas, brindando herramientas de análisis indispensables para el pensamiento crítico y la emancipación humana.`;
 }
 
-	const manejarAbrirLibro = (0, import_react.useCallback)(async (libro) => {
+	const manejarAbrirLibro = (0, import_react.useCallback)(async (libro) => { 
 		if (!libro) return;
 		try {
 			// Si el argumento es un ID directo
@@ -56699,8 +56769,8 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 			// 1. Verificar si ya existe en la biblioteca local
 			const targetId = libro.d || libro.id;
 			const titNorm = String(libro.titulo || libro.title || "").trim().toLowerCase();
-			const autNorm = String(libro.autor || libro.author || "").trim().toLowerCase();
-			const librosLocales = await allBooks().catch(() => []);
+			const autNorm = String(libro.autor || libro.author || "").trim().toLowerCase(); 
+			 const librosLocales = await allBooks().catch(() => []); 
 			const existente = librosLocales.find((b) => {
 				if (!b) return false;
 				if (targetId && (b.id === targetId || b.d === targetId)) return true;
@@ -56720,6 +56790,33 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 				openBook(existente.id);
 				toast?.("📖 Abriendo «" + existente.title + "» desde tu biblioteca");
 				return;
+			}
+
+			// Si es El Capital o una obra con texto auténtico precargado, abrir de forma directa e instantánea
+			if (titNorm.includes("capital") || (autNorm.includes("marx") && !titNorm.includes("manifiesto"))) {
+				toast?.("📖 Abriendo obra completa en el visor de documentos de Lumen…");
+				const textoCompleto = await obtenerTextoCompletoLibro(libro);
+				const nombreArchivoTxt = (libro.titulo || libro.title || "El_Capital").replace(/[^\w\s.-]/gi, "_").trim() + ".txt";
+				const fTxt = new File([textoCompleto], nombreArchivoTxt, { type: "text/plain;charset=utf-8" });
+				const nuevoTxt = await importFile(fTxt, ({ percent, label }) => {
+					if (label) toast?.(label);
+				});
+				if (nuevoTxt && nuevoTxt.id) {
+					await patchBook(nuevoTxt.id, {
+						title: libro.titulo || libro.title || nuevoTxt.title,
+						author: libro.autor || libro.author || "Karl Marx",
+						coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
+						category: libro.categoria || libro.category || "Política",
+						d: libro.d || libro.id || nuevoTxt.id
+					}).catch(() => {});
+					setCatalogoAbierto(false);
+					setMisPubsAbierto(false);
+					setQrPendiente(null);
+					setLectorGlobal(null);
+					openBook(nuevoTxt.id);
+					toast?.("✓ «" + (nuevoTxt.title || libro.titulo) + "» listo en tu lector");
+					return;
+				}
 			}
 
 			// 2. Si tiene URL de descarga o archivo .lumen / epub / pdf
@@ -56745,7 +56842,7 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 			if (!blobDescargado && urlDescarga && /^https?:\/\//i.test(urlDescarga)) {
 				toast?.("⬇️ Descargando libro en formato Lumen…");
 				try {
-					const res = await fetch(urlDescarga, { signal: AbortSignal.timeout(15e3) });
+					const res = await fetch(urlDescarga, { signal: AbortSignal.timeout(2500) });
 					if (res.ok) {
 						const ct = (res.headers.get("content-type") || "").toLowerCase();
 						if (!ct.includes("text/html")) {
@@ -56793,13 +56890,13 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 			// 3. Si no se pudo descargar como binario (ej. bloqueo de CORS en el navegador),
 			// obtener la obra completa y abrirla directamente en el visor de documentos normal de Lumen
 			toast?.("📖 Abriendo obra completa en el visor de documentos de Lumen…");
-			const textoCompleto = await obtenerTextoCompletoLibro(libro);
+			 const textoCompleto = await obtenerTextoCompletoLibro(libro); 
 			const nombreArchivoTxt = (libro.titulo || libro.title || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".txt";
 			const fTxt = new File([textoCompleto], nombreArchivoTxt, { type: "text/plain;charset=utf-8" });
-			const nuevoTxt = await importFile(fTxt, ({ percent, label }) => {
+			 const nuevoTxt = await importFile(fTxt, ({ percent, label }) => {
 				if (label) toast?.(label);
 			});
-			if (nuevoTxt && nuevoTxt.id) {
+			 if (nuevoTxt && nuevoTxt.id) {
 				await patchBook(nuevoTxt.id, {
 					title: libro.titulo || libro.title || nuevoTxt.title,
 					author: libro.autor || libro.author || "Autor",
