@@ -36,6 +36,26 @@ function urlSegura(u) {
 		return false;
 	}
 }
+
+function aTextoPlano(val) {
+	if (val == null) return "";
+	if (typeof val === "string") return val;
+	if (typeof val === "number" || typeof val === "boolean") return String(val);
+	if (Array.isArray(val)) {
+		return val.map(aTextoPlano).filter(Boolean).join(", ");
+	}
+	if (typeof val === "object") {
+		if (typeof val.value === "string") return val.value;
+		if (typeof val.name === "string") return val.name;
+		if (typeof val.text === "string") return val.text;
+		if (typeof val.title === "string") return val.title;
+		if (val.value) return aTextoPlano(val.value);
+		if (val.name) return aTextoPlano(val.name);
+		return "";
+	}
+	return String(val);
+}
+
 /** Normaliza una book card cruda a un objeto seguro del catálogo.
 Ignora campos extra y solo respeta los del schema. Devuelve null si no
 es válida (sin título, o sin ninguna fuente de contenido). */
@@ -472,7 +492,7 @@ var MOTIVOS = [
 ];
 function textoLimpio(s) {
 	if (s == null) return "";
-	return String(s).replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>|<\/div>|<\/li>|<li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
+	return aTextoPlano(s).replace(/<br\s*\/?>/gi, "\n").replace(/<\/p>|<\/div>|<\/li>|<li>/gi, "\n").replace(/<[^>]+>/g, "").replace(/\n{2,}/g, "\n").trim();
 }
 /* v208: las 5 bibliotecas de «Libros gratis», activables/desactivables desde Filtros */
 const BIBLIOTECAS_INFO = [
@@ -1222,8 +1242,9 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [cargandoRemotos, setCargandoRemotos] = (0, import_react.useState)(false);
 
 	(0, import_react.useEffect)(() => {
-		const q = lgQ.trim();
-		if (q.length < 2) {
+		const q = aTextoPlano(lgQ).trim();
+		// Evitar peticiones remotas para términos minúsculos de 1 o 2 letras o artículos sueltos que causan 422 en Open Library
+		if (q.length < 3 || /^(el|la|los|las|un|una|de|del|en|y|o|the|a|an|of|in|to|is|on)$/i.test(q)) {
 			setResultadosRemotos([]);
 			setCargandoRemotos(false);
 			return;
@@ -1235,25 +1256,28 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				const promesas = [
 					fetch(`https://openlibrary.org/search.json?author=${encodeURIComponent(q)}&limit=25`, { signal: AbortSignal.timeout(6000) })
 						.then((r) => r.ok ? r.json() : null)
-						.then((j) => (j?.docs || []).map((d) => docToLibroOL(d, "remoto"))),
+						.then((j) => (j?.docs || []).map((d) => docToLibroOL(d, "remoto")).filter(Boolean))
+						.catch(() => []),
 					fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=25`, { signal: AbortSignal.timeout(6000) })
 						.then((r) => r.ok ? r.json() : null)
-						.then((j) => (j?.docs || []).map((d) => docToLibroOL(d, "remoto"))),
+						.then((j) => (j?.docs || []).map((d) => docToLibroOL(d, "remoto")).filter(Boolean))
+						.catch(() => []),
 					fetch(`https://archive.org/advancedsearch.php?q=mediatype:(texts)+AND+(creator:(${encodeURIComponent(q)})+OR+title:(${encodeURIComponent(q)}))&fl[]=identifier,title,creator,downloads,year,description&sort[]=downloads+desc&rows=30&output=json`, { signal: AbortSignal.timeout(6000) })
 						.then((r) => r.ok ? r.json() : null)
 						.then((j) => ((j?.response?.docs) || []).map((d) => ({
 							id: `ia-${d.identifier}`,
 							d: `ia-${d.identifier}`,
-							titulo: d.title || "Libro",
-							autor: Array.isArray(d.creator) ? d.creator.join(", ") : (d.creator || "Dominio Público"),
+							titulo: aTextoPlano(d.title) || "Libro",
+							autor: aTextoPlano(d.creator) || "Dominio Público",
 							portada: `https://archive.org/services/img/${d.identifier}`,
 							fuente: "archive",
 							epub: `https://archive.org/download/${d.identifier}/${d.identifier}.epub`,
 							fileUrl: `https://archive.org/download/${d.identifier}/${d.identifier}.pdf`,
 							url: `https://archive.org/details/${d.identifier}`,
 							downloads: Number(d.downloads) || 12000,
-							descripcion: d.description || "Obra disponible en Internet Archive para descarga y lectura directa."
+							descripcion: aTextoPlano(d.description) || "Obra disponible en Internet Archive para descarga y lectura directa."
 						})))
+						.catch(() => [])
 				];
 				const resultados = await Promise.allSettled(promesas);
 				if (cancelado) return;
@@ -1269,7 +1293,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			} finally {
 				if (!cancelado) setCargandoRemotos(false);
 			}
-		}, 300);
+		}, 350);
 		return () => {
 			cancelado = true;
 			clearTimeout(timer);
@@ -1987,12 +2011,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 
 	const normalizarLibroGenerico = (b, catDef = "general") => {
 		if (!b) return null;
-		const tit = (b.titulo || b.title || "").trim() || "Libro";
-		const aut = (b.autor || (Array.isArray(b.authors) ? b.authors.map((a) => typeof a === "string" ? a : (a?.name || "")).filter(Boolean).join(", ") : b.authors) || "").trim() || "Autor";
+		const tit = aTextoPlano(b.titulo || b.title).trim() || "Libro";
+		let aut = aTextoPlano(b.autor || (Array.isArray(b.authors) ? b.authors.map((a) => typeof a === "string" ? a : (a?.name || "")).filter(Boolean).join(", ") : b.authors)).trim();
+		if (!aut) aut = "Autor";
 		const dl = Number(b.downloads) || (b.rating ? Math.round((ratingDe(b).estrellas || 4.5) * 3200) : 1200);
-		const cat = b.categoria || (b.bookshelves && b.bookshelves[0]) || catDef;
+		const cat = aTextoPlano(b.categoria || (b.bookshelves && b.bookshelves[0])) || catDef;
 		const rawCov = b.portada || b.cover || null;
-		const cov = (rawCov && rawCov !== "assets/icon-192.png") ? rawCov : null;
+		const cov = (rawCov && rawCov !== "assets/icon-192.png") ? (typeof rawCov === "string" ? rawCov : null) : null;
+		const desc = aTextoPlano(b.descripcion || b.synopsis || b.description).trim();
 		return {
 			id: b.id || b.bookId || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
 			d: b.d || b.id || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
@@ -2007,7 +2033,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 			audioUrl: b.audioUrl || null,
 			videoUrl: b.videoUrl || null,
 			url: b.url || null,
-			descripcion: b.descripcion || b.synopsis || "",
+			descripcion: desc,
 			esMio: !!b.esMio,
 			rating: b.rating
 		};
@@ -2142,7 +2168,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 
 	
 	// Lumen v249: Búsqueda federada por Autor y Título en tiempo real
-	const qLimpia = lgQ.trim().toLowerCase();
+	const qLimpia = aTextoPlano(lgQ).trim().toLowerCase();
 	const qTokens = qLimpia.split(/\s+/).filter((t) => t.length >= 2);
 
 	const todosLibrosLocales = [
@@ -2167,13 +2193,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 			if (!b) continue;
 			if (!matchesIdioma(b, filtroIdioma)) continue;
 			const n = normalizarLibroGenerico(b, b.categoria || "general");
-			const tit = (n.titulo || "").toLowerCase();
-			const aut = (n.autor || "").toLowerCase();
-			const des = (n.descripcion || "").toLowerCase();
-			const key = (n.titulo + "|" + n.autor).toLowerCase();
+			if (!n) continue;
+			const tit = aTextoPlano(n.titulo).toLowerCase();
+			const aut = aTextoPlano(n.autor).toLowerCase();
+			const des = aTextoPlano(n.descripcion).toLowerCase();
+			const key = (tit + "|" + aut);
 			if (seenSearch.has(key)) continue;
 
-			const coincide = qTokens.every((tok) => tit.includes(tok) || aut.includes(tok) || des.includes(tok))
+			const coincide = qTokens.length === 0 || qTokens.every((tok) => tit.includes(tok) || aut.includes(tok) || des.includes(tok))
 				|| tit.includes(qLimpia) || aut.includes(qLimpia);
 			if (coincide) {
 				seenSearch.add(key);
@@ -2189,7 +2216,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 	if (qTokens.length > 0) {
 		const autoresFrecuencia = {};
 		for (const b of librosCoincidentes) {
-			const a = (b.autor || "").trim();
+			const a = aTextoPlano(b.autor).trim();
 			if (a && a !== "Anon" && a !== "Autor anónimo" && a !== "Autor") {
 				const aNorm = a.toLowerCase();
 				if (qTokens.some((tok) => aNorm.includes(tok))) {
@@ -2200,9 +2227,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 		const ordenados = Object.entries(autoresFrecuencia).sort((x, y) => y[1] - x[1]);
 		if (ordenados.length > 0) {
 			autorDetectado = ordenados[0][0];
-			const autNorm = autorDetectado.toLowerCase();
+			const autNorm = aTextoPlano(autorDetectado).toLowerCase();
 			for (const b of librosCoincidentes) {
-				if ((b.autor || "").toLowerCase().includes(autNorm) || autNorm.includes((b.autor || "").toLowerCase())) {
+				const bAut = aTextoPlano(b.autor).toLowerCase();
+				if (bAut.includes(autNorm) || autNorm.includes(bAut)) {
 					librosDelAutor.push(b);
 				} else {
 					otrosResultados.push(b);
@@ -4176,7 +4204,7 @@ const LIBROS_MUSICA_CURADOS = [{"id": "mus-1", "d": "mus-beethoven-cartas", "tit
 
 const detectarIdiomaLibro = (b) => {
 	if (!b) return "es";
-	const raw = (b.idioma || b.language || b.lang || "").toLowerCase().trim();
+	const raw = aTextoPlano(b.idioma || b.language || b.lang).toLowerCase().trim();
 	if (raw) {
 		for (const p of ["es", "en", "fr", "de", "it", "pt"]) {
 			if (raw.startsWith(p)) return p;
@@ -4188,9 +4216,9 @@ const detectarIdiomaLibro = (b) => {
 		if (raw === "ita" || raw === "italian") return "it";
 		if (raw === "por" || raw === "portuguese") return "pt";
 	}
-	const tit = (b.titulo || b.title || "").toLowerCase();
-	const aut = (b.autor || (Array.isArray(b.authors) ? b.authors[0] : b.authors) || "").toLowerCase();
-	const desc = (b.descripcion || b.synopsis || "").toLowerCase();
+	const tit = aTextoPlano(b.titulo || b.title).toLowerCase();
+	const aut = aTextoPlano(b.autor || (Array.isArray(b.authors) ? b.authors[0] : b.authors) || b.creator).toLowerCase();
+	const desc = aTextoPlano(b.descripcion || b.synopsis || b.description).toLowerCase();
 	const full = `${tit} ${aut} ${desc}`;
 
 	// Español inequívoco
@@ -4262,21 +4290,25 @@ const MAPA_SUBJECT_OL = {
 };
 
 const docToLibroOL = (doc, catId) => {
-	const tit = doc.title || "Libro";
+	if (!doc) return null;
+	const tit = aTextoPlano(doc.title) || "Libro";
 	let aut = "Autor";
-	if (Array.isArray(doc.author_name) && doc.author_name[0]) {
-		aut = doc.author_name.slice(0, 2).join(", ");
-	} else if (Array.isArray(doc.authors) && doc.authors[0]) {
-		aut = typeof doc.authors[0] === "string" ? doc.authors[0] : (doc.authors[0].name || "Autor");
-	} else if (typeof doc.author_name === "string") {
-		aut = doc.author_name;
+	if (Array.isArray(doc.author_name) && doc.author_name.length > 0) {
+		aut = aTextoPlano(doc.author_name.slice(0, 2));
+	} else if (Array.isArray(doc.authors) && doc.authors.length > 0) {
+		aut = aTextoPlano(doc.authors.slice(0, 2));
+	} else if (doc.author_name) {
+		aut = aTextoPlano(doc.author_name);
+	} else if (doc.authors) {
+		aut = aTextoPlano(doc.authors);
 	}
 	const covId = doc.cover_id || doc.cover_i;
-	const iaId = Array.isArray(doc.ia) && doc.ia[0] ? doc.ia[0] : (typeof doc.ia === "string" ? doc.ia : null);
+	const iaId = Array.isArray(doc.ia) && doc.ia[0] ? String(doc.ia[0]) : (typeof doc.ia === "string" ? doc.ia : null);
 	const cov = covId ? `https://covers.openlibrary.org/b/id/${covId}-M.jpg` : (iaId ? `https://archive.org/services/img/${iaId}` : null);
+	const desc = aTextoPlano(doc.description || doc.subject) || "Obra disponible en bibliotecas digitales abiertas.";
 	return {
-		id: "ol-" + (doc.key ? doc.key.replace(/\//g, "-") : ("gen-" + Math.random().toString(36).slice(2))),
-		d: "ol-" + (doc.key ? doc.key.replace(/\//g, "-") : ("gen-" + Math.random().toString(36).slice(2))),
+		id: "ol-" + (doc.key ? String(doc.key).replace(/\//g, "-") : ("gen-" + Math.random().toString(36).slice(2))),
+		d: "ol-" + (doc.key ? String(doc.key).replace(/\//g, "-") : ("gen-" + Math.random().toString(36).slice(2))),
 		titulo: tit,
 		autor: aut,
 		categoria: catId || "general",
@@ -4286,7 +4318,7 @@ const docToLibroOL = (doc, catId) => {
 		epub: iaId ? `https://archive.org/download/${iaId}/${iaId}.epub` : null,
 		fileUrl: iaId ? `https://archive.org/download/${iaId}/${iaId}.pdf` : null,
 		url: doc.key ? `https://openlibrary.org${doc.key}` : `https://openlibrary.org/search?q=${encodeURIComponent(tit + " " + aut)}`,
-		descripcion: doc.subject ? `Temas: ${Array.isArray(doc.subject) ? doc.subject.slice(0, 5).join(", ") : doc.subject}.` : `Obra de la colección de bibliotecas abiertas.`
+		descripcion: desc
 	};
 };
 
@@ -4346,8 +4378,8 @@ function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar,
 	const disp = disponibilidad(libro);
 	const rep = contarReportes(reportes, libro.id);
 	const r = ratingDe(libro);
-	const tit = libro.titulo || libro.title || "Libro";
-	const aut = libro.autor || (Array.isArray(libro.authors) ? libro.authors[0] : libro.authors) || "Autor";
+	const tit = aTextoPlano(libro?.titulo || libro?.title) || "Libro";
+	const aut = aTextoPlano(libro?.autor || (Array.isArray(libro?.authors) ? libro.authors[0] : libro?.authors)) || "Autor";
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "cg-tarjeta-wrap",
 		style: { display: "flex", flexDirection: "column" },
