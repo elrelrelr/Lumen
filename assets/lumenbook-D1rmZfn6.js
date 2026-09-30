@@ -113,27 +113,51 @@ function portadaSvg(titulo, autor = "") {
 	})[m]);
 	return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="900" viewBox="0 0 600 900">
 <defs>
-  <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-    <stop offset="0" stop-color="hsl(${h} 58% 36%)"/>
-    <stop offset="100%" stop-color="hsl(${h2} 52% 16%)"/>
+  <linearGradient id="cuero" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="hsl(${h} 48% 22%)"/>
+    <stop offset="60%" stop-color="hsl(${h} 55% 14%)"/>
+    <stop offset="100%" stop-color="hsl(${h2} 60% 8%)"/>
   </linearGradient>
+  <pattern id="linen" width="8" height="8" patternUnits="userSpaceOnUse">
+    <rect width="8" height="8" fill="transparent"/>
+    <path d="M 0 4 L 8 4 M 4 0 L 4 8" stroke="rgba(255,255,255,0.035)" stroke-width="0.8"/>
+    <path d="M 0 0 L 8 8 M 0 8 L 8 0" stroke="rgba(0,0,0,0.07)" stroke-width="0.8"/>
+  </pattern>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#dfba56"/>
+    <stop offset="30%" stop-color="#fff8d6"/>
+    <stop offset="55%" stop-color="#c59828"/>
+    <stop offset="85%" stop-color="#ffd700"/>
+    <stop offset="100%" stop-color="#8a6508"/>
+  </linearGradient>
+  <radialGradient id="vignette" cx="50%" cy="30%" r="70%">
+    <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
+    <stop offset="60%" stop-color="rgba(0,0,0,0.15)"/>
+    <stop offset="100%" stop-color="rgba(0,0,0,0.65)"/>
+  </radialGradient>
   <linearGradient id="spine" x1="0" y1="0" x2="1" y2="0">
-    <stop offset="0" stop-color="rgba(0,0,0,0.6)"/>
-    <stop offset="25px" stop-color="rgba(0,0,0,0.15)"/>
-    <stop offset="35px" stop-color="transparent"/>
+    <stop offset="0%" stop-color="rgba(0,0,0,0.75)"/>
+    <stop offset="25px" stop-color="rgba(0,0,0,0.85)"/>
+    <stop offset="30px" stop-color="rgba(255,255,255,0.22)"/>
+    <stop offset="36px" stop-color="rgba(0,0,0,0.5)"/>
+    <stop offset="55px" stop-color="transparent"/>
   </linearGradient>
 </defs>
-<rect width="600" height="900" fill="url(#g)"/>
+<rect width="600" height="900" fill="url(#cuero)"/>
+<rect width="600" height="900" fill="url(#linen)"/>
+<rect width="600" height="900" fill="url(#vignette)"/>
 <rect width="600" height="900" fill="url(#spine)"/>
-<rect x="25" y="25" width="550" height="850" rx="12" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
-<rect x="35" y="35" width="530" height="830" rx="8" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1"/>
-<circle cx="300" cy="380" r="90" fill="rgba(0,0,0,0.25)" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
-<text x="300" y="425" font-family="Georgia, serif" font-size="110" font-weight="bold"
-  fill="rgba(255,255,255,0.95)" text-anchor="middle">${esc(iniciales)}</text>
-<text x="300" y="560" font-family="Georgia, serif" font-size="34" font-weight="bold"
-  fill="#ffffff" text-anchor="middle">${esc(titulo.slice(0, 32))}</text>
-${autor ? `<text x="300" y="625" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-style="italic" fill="rgba(255,255,255,0.8)" text-anchor="middle">${esc(autor.slice(0, 32))}</text>` : ""}
-<line x1="220" y1="670" x2="380" y2="670" stroke="rgba(255,255,255,0.25)" stroke-width="1.5"/>
+<rect x="36" y="32" width="528" height="836" rx="6" fill="none" stroke="url(#gold)" stroke-width="2.5" opacity="0.85"/>
+<rect x="46" y="42" width="508" height="816" rx="4" fill="none" stroke="url(#gold)" stroke-width="1" opacity="0.45"/>
+<path d="M 40 55 L 55 40 M 560 55 L 545 40 M 40 845 L 55 860 M 560 845 L 545 860" stroke="url(#gold)" stroke-width="1.5" opacity="0.75"/>
+<circle cx="300" cy="360" r="80" fill="rgba(0,0,0,0.35)" stroke="url(#gold)" stroke-width="2.5"/>
+<circle cx="300" cy="360" r="72" fill="none" stroke="url(#gold)" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+<text x="300" y="398" font-family="'Playfair Display', Georgia, serif" font-size="96" font-weight="bold" fill="url(#gold)" text-anchor="middle">${esc(iniciales)}</text>
+<text x="300" y="520" font-family="'Playfair Display', Georgia, serif" font-size="34" font-weight="bold" fill="#fff9e6" text-anchor="middle" letter-spacing="0.5">${esc(titulo.slice(0, 32))}</text>
+<text x="300" y="565" font-family="'Playfair Display', Georgia, serif" font-size="14" fill="url(#gold)" text-anchor="middle" letter-spacing="6">✦ · ❖ · ✦</text>
+${autor ? `<text x="300" y="620" font-family="'Playfair Display', Georgia, serif" font-size="22" font-style="italic" fill="#eedca7" text-anchor="middle" letter-spacing="0.5">${esc(autor.slice(0, 36))}</text>` : ""}
+<line x1="200" y1="660" x2="400" y2="660" stroke="url(#gold)" stroke-width="1.2" opacity="0.5"/>
+<text x="300" y="810" font-family="Georgia, serif" font-size="12" font-weight="600" fill="url(#gold)" text-anchor="middle" letter-spacing="3" opacity="0.75">EDICIÓN ESPECIAL · LUMEN</text>
 </svg>`;
 }
 /** Extrae el texto plano de un capítulo XHTML (para búsquedas/resumen). */
