@@ -56373,9 +56373,13 @@ function App() {
 		const onPedirPublicar = (ev) => {
 			setPublicarOpen({ modo: "nuevo", libroId: ev?.detail?.libroId });
 		};
+		const onPedirCatalogo = () => { setCatalogoAbierto(true); };
+		window.__lumenAbrirCatalogo = onPedirCatalogo;
+		window.addEventListener("lumen:abrir-catalogo", onPedirCatalogo);
 		window.addEventListener("lumen:importar-y-abrir", onPedirImportar);
 		window.addEventListener("lumen:abrir-publicar", onPedirPublicar);
 		return () => {
+			window.removeEventListener("lumen:abrir-catalogo", onPedirCatalogo);
 			window.removeEventListener("lumen:importar-y-abrir", onPedirImportar);
 			window.removeEventListener("lumen:abrir-publicar", onPedirPublicar);
 		};
