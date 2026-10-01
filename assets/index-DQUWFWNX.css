@@ -16810,33 +16810,19 @@ body:has(.stories) .sidebar,
 /* ========================================================
    LUMEN v252: LAZY LOADING & EFECTO SHIMMER EN LUMEN STORE
    ======================================================== */
-@keyframes cg-shimmer-wave {
+@keyframes cg-shimmer-flow {
   0% {
-    transform: translateX(-150%) skewX(-15deg);
-  }
-  50% {
-    transform: translateX(150%) skewX(-15deg);
+    background-position: -200% 0;
   }
   100% {
-    transform: translateX(150%) skewX(-15deg);
-  }
-}
-
-@keyframes cg-pulse-subtle {
-  0%, 100% {
-    opacity: 0.85;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.45;
-    transform: scale(0.95);
+    background-position: 200% 0;
   }
 }
 
 .cg-portada-con-img {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(145deg, #181326 0%, #0d0a14 100%) !important;
+  background: #14111f !important;
 }
 
 .cg-portada-cargando {
@@ -16854,39 +16840,35 @@ body:has(.stories) .sidebar,
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(circle at 50% 35%, rgba(124, 92, 255, 0.16) 0%, rgba(15, 12, 24, 0.96) 100%);
-  overflow: hidden;
-  z-index: 1;
-}
-
-.cg-shimmer-luz {
-  position: absolute;
-  inset: -60% -120%;
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.02) 20%,
-    rgba(255, 215, 0, 0.18) 48%,
-    rgba(124, 92, 255, 0.16) 62%,
-    transparent 100%
+    rgba(22, 18, 33, 0.96) 0%,
+    rgba(40, 32, 60, 0.96) 28%,
+    rgba(218, 185, 94, 0.16) 50%,
+    rgba(40, 32, 60, 0.96) 72%,
+    rgba(22, 18, 33, 0.96) 100%
   );
-  transform: translateX(-150%) skewX(-15deg);
-  animation: cg-shimmer-wave 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  pointer-events: none;
-  z-index: 2;
+  background-size: 200% 100%;
+  animation: cg-shimmer-flow 2.4s ease-in-out infinite;
+  pointer-events: none !important;
+  z-index: 1;
 }
 
 .cg-shimmer-silueta {
   font-size: 32px;
-  opacity: 0.32;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
-  animation: cg-pulse-subtle 2.2s ease-in-out infinite;
+  opacity: 0.35;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.7));
   user-select: none;
-  z-index: 1;
+  pointer-events: none !important;
+  z-index: 2;
+}
+
+.cg-tarjeta .cg-portada {
+  pointer-events: none !important;
 }
 
 .cg-tarjeta-skeleton {
-  pointer-events: none;
+  pointer-events: none !important;
   border-color: rgba(255, 255, 255, 0.07) !important;
   background: rgba(255, 255, 255, 0.02) !important;
 }
@@ -16895,7 +16877,14 @@ body:has(.stories) .sidebar,
   border-radius: 6px;
   position: relative;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.08);
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.12) 50%,
+    rgba(255, 255, 255, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: cg-shimmer-flow 2.4s ease-in-out infinite;
   margin-bottom: 6px;
 }
 

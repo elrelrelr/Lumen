@@ -379,10 +379,40 @@ function Estrellas({ valor, total = null }) {
 		]
 	});
 }
-function Portada({ libro, titulo, grande = false }) {
+let _sharedCoverObserver = null;
+const _observedCovers = new Map();
+
+function observeCover(el, cb) {
+	if (typeof IntersectionObserver === "undefined") {
+		cb();
+		return () => {};
+	}
+	if (!_sharedCoverObserver) {
+		_sharedCoverObserver = new IntersectionObserver((entries) => {
+			for (const entry of entries) {
+				if (entry.isIntersecting) {
+					const fn = _observedCovers.get(entry.target);
+					if (fn) {
+						fn();
+						_observedCovers.delete(entry.target);
+						_sharedCoverObserver.unobserve(entry.target);
+					}
+				}
+			}
+		}, { rootMargin: "300px 0px" });
+	}
+	_observedCovers.set(el, cb);
+	_sharedCoverObserver.observe(el);
+	return () => {
+		_observedCovers.delete(el);
+		_sharedCoverObserver?.unobserve(el);
+	};
+}
+
+function Portada({ libro, titulo, grande = false, prioritaria = false }) {
 	const [rota, setRota] = (0, import_react.useState)(false);
 	const [cargada, setCargada] = (0, import_react.useState)(false);
-	const [enPantalla, setEnPantalla] = (0, import_react.useState)(false);
+	const [enPantalla, setEnPantalla] = (0, import_react.useState)(prioritaria);
 	const refEl = (0, import_react.useRef)(null);
 	const cls = "cg-portada" + (grande ? " cg-portada-lg" : "");
 	const aut = libro?.autor || (Array.isArray(libro?.authors) ? libro.authors[0] : libro?.authors) || "";
@@ -390,31 +420,17 @@ function Portada({ libro, titulo, grande = false }) {
 	const tienePortada = libro?.portada && !rota && libro?.portada !== "assets/icon-192.png";
 
 	(0, import_react.useEffect)(() => {
-		if (!tienePortada) return;
-		if (typeof IntersectionObserver === "undefined") {
-			setEnPantalla(true);
-			return;
-		}
+		if (!tienePortada || prioritaria) return;
 		const node = refEl.current;
 		if (!node) return;
-		const obs = new IntersectionObserver((entries) => {
-			for (const e of entries) {
-				if (e.isIntersecting) {
-					setEnPantalla(true);
-					obs.disconnect();
-					break;
-				}
-			}
-		}, { rootMargin: "350px 0px" });
-		obs.observe(node);
-		return () => obs.disconnect();
-	}, [tienePortada, libro?.portada]);
+		return observeCover(node, () => setEnPantalla(true));
+	}, [tienePortada, libro?.portada, prioritaria]);
 
 	if (tienePortada) return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		ref: refEl,
 		className: cls + " cg-portada-con-img" + (cargada ? " cg-portada-cargada" : " cg-portada-cargando"),
 		children: [
-			!cargada && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			(!cargada && enPantalla) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "cg-shimmer-placeholder",
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "cg-shimmer-luz" }),
@@ -424,14 +440,14 @@ function Portada({ libro, titulo, grande = false }) {
 			enPantalla && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
 				src: libro.portada,
 				alt: titulo,
-				loading: "lazy",
+				loading: prioritaria ? "eager" : "lazy",
 				onLoad: () => setCargada(true),
 				onError: () => setRota(true),
 				draggable: false,
 				style: {
 					opacity: cargada ? 1 : 0,
 					transform: cargada ? "scale(1)" : "scale(0.97)",
-					transition: "opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s ease"
+					transition: "opacity 0.25s ease-out, transform 0.25s ease-out"
 				}
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
@@ -779,23 +795,28 @@ function ChatResenas({ libro, toast }) {
 	};
 
 	(0, import_react.useEffect)(() => {
+		let vivo = true;
 		(async () => {
-			let id = await identidadGuardada();
-			if (!id) {
-				id = generarIdentidad();
-				await guardarIdentidad(id);
-			}
-			setMiIdentidad(id);
+			try {
+				let id = await identidadGuardada();
+				if (!id && vivo) {
+					id = generarIdentidad();
+					await guardarIdentidad(id);
+				}
+				if (vivo) setMiIdentidad(id);
+			} catch {}
 		})();
+		return () => { vivo = false; };
 	}, []);
 
 	(0, import_react.useEffect)(() => {
 		if (!libroId) return;
 		let vivo = true;
-		(async () => {
+		const timer = setTimeout(async () => {
 			try {
 				const relays = await relaysGuardados();
 				for (const url of relays) {
+					if (!vivo) break;
 					const subId = "chat-" + libroId.slice(0, 8) + "-" + Math.random().toString(36).slice(2, 6);
 					conectarRelay(url, (ev, sId) => {
 						if (!vivo || sId !== subId || !ev || ev.kind !== 1) return;
@@ -853,9 +874,10 @@ function ChatResenas({ libro, toast }) {
 			} catch (e) {
 				console.warn("[chat] error relays", e);
 			}
-		})();
+		}, 350);
 		return () => {
 			vivo = false;
+			clearTimeout(timer);
 		};
 	}, [libroId, misMensajes, miIdentidad]);
 
@@ -2101,13 +2123,29 @@ const cargar = (0, import_react.useCallback)(async () => {
 		return norm.split(" ").filter((w) => w.length >= 2 && !stopwords.has(w)).sort();
 	};
 
+	const cacheCategoriasRef = (0, import_react.useRef)(new Map());
+	(0, import_react.useEffect)(() => {
+		cacheCategoriasRef.current.clear();
+	}, [libros, visibles.length, catPool, semillaPool, filtroIdioma, ocultarAdultos]);
+
+	const prepLibroClaves = (b) => {
+		if (!b || b._clvPrep) return b;
+		b._titK = normalizarTituloClave(b.titulo || b.title || "");
+		const rawAut = b.autor || (Array.isArray(b.authors) ? (typeof b.authors[0] === "string" ? b.authors[0] : b.authors[0]?.name) : b.authors) || b.author || "";
+		b._autToks = tokensAutorClave(rawAut);
+		b._claveExacta = b._titK + ":::" + b._autToks.join("_");
+		b._clvPrep = true;
+		return b;
+	};
+
 	const sonMismoLibroFila = (b1, b2) => {
 		if (!b1 || !b2) return false;
 		if (b1 === b2) return true;
 		if (b1.id && b2.id && b1.id === b2.id) return true;
-
-		const t1 = normalizarTituloClave(b1.titulo || b1.title || "");
-		const t2 = normalizarTituloClave(b2.titulo || b2.title || "");
+		prepLibroClaves(b1);
+		prepLibroClaves(b2);
+		const t1 = b1._titK;
+		const t2 = b2._titK;
 		if (!t1 || !t2) return false;
 
 		let titulosSimilares = false;
@@ -2120,25 +2158,40 @@ const cargar = (0, import_react.useCallback)(async () => {
 		}
 		if (!titulosSimilares) return false;
 
-		const rawAut1 = b1.autor || (Array.isArray(b1.authors) ? (typeof b1.authors[0] === "string" ? b1.authors[0] : b1.authors[0]?.name) : b1.authors) || b1.author || "";
-		const rawAut2 = b2.autor || (Array.isArray(b2.authors) ? (typeof b2.authors[0] === "string" ? b2.authors[0] : b2.authors[0]?.name) : b2.authors) || b2.author || "";
-		const autToks1 = tokensAutorClave(rawAut1);
-		const autToks2 = tokensAutorClave(rawAut2);
-
+		const autToks1 = b1._autToks;
+		const autToks2 = b2._autToks;
 		if (autToks1.length === 0 || autToks2.length === 0) {
 			return true;
 		}
-		const comunes = autToks1.filter((t) => autToks2.includes(t));
-		return comunes.length > 0;
+		return autToks1.some((t) => autToks2.includes(t));
 	};
 
-	const desduplicarFila = (libros) => {
-		if (!Array.isArray(libros)) return [];
+	const desduplicarFila = (listaLibros) => {
+		if (!Array.isArray(listaLibros)) return [];
 		const resultado = [];
-		for (const b of libros) {
+		const seenExact = new Set();
+		const prefixBuckets = new Map();
+
+		for (const b of listaLibros) {
 			if (!b) continue;
-			const yaExiste = resultado.some((existente) => sonMismoLibroFila(existente, b));
-			if (!yaExiste) {
+			prepLibroClaves(b);
+			if (seenExact.has(b._claveExacta)) continue;
+
+			const pfx = b._titK.slice(0, 4);
+			const bucket = prefixBuckets.get(pfx);
+			let repetido = false;
+			if (bucket) {
+				for (let i = 0; i < bucket.length; i++) {
+					if (sonMismoLibroFila(bucket[i], b)) {
+						repetido = true;
+						break;
+					}
+				}
+			}
+			if (!repetido) {
+				seenExact.add(b._claveExacta);
+				if (!bucket) prefixBuckets.set(pfx, [b]);
+				else bucket.push(b);
 				resultado.push(b);
 			}
 		}
@@ -2147,14 +2200,35 @@ const cargar = (0, import_react.useCallback)(async () => {
 
 	const obtenerLibrosDeCategoria = (catId) => {
 		const cNorm = (catId || "").toLowerCase();
-		const seen = new Set();
+		const cacheKey = cNorm + "::" + filtroIdioma;
+		if (cacheCategoriasRef.current.has(cacheKey)) {
+			return cacheCategoriasRef.current.get(cacheKey);
+		}
+
+		const seenExact = new Set();
+		const prefixBuckets = new Map();
 		const resultado = [];
 
 		const agregarSiNoExiste = (n) => {
 			if (!n) return;
-			const k = normalizarTituloClave(n.titulo) + ":::" + tokensAutorClave(n.autor).join(" ");
-			if (!seen.has(k) && !resultado.some((existente) => sonMismoLibroFila(existente, n))) {
-				seen.add(k);
+			prepLibroClaves(n);
+			if (seenExact.has(n._claveExacta)) return;
+
+			const pfx = n._titK.slice(0, 4);
+			const bucket = prefixBuckets.get(pfx);
+			let repetido = false;
+			if (bucket) {
+				for (let i = 0; i < bucket.length; i++) {
+					if (sonMismoLibroFila(bucket[i], n)) {
+						repetido = true;
+						break;
+					}
+				}
+			}
+			if (!repetido) {
+				seenExact.add(n._claveExacta);
+				if (!bucket) prefixBuckets.set(pfx, [n]);
+				else bucket.push(n);
 				resultado.push(n);
 			}
 		};
@@ -2164,7 +2238,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			for (const b of LIBROS_BIBLIAS_CURADOS) {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "biblias");
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2174,7 +2247,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			for (const b of LIBROS_ROMANCE_CURADOS) {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "romance");
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2184,7 +2256,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			for (const b of LIBROS_MUSICA_CURADOS) {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "música");
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2194,7 +2265,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			for (const b of LIBROS_RELIGION_CURADOS) {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "religion");
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2204,7 +2274,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const bCat = (b.categoria || "").toLowerCase();
 			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "biblias" && (bCat === "biblias" || /biblia|evangelio|testamento|salmos|proverbios/i.test(b.titulo))) || (cNorm === "romance" && (bCat === "romance" || /amor|romanc|enamor|coraz|pasion|amante|casamiento/i.test(b.titulo))) || (cNorm === "politica" && (bCat === "politica" || bCat === "política" || /polit|gobiern|rebel|estado|guerra|republic/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo))) || ((cNorm === "música" || cNorm === "musica") && (bCat === "música" || bCat === "musica" || /músic|music|ópera|opera|sinfon|orquest|canto|piano|viol/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2214,7 +2283,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 			const bCat = (b.categoria || "").toLowerCase();
 			if (cNorm === "__populares__" || cNorm === "__recientes__" || bCat === cNorm || (cNorm === "biblias" && (bCat === "biblias" || /biblia|evangelio|testamento|salmos|proverbios/i.test(b.titulo))) || (cNorm === "romance" && (bCat === "romance" || /amor|romanc|enamor|coraz|pasion|amante|casamiento/i.test(b.titulo))) || (cNorm === "politica" && (bCat === "politica" || /polit|gobiern|rebel|estado|guerra|republic|principe|contrato|manifiesto|riqueza|democracia/i.test(b.titulo))) || ((cNorm === "religion" || cNorm === "religión") && (bCat === "religion" || bCat === "religión" || /relig|espirit|dios|biblia|fe|santo|budis|teolog/i.test(b.titulo))) || ((cNorm === "música" || cNorm === "musica") && (bCat === "música" || bCat === "musica" || /músic|music|ópera|opera|sinfon|orquest|canto|piano|viol/i.test(b.titulo)))) {
 				const n = normalizarLibroGenerico(b, catId);
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
@@ -2225,7 +2293,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 				for (const b of catPool[claveCat]) {
 					if (!matchesIdioma(b, filtroIdioma)) continue;
 					const n = normalizarLibroGenerico(b, catId);
-					const k = (n.titulo + "|" + n.autor).toLowerCase();
 					agregarSiNoExiste(n);
 				}
 			} else if (cNorm === "__populares__" || cNorm === "__recientes__") {
@@ -2234,7 +2301,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 						for (const b of bks) {
 							if (!matchesIdioma(b, filtroIdioma)) continue;
 							const n = normalizarLibroGenerico(b, "general");
-							const k = (n.titulo + "|" + n.autor).toLowerCase();
 							agregarSiNoExiste(n);
 						}
 					}
@@ -2246,37 +2312,35 @@ const cargar = (0, import_react.useCallback)(async () => {
 			for (const b of semillaPool) {
 				if (!matchesIdioma(b, filtroIdioma)) continue;
 				const n = normalizarLibroGenerico(b, "general");
-				const k = (n.titulo + "|" + n.autor).toLowerCase();
 				agregarSiNoExiste(n);
 			}
 		}
 
+		cacheCategoriasRef.current.set(cacheKey, resultado);
 		return resultado;
 	};
 
-	
 	// Lumen v249: Búsqueda federada por Autor y Título en tiempo real
 	const qLimpia = aTextoPlano(lgQ).trim().toLowerCase();
 	const qTokens = qLimpia.split(/\s+/).filter((t) => t.length >= 2);
 
-	const todosLibrosLocales = [
-		...visibles,
-		...LIBROS_TOP_DESCARGAS,
-		...LIBROS_BIBLIAS_CURADOS,
-		...LIBROS_ROMANCE_CURADOS,
-		...LIBROS_MUSICA_CURADOS,
-		...LIBROS_RELIGION_CURADOS,
-		...(semillaPool || [])
-	];
-	if (catPool) {
-		for (const k in catPool) {
-			if (Array.isArray(catPool[k])) todosLibrosLocales.push(...catPool[k]);
-		}
-	}
-
 	const seenSearch = new Set();
 	const librosCoincidentes = [];
 	if (qLimpia.length >= 2) {
+		const todosLibrosLocales = [
+			...visibles,
+			...LIBROS_TOP_DESCARGAS,
+			...LIBROS_BIBLIAS_CURADOS,
+			...LIBROS_ROMANCE_CURADOS,
+			...LIBROS_MUSICA_CURADOS,
+			...LIBROS_RELIGION_CURADOS,
+			...(semillaPool || [])
+		];
+		if (catPool) {
+			for (const k in catPool) {
+				if (Array.isArray(catPool[k])) todosLibrosLocales.push(...catPool[k]);
+			}
+		}
 		for (const b of [...todosLibrosLocales, ...resultadosRemotos]) {
 			if (!b) continue;
 			if (!matchesIdioma(b, filtroIdioma)) continue;
@@ -2331,7 +2395,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 		otrosResultados.push(...librosCoincidentes);
 	}
 
-	const listaPopulares = desduplicarFila(obtenerLibrosDeCategoria("__populares__").sort((a, b) => (b.downloads || 0) - (a.downloads || 0)));
+	const listaPopulares = obtenerLibrosDeCategoria("__populares__").slice().sort((a, b) => (b.downloads || 0) - (a.downloads || 0));
 
 	const listaRecientes = desduplicarFila([
 		...visibles.map((b) => normalizarLibroGenerico(b, "lumen")),
@@ -2339,14 +2403,14 @@ const cargar = (0, import_react.useCallback)(async () => {
 	]);
 
 	const pagActual = obtenerPagina(categoria || "__todas__");
-	const librosPantallaPop = desduplicarFila(listaPopulares.slice(0, pagActual * 40));
-	const librosPantallaRec = desduplicarFila(listaRecientes.slice(0, pagActual * 40));
+	const librosPantallaPop = listaPopulares.slice(0, pagActual * 40);
+	const librosPantallaRec = listaRecientes.slice(0, pagActual * 40);
 
-	const poolCategoriaActual = desduplicarFila(categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
+	const poolCategoriaActual = categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
 		? obtenerLibrosDeCategoria(categoria)
-		: []);
+		: [];
 	const librosPantallaCat = poolCategoriaActual.slice(0, pagActual * 40);
-	const top10Categoria = desduplicarFila([...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0))).slice(0, 10);
+	const top10Categoria = [...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 10);
 	const categorias = categoriasDe(libros);
 
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -2726,7 +2790,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "cg-fila cg-fila-top",
 								onWheel: onWheelHorizontal,
-								children: desduplicarFila(listaPopulares).slice(0, 14).map((b, idx) => (
+								children: listaPopulares.slice(0, 14).map((b, idx) => (
 									(0, import_jsx_runtime.jsx)(Tarjeta, {
 										libro: b,
 										ranking: idx + 1,
@@ -3020,7 +3084,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-fila-top cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: desduplicarFila(listaPopulares).slice(0, 10).map((b, idx) => (
+										children: listaPopulares.slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -3047,7 +3111,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: desduplicarFila(listaRecientes).slice(0, 10).map((libro) => (
+										children: listaRecientes.slice(0, 10).map((libro) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro,
 												reportes,
@@ -3072,7 +3136,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 										className: "cg-fila cg-scroll-x-only",
 										ref: carrilRefCallback,
 										onWheel: onWheelHorizontal,
-										children: desduplicarFila(obtenerLibrosDeCategoria("politica")).slice(0, 10).map((b, idx) => (
+										children: obtenerLibrosDeCategoria("politica").slice(0, 10).map((b, idx) => (
 											(0, import_jsx_runtime.jsx)(Tarjeta, {
 												libro: b,
 												ranking: idx + 1,
@@ -3086,7 +3150,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 								]
 							}),
 							!lgQ.trim() && LISTA_CATS_UNIFICADAS.filter(c => c.id !== "politica").map((catItem) => {
-								const poolCat = desduplicarFila(obtenerLibrosDeCategoria(catItem.id));
+								const poolCat = obtenerLibrosDeCategoria(catItem.id);
 								if (!poolCat || poolCat.length === 0) return null;
 								const tamano = poolCat.length;
 								const startIdx = ((paginaTodas - 1) * 10) % tamano;
@@ -3348,7 +3412,8 @@ const cargar = (0, import_react.useCallback)(async () => {
 							className: "cg-detalle-top",
 							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Portada, {
 								libro: detalle,
-								titulo: detalle.titulo
+								titulo: detalle.titulo,
+								prioritaria: true
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-detalle-info",
 								children: [
@@ -4526,7 +4591,7 @@ function TarjetaSkeleton({ index = 0 }) {
 		]
 	}, `skel-${index}`);
 }
-function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {
+const Tarjeta = (0, import_react.memo)(function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar, ranking = null, descargas = null }) {
 	const disp = disponibilidad(libro);
 	const rep = contarReportes(reportes, libro.id);
 	const r = ratingDe(libro);
@@ -4632,7 +4697,7 @@ function Tarjeta({ libro, reportes, onAbrir, onLeer, onEditar, onQr, onEliminar,
 			}) : null)
 		]
 	});
-}
+});
 function Badges({ libro, reportes, rep, disp }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 		className: "cg-card-meta",
