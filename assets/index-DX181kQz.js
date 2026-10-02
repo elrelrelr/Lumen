@@ -56705,58 +56705,13 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 		}
 	} catch (eW2) {}
 
-	// Fallback estructurado y completo en capítulos para obras remotas
-	return `${tit.toUpperCase()}
-Por ${aut || "Autor clásico"}
-
-============================================================
-FICHA TÉCNICA Y METADATOS EDITORIALES
-============================================================
-Título: ${tit}
-Autor: ${aut || "Autor"}
-Categoría: ${libro.categoria || "Literatura y Pensamiento"}
-Idioma: ${libro.idioma || "Español"}
-
-============================================================
-PRÓLOGO Y CONTEXTO HISTÓRICO
-============================================================
-${desc || `Esta distinguida obra de ${aut || "la literatura"} constituye una pieza representativa de su tiempo, ampliamente celebrada por su rigor conceptual y su trascendencia cultural. Su lectura ofrece claves indispensables para la comprensión de las ideas fundamentales que han moldeado su disciplina.`}
-
-La presente edición ha sido procesada y adaptada para su lectura integral en el visor de documentos de Lumen Reader, garantizando acceso offline y visualización en modos texto reflowable, documento original y galería de ilustraciones.
-
-============================================================
-CAPÍTULO I: INTRODUCCIÓN Y FUNDAMENTOS
-============================================================
-Toda obra de trascendencia universal principia por el análisis de sus elementos constitutivos elementales. En este pórtico de entrada, se establecen las definiciones iniciales, los axiomas de partida y el marco de referencia bajo el cual se desarrollará la totalidad del argumento.
-
-El autor sitúa al lector ante el horizonte problemático de su tiempo, confrontando las doctrinas previas y señalando las insuficiencias teóricas y prácticas que hicieron indispensable la elaboración de esta investigación. A través de un minucioso examen de los hechos y conceptos, se desbrozan las apariencias inmediatas para dar paso a las causas profundas.
-
-============================================================
-CAPÍTULO II: DESARROLLO TEMÁTICO Y TESIS CENTRALES
-============================================================
-En este núcleo articulador, la obra despliega su andamiaje analítico. Los conceptos preliminares se ponen en movimiento dialéctico, revelando las tensiones internas y las contradicciones esenciales que animan la materia investigada.
-
-Las relaciones entre los fenómenos no se presentan aquí como datos estáticos ni meras contingencias empíricas, sino como momentos necesarios de una totalidad articulada. Cada avance metodológico aclara facetas insospechadas de la realidad, permitiendo descifrar la lógica subyacente que gobierna los procesos estudiados.
-
-============================================================
-CAPÍTULO III: APLICACIONES, CONTRASTES Y PERSPECTIVAS
-============================================================
-La validez de las tesis sostenidas se corrobora mediante su confrontación con la experiencia concreta, los testimonios históricos y las aplicaciones prácticas. El autor demuestra cómo los principios formulados permiten explicar tanto los periodos de estabilidad como las crisis y transformaciones radicales.
-
-Se examinan asimismo las objeciones más representativas formuladas por las corrientes rivales, ofreciendo respuestas pormenorizadas que consolidan la solidez del sistema expuesto.
-
-============================================================
-CAPÍTULO IV: CONCLUSIONES Y LEGADO UNIVERSAL
-============================================================
-Como síntesis final, la obra sintetiza los hallazgos principales y proyecta sus consecuencias hacia el porvenir. Lejos de agotarse en su contexto de origen, las conclusiones obtenidas conservan una vigencia inagotable, invitando a nuevas lecturas y reflexiones críticas.
-
-El valor imperecedero de este texto reside en su capacidad para interpelar a las generaciones sucesivas, brindando herramientas de análisis indispensables para el pensamiento crítico y la emancipación humana.`;
+	return null;
 }
 
 	const manejarAbrirLibro = (0, import_react.useCallback)(async (libro) => { 
 		if (!libro) return;
 		try {
-			// Si el argumento es un ID directo
+			// Si el argumento es un ID directo registrado
 			if (typeof libro === "string") {
 				setCatalogoAbierto(false);
 				setMisPubsAbierto(false);
@@ -56766,19 +56721,22 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 				return;
 			}
 
-			// 1. Verificar si ya existe en la biblioteca local
 			const targetId = libro.d || libro.id;
-			const titNorm = String(libro.titulo || libro.title || "").trim().toLowerCase();
-			const autNorm = String(libro.autor || libro.author || "").trim().toLowerCase(); 
-			 const librosLocales = await allBooks().catch(() => []); 
+			const titOriginal = String(libro.titulo || libro.title || "").trim();
+			const autOriginal = String(libro.autor || libro.author || (Array.isArray(libro.authors) ? (typeof libro.authors[0] === "string" ? libro.authors[0] : libro.authors[0]?.name) : "") || "").trim();
+			const titNorm = titOriginal.toLowerCase();
+			const autNorm = autOriginal.toLowerCase();
+
+			// 1. Verificar si ya existe en la biblioteca local de Lumen
+			const librosLocales = await allBooks().catch(() => []); 
 			const existente = librosLocales.find((b) => {
 				if (!b) return false;
 				if (targetId && (b.id === targetId || b.d === targetId)) return true;
 				const bTit = String(b.title || "").trim().toLowerCase();
-				if (titNorm && bTit && titNorm === bTit) {
+				if (titNorm && bTit && (titNorm === bTit || (titNorm.length >= 6 && (bTit.includes(titNorm) || titNorm.includes(bTit))))) {
 					if (!autNorm) return true;
 					const bAut = String(b.author || "").trim().toLowerCase();
-					return !bAut || bAut === autNorm || titNorm.length > 5;
+					return !bAut || bAut === autNorm || bAut.includes(autNorm) || autNorm.includes(bAut);
 				}
 				return false;
 			});
@@ -56792,38 +56750,89 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 				return;
 			}
 
-			// Si es El Capital o una obra con texto auténtico precargado, abrir de forma directa e instantánea
-			if (titNorm.includes("capital") || (autNorm.includes("marx") && !titNorm.includes("manifiesto"))) {
-				toast?.("📖 Abriendo obra completa en el visor de documentos de Lumen…");
-				const textoCompleto = await obtenerTextoCompletoLibro(libro);
-				const nombreArchivoTxt = (libro.titulo || libro.title || "El_Capital").replace(/[^\w\s.-]/gi, "_").trim() + ".txt";
-				const fTxt = new File([textoCompleto], nombreArchivoTxt, { type: "text/plain;charset=utf-8" });
-				const nuevoTxt = await importFile(fTxt, ({ percent, label }) => {
+			// Helper para importar y abrir un blob binario (.epub, .pdf, .txt, .docx, .lumen)
+			const importarYMostrarBlob = async (blob, nombreSugerido, extPorDefecto = ".epub") => {
+				if (!blob || blob.size < 400) return false;
+				let ext = extPorDefecto;
+				const ct = (blob.type || "").toLowerCase();
+				if (ct.includes("epub") || nombreSugerido.endsWith(".epub")) ext = ".epub";
+				else if (ct.includes("pdf") || nombreSugerido.endsWith(".pdf")) ext = ".pdf";
+				else if (ct.includes("plain") || nombreSugerido.endsWith(".txt")) ext = ".txt";
+				else if (ct.includes("word") || nombreSugerido.endsWith(".docx")) ext = ".docx";
+				else if (nombreSugerido.endsWith(".lumen")) ext = ".lumen";
+
+				const nombreFinal = (titOriginal || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ext;
+				const f = new File([blob], nombreFinal, { type: blob.type || "application/octet-stream" });
+				const nuevo = await importFile(f, ({ label }) => {
 					if (label) toast?.(label);
 				});
-				if (nuevoTxt && nuevoTxt.id) {
-					await patchBook(nuevoTxt.id, {
-						title: libro.titulo || libro.title || nuevoTxt.title,
-						author: libro.autor || libro.author || "Karl Marx",
+				if (nuevo && nuevo.id) {
+					await patchBook(nuevo.id, {
+						title: titOriginal || nuevo.title,
+						author: autOriginal || nuevo.author || "Autor",
 						coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
-						category: libro.categoria || libro.category || "Política",
-						d: libro.d || libro.id || nuevoTxt.id
+						category: libro.categoria || libro.category || nuevo.category || "General",
+						d: libro.d || libro.id || nuevo.id
 					}).catch(() => {});
 					setCatalogoAbierto(false);
 					setMisPubsAbierto(false);
 					setQrPendiente(null);
 					setLectorGlobal(null);
-					openBook(nuevoTxt.id);
-					toast?.("✓ «" + (nuevoTxt.title || libro.titulo) + "» listo en tu lector");
-					return;
+					openBook(nuevo.id);
+					toast?.("✓ «" + (titOriginal || nuevo.title) + "» listo en tu lector");
+					return true;
 				}
-			}
+				return false;
+			};
 
-			// 2. Si tiene URL de descarga o archivo .lumen / epub / pdf
-			const urlDescarga = libro.fileUrl || libro.file || libro.download || libro.epub || libro.sourceUrl || "";
+			// Helper para importar texto extraído de la web y paginarlo
+			const importarYMostrarTexto = async (texto, fuenteOrigen = "Web") => {
+				if (!texto || texto.trim().length < 600) return false;
+				const paginas = paginate(texto);
+				if (!paginas || paginas.length === 0) return false;
+				const id = uid();
+				const now = Date.now();
+				await putBook({
+					id,
+					title: titOriginal || "Libro",
+					author: autOriginal || "Autor",
+					coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
+					category: libro.categoria || libro.category || "General",
+					fileName: (titOriginal || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".txt",
+					kind: "web",
+					sourceUrl: libro.url || libro.sourceUrl || "",
+					size: texto.length,
+					pageCount: paginas.length,
+					lastPage: 0,
+					addedAt: now,
+					openedAt: now,
+					status: "ready",
+					hasOriginal: false,
+					ocrPages: [],
+					needsOcrPages: [],
+					percentRead: 0,
+					own: true,
+					d: libro.d || libro.id || id
+				});
+				await putPages(paginas.map((t, i2) => ({
+					bookId: id,
+					index: i2,
+					text: t,
+					needsOcr: false,
+					ocrDone: false,
+					source: "web"
+				})));
+				setCatalogoAbierto(false);
+				setMisPubsAbierto(false);
+				setQrPendiente(null);
+				setLectorGlobal(null);
+				openBook(id);
+				toast?.("✓ «" + titOriginal + "» extraído (" + paginas.length + " págs.) listo en tu lector");
+				return true;
+			};
+
+			// Si el libro traía un blob local en memoria o IndexedDB
 			let blobDescargado = null;
-
-			// Verificar si hay copia en IndexedDB de blobs lumen o pasaron bytes directos
 			if (libro.blob) {
 				blobDescargado = libro.blob;
 			} else if (libro._bytes) {
@@ -56837,90 +56846,304 @@ El valor imperecedero de este texto reside en su capacidad para interpelar a las
 					console.warn("[obtenerBlobLumen]", eBlob);
 				}
 			}
-
-			// Si no está en IndexedDB pero tiene enlace web de archivo directo
-			if (!blobDescargado && urlDescarga && /^https?:\/\//i.test(urlDescarga)) {
-				toast?.("⬇️ Descargando libro en formato Lumen…");
-				try {
-					const res = await fetch(urlDescarga, { signal: AbortSignal.timeout(2500) });
-					if (res.ok) {
-						const ct = (res.headers.get("content-type") || "").toLowerCase();
-						if (!ct.includes("text/html")) {
-							blobDescargado = await res.blob();
-						}
-					}
-				} catch (eDesc) {
-					console.warn("[descarga lumen]", eDesc);
-				}
+			if (blobDescargado) {
+				const ok = await importarYMostrarBlob(blobDescargado, (libro.fileUrl || "libro.epub"), ".epub");
+				if (ok) return;
 			}
 
-			// Si tenemos el blob (.lumen, epub, pdf o texto), importarlo
-			if (blobDescargado && blobDescargado.size > 200) {
-				toast?.("📖 Configurando lectura y personalizaciones…");
-				const uBajo = (urlDescarga || "").toLowerCase();
-				let ext = ".lumen";
-				let mime = "application/octet-stream";
-				if (uBajo.endsWith(".epub")) { ext = ".epub"; mime = "application/epub+zip"; }
-				else if (uBajo.endsWith(".pdf")) { ext = ".pdf"; mime = "application/pdf"; }
-				else if (uBajo.endsWith(".txt")) { ext = ".txt"; mime = "text/plain"; }
-				else if (uBajo.endsWith(".docx")) { ext = ".docx"; mime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; }
-				const nombreArchivo = (libro.titulo || libro.title || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ext;
-				const f = new File([blobDescargado], nombreArchivo, { type: mime });
-				const nuevo = await importFile(f, ({ percent, label }) => {
-					if (label) toast?.(label);
-				});
-				if (nuevo && nuevo.id) {
-					await patchBook(nuevo.id, {
-						title: libro.titulo || libro.title || nuevo.title,
-						author: libro.autor || libro.author || nuevo.author || "Autor",
-						coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
-						category: libro.categoria || libro.category || nuevo.category || "General",
-						d: libro.d || libro.id || nuevo.id
-					}).catch(() => {});
+			// Si el libro ya incluye un enlace torrent directo (magnet), ir directo a Torrent
+			if (libro.magnet) {
+				try {
+					toast?.("🧲 Abriendo en la biblioteca Torrent de Lumen…");
+					const { anadir } = await __vitePreload(() => import("./torrentStore-CcjsoCUj.js"), __vite__mapDeps([19,2,1,7,11]), import.meta.url);
+					const rAnadir = await anadir(libro.magnet, titOriginal);
 					setCatalogoAbierto(false);
 					setMisPubsAbierto(false);
 					setQrPendiente(null);
 					setLectorGlobal(null);
-					openBook(nuevo.id);
-					toast?.("✓ «" + (nuevo.title || libro.titulo) + "» abierto en tu lector");
+					setTorrentAbierto(true);
+					toast?.(rAnadir?.ok
+						? `🧲 Torrent de «${titOriginal}» cargado en tu biblioteca torrent`
+						: `🧲 Abriendo torrent en la biblioteca: ${rAnadir?.error || "Conectando…"}`);
 					return;
+				} catch (eTorDirect) {
+					console.warn("[anadir torrent directo]", eTorDirect);
 				}
 			}
 
-			// 3. Si no se pudo descargar como binario (ej. bloqueo de CORS en el navegador),
-			// obtener la obra completa y abrirla directamente en el visor de documentos normal de Lumen
-			toast?.("📖 Abriendo obra completa en el visor de documentos de Lumen…");
-			 const textoCompleto = await obtenerTextoCompletoLibro(libro); 
-			const nombreArchivoTxt = (libro.titulo || libro.title || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ".txt";
-			const fTxt = new File([textoCompleto], nombreArchivoTxt, { type: "text/plain;charset=utf-8" });
-			 const nuevoTxt = await importFile(fTxt, ({ percent, label }) => {
-				if (label) toast?.(label);
-			});
-			 if (nuevoTxt && nuevoTxt.id) {
-				await patchBook(nuevoTxt.id, {
-					title: libro.titulo || libro.title || nuevoTxt.title,
-					author: libro.autor || libro.author || "Autor",
-					coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
-					category: libro.categoria || libro.category || "General",
-					d: libro.d || libro.id || nuevoTxt.id
-				}).catch(() => {});
-				setCatalogoAbierto(false);
-				setMisPubsAbierto(false);
-				setQrPendiente(null);
-				setLectorGlobal(null);
-				openBook(nuevoTxt.id);
-				toast?.("✓ «" + (nuevoTxt.title || libro.titulo) + "» listo en tu lector");
-				return;
+			// =========================================================================
+			// PASO 1: Descargar archivo o extraer con la herramienta de enlace web
+			// =========================================================================
+			const urlsDirectas = [
+				libro.epub,
+				libro.fileUrl,
+				libro.download,
+				libro.file,
+				libro.sourceUrl,
+				libro.url
+			].filter((u) => u && typeof u === "string" && /^https?:\/\//i.test(u));
+
+			toast?.("📥 Extrayendo «" + titOriginal.slice(0, 30) + "» desde su enlace web…");
+
+			for (const u of urlsDirectas) {
+				// 1a. Si apunta a un archivo binario directo
+				if (/\.(epub|pdf|txt|docx|lumen)($|\?)/i.test(u)) {
+					try {
+						let r = await fetch(u, { signal: AbortSignal.timeout(12000) }).catch(() => null);
+						if (!r || !r.ok) {
+							r = await fetch("https://corsproxy.io/?" + encodeURIComponent(u), { signal: AbortSignal.timeout(15000) }).catch(() => null);
+						}
+						if (r && r.ok) {
+							const ct = (r.headers.get("content-type") || "").toLowerCase();
+							if (!ct.includes("text/html")) {
+								const b = await r.blob();
+								if (b && b.size > 800) {
+									const ok = await importarYMostrarBlob(b, u, u.match(/\.(epub|pdf|txt|docx|lumen)/i)?.[0] || ".epub");
+									if (ok) return;
+								}
+							}
+						}
+					} catch (eBin) {
+						console.warn("[descarga archivo directo]", eBin);
+					}
+				}
+
+				// 1b. Si es una URL web (Royal Road, Wattpad, arXiv, Internet Archive, Gutenberg HTML, etc.)
+				// Extraer el texto completo con la herramienta de extractor web (importarDesdeUrl / r.jina.ai)
+				try {
+					toast?.("🔍 Extrayendo contenido web de la obra…");
+					const resWeb = await importarDesdeUrl(u, (_pct, txt) => {
+						if (txt) toast?.(txt);
+					}).catch(() => null);
+					if (resWeb && resWeb.texto && resWeb.texto.trim().length >= 800) {
+						const ok = await importarYMostrarTexto(resWeb.texto, "Web");
+						if (ok) return;
+					}
+				} catch (eWeb) {
+					console.warn("[extraccion web]", eWeb);
+				}
 			}
+
+			// =========================================================================
+			// PASO 2: Si no encuentra nada, buscar el mismo libro en otras bibliotecas
+			// =========================================================================
+			toast?.("🌐 Buscando libro completo en bibliotecas abiertas…");
+
+			// 2a. Project Gutenberg (Gutendex)
+			try {
+				const qGuten = encodeURIComponent(`${titOriginal} ${autOriginal}`.trim());
+				const rG = await fetch(`https://gutendex.com/books/?search=${qGuten}`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+				if (rG && rG.ok) {
+					const dataG = await rG.json().catch(() => null);
+					const matchG = dataG?.results?.[0];
+					if (matchG && matchG.formats) {
+						const epubUrl = matchG.formats["application/epub+zip"] || matchG.formats["application/x-mobipocket-ebook"];
+						const txtUrl = matchG.formats["text/plain; charset=utf-8"] || matchG.formats["text/plain; charset=us-ascii"] || matchG.formats["text/plain"];
+						const htmlUrl = matchG.formats["text/html"];
+
+						if (epubUrl) {
+							toast?.("⬇️ Descargando edición desde Project Gutenberg…");
+							let rEpub = await fetch(epubUrl, { signal: AbortSignal.timeout(15000) }).catch(() => null);
+							if (!rEpub || !rEpub.ok) {
+								rEpub = await fetch("https://corsproxy.io/?" + encodeURIComponent(epubUrl), { signal: AbortSignal.timeout(15000) }).catch(() => null);
+							}
+							if (rEpub && rEpub.ok) {
+								const b = await rEpub.blob();
+								const ok = await importarYMostrarBlob(b, `${titOriginal}.epub`, ".epub");
+								if (ok) return;
+							}
+						}
+						if (txtUrl) {
+							toast?.("⬇️ Descargando texto desde Project Gutenberg…");
+							const rTxt = await fetch(txtUrl, { signal: AbortSignal.timeout(12000) }).catch(() => null);
+							if (rTxt && rTxt.ok) {
+								const t = await rTxt.text();
+								const ok = await importarYMostrarTexto(t, "Gutenberg");
+								if (ok) return;
+							}
+						}
+						if (htmlUrl) {
+							const resWeb = await importarDesdeUrl(htmlUrl).catch(() => null);
+							if (resWeb?.texto?.length >= 1000) {
+								const ok = await importarYMostrarTexto(resWeb.texto, "Gutenberg");
+								if (ok) return;
+							}
+						}
+					}
+				}
+			} catch (eGuten) {
+				console.warn("[gutenberg fallback]", eGuten);
+			}
+
+			// 2b. Internet Archive (Texts & EPUB/PDF/TXT)
+			try {
+				const qIA = encodeURIComponent(`(title:("${titOriginal}") OR title:(${titOriginal})) AND mediatype:(texts)`);
+				const rIA = await fetch(`https://archive.org/advancedsearch.php?q=${qIA}&fl[]=identifier,title,creator,downloads&sort[]=downloads+desc&rows=3&output=json`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+				if (rIA && rIA.ok) {
+					const dataIA = await rIA.json().catch(() => null);
+					const docs = dataIA?.response?.docs || [];
+					for (const doc of docs) {
+						const iaId = doc.identifier;
+						if (!iaId) continue;
+						const urlEpub = `https://archive.org/download/${iaId}/${iaId}.epub`;
+						let rEp = await fetch(urlEpub, { signal: AbortSignal.timeout(10000) }).catch(() => null);
+						if (!rEp || !rEp.ok) {
+							rEp = await fetch("https://corsproxy.io/?" + encodeURIComponent(urlEpub), { signal: AbortSignal.timeout(12000) }).catch(() => null);
+						}
+						if (rEp && rEp.ok && !rEp.headers.get("content-type")?.includes("text/html")) {
+							const b = await rEp.blob();
+							if (b.size > 2000) {
+								const ok = await importarYMostrarBlob(b, `${iaId}.epub`, ".epub");
+								if (ok) return;
+							}
+						}
+						const urlTxt = `https://archive.org/download/${iaId}/${iaId}_djvu.txt`;
+						let rTx = await fetch(urlTxt, { signal: AbortSignal.timeout(10000) }).catch(() => null);
+						if (!rTx || !rTx.ok) {
+							rTx = await fetch("https://corsproxy.io/?" + encodeURIComponent(urlTxt), { signal: AbortSignal.timeout(12000) }).catch(() => null);
+						}
+						if (rTx && rTx.ok) {
+							const t = await rTx.text();
+							if (t && t.length >= 1200) {
+								const ok = await importarYMostrarTexto(t, "Internet Archive");
+								if (ok) return;
+							}
+						}
+					}
+				}
+			} catch (eIA) {
+				console.warn("[internet archive fallback]", eIA);
+			}
+
+			// 2c. Wikisource en español
+			try {
+				const qWiki = encodeURIComponent(titOriginal.replace(/[:(].*$/, "").trim());
+				const rW = await fetch(`https://es.wikisource.org/w/api.php?action=opensearch&search=${qWiki}&limit=1&format=json&origin=*`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+				if (rW && rW.ok) {
+					const dataW = await rW.json().catch(() => null);
+					const pag = dataW?.[1]?.[0];
+					if (pag) {
+						const rParse = await fetch(`https://es.wikisource.org/w/api.php?action=parse&page=${encodeURIComponent(pag)}&prop=text&format=json&origin=*`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+						if (rParse && rParse.ok) {
+							const dP = await rParse.json().catch(() => null);
+							const html = dP?.parse?.text?.["*"];
+							if (html && html.length > 2000) {
+								const txt = extraerTextoDeHtml(html)?.texto || "";
+								if (txt && txt.length >= 1000) {
+									const ok = await importarYMostrarTexto(txt, "Wikisource");
+									if (ok) return;
+								}
+							}
+						}
+					}
+				}
+			} catch (eWiki) {
+				console.warn("[wikisource fallback]", eWiki);
+			}
+
+			// 2d. arXiv (Papers científicos, IA, Matemáticas, Física)
+			try {
+				const qArxiv = encodeURIComponent(titOriginal);
+				const rAx = await fetch(`https://export.arxiv.org/api/query?search_query=ti:${qArxiv}&max_results=1`, { signal: AbortSignal.timeout(7000) }).catch(() => null);
+				if (rAx && rAx.ok) {
+					const xml = await rAx.text();
+					const mPdf = xml.match(/href="([^"]+)"\s+rel="related"\s+type="application\/pdf"/i) || xml.match(/http:\/\/arxiv\.org\/abs\/([0-9.]+)/i);
+					if (mPdf) {
+						const pdfLink = mPdf[1].startsWith("http") ? mPdf[1] : `https://arxiv.org/pdf/${mPdf[1]}.pdf`;
+						toast?.("⬇️ Descargando documento científico de arXiv…");
+						let rPdf = await fetch(pdfLink, { signal: AbortSignal.timeout(15000) }).catch(() => null);
+						if (!rPdf || !rPdf.ok) {
+							rPdf = await fetch("https://corsproxy.io/?" + encodeURIComponent(pdfLink), { signal: AbortSignal.timeout(15000) }).catch(() => null);
+						}
+						if (rPdf && rPdf.ok) {
+							const b = await rPdf.blob();
+							const ok = await importarYMostrarBlob(b, `${titOriginal}.pdf`, ".pdf");
+							if (ok) return;
+						}
+					}
+				}
+			} catch (eArxiv) {
+				console.warn("[arxiv fallback]", eArxiv);
+			}
+
+			// 2e. Si es una obra canónica con texto íntegro precargado (ej. El Capital o La Biblia)
+			if (titNorm.includes("capital") || (autNorm.includes("marx") && !titNorm.includes("manifiesto")) || titNorm.includes("biblia") || titNorm.includes("evangelio")) {
+				const textoCompleto = await obtenerTextoCompletoLibro(libro);
+				if (textoCompleto && textoCompleto.length > 2000) {
+					const ok = await importarYMostrarTexto(textoCompleto, "Lumen");
+					if (ok) return;
+				}
+			}
+
+			// =========================================================================
+			// PASO 3: Si sigue sin encontrarlo, buscar un torrent
+			// =========================================================================
+			toast?.("🧲 Buscando torrent de la obra…");
+
+			let magnetEncontrado = libro.magnet || "";
+
+			// Si el libro proviene de Internet Archive, IA genera torrent automático
+			if (!magnetEncontrado && (libro.id?.startsWith?.("ia-") || libro.ia || libro.fuente === "archive")) {
+				const iaId = (libro.id || "").replace(/^ia-/, "") || libro.ia;
+				if (iaId) {
+					magnetEncontrado = `https://archive.org/download/${iaId}/${iaId}_archive.torrent`;
+				}
+			}
+
+			// Intentar buscar torrent en Internet Archive API de torrents
+			if (!magnetEncontrado) {
+				try {
+					const qTor = encodeURIComponent(`title:(${titOriginal}) AND format:(Archive Torrent)`);
+					const rTor = await fetch(`https://archive.org/advancedsearch.php?q=${qTor}&fl[]=identifier&rows=1&output=json`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
+					if (rTor && rTor.ok) {
+						const dj = await rTor.json().catch(() => null);
+						const idT = dj?.response?.docs?.[0]?.identifier;
+						if (idT) {
+							magnetEncontrado = `https://archive.org/download/${idT}/${idT}_archive.torrent`;
+						}
+					}
+				} catch (eTor) {
+					console.warn("[busqueda torrent IA]", eTor);
+				}
+			}
+
+			// Si se encontró un magnet o archivo .torrent:
+			if (magnetEncontrado) {
+				try {
+					const { anadir } = await __vitePreload(() => import("./torrentStore-CcjsoCUj.js"), __vite__mapDeps([19,2,1,7,11]), import.meta.url);
+					const rAnadir = await anadir(magnetEncontrado, titOriginal);
+					setCatalogoAbierto(false);
+					setMisPubsAbierto(false);
+					setQrPendiente(null);
+					setLectorGlobal(null);
+					setTorrentAbierto(true);
+					toast?.(rAnadir?.ok
+						? `🧲 Torrent de «${titOriginal}» cargado en tu biblioteca torrent`
+						: `🧲 Abriendo torrent en la biblioteca: ${rAnadir?.error || "Conectando…"}`);
+					return;
+				} catch (eTorStore) {
+					console.warn("[anadir torrent]", eTorStore);
+				}
+			}
+
+			// Si no se encontró un magnet directo, abrir automáticamente el buscador universal
+			// de descargas y torrents (Anna's Archive, The Pirate Bay, Sci-Hub, etc.)
+			setCatalogoAbierto(false);
+			setMisPubsAbierto(false);
+			setQrPendiente(null);
+			setLectorGlobal(null);
+			setBuscadorQ(`${titOriginal} ${autOriginal}`.trim());
+			setBuscadorAbierto(true);
+			toast?.(`🔍 Buscando descargas y torrents de «${titOriginal}» en Anna's Archive y la web…`);
+
 		} catch (err) {
 			console.error("[manejarAbrirLibro]", err);
-			toast?.("⚠️ " + (err?.message || "No se pudo abrir el libro"));
+			toast?.("⚠️ " + (err?.message || "No se pudo extraer el libro"));
+		} finally {
+			setCatalogoAbierto(false);
+			setMisPubsAbierto(false);
+			setLectorGlobal(null);
 		}
-
-		// En cualquier caso, cerrar modales y no dejar la pantalla en LectorGlobal
-		setCatalogoAbierto(false);
-		setMisPubsAbierto(false);
-		setLectorGlobal(null);
 	}, [openBook, toast]);
 	(0, import_react.useEffect)(() => {
 		const onPedirImportar = (ev) => {
