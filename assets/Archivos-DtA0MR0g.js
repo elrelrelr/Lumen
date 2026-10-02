@@ -471,62 +471,31 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "tp-cuerpo",
 				children: [
-					/* Hero card con acciones destacadas y responsive */
+					/* Panel superior compacto y moderno */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "arch-hero-card",
+						className: "arch-panel-compact",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "arch-hero-hdr",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "arch-hero-ic",
-										children: "✨"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "arch-hero-meta",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
-												className: "arch-hero-tit",
-												children: hay ? "Detección automática de documentos" : "Detección y escaneo de documentos"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-												className: "arch-hero-sub",
-												children: hay ? "Lumen busca tus libros en las carpetas habituales (Descargas, Documentos, Telegram…) y los añade en un toque." : "Explora carpetas en tu equipo para buscar libros recursivamente o selecciona documentos compatibles (PDF, EPUB, DOCX, cómics, MOBI) en un solo paso."
-											})
-										]
-									})
-								]
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "arch-panel-sub",
+								children: hay
+									? "Lumen busca tus libros en carpetas locales (Descargas, Documentos, Telegram…) y los añade al instante."
+									: "Escanea una carpeta en tu equipo para detectar libros compatibles o selecciona documentos directamente."
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "arch-hero-actions",
+								className: "arch-acciones-top",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 										type: "button",
-										className: "btn primary arch-hero-btn",
+										className: "btn primary sm",
 										onClick: elegirCarpeta,
 										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "arch-btn-icon",
-												children: "📁"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "arch-btn-info",
-												children: [
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "arch-btn-title",
-														children: "Escanear carpeta"
-													}),
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "arch-btn-desc",
-														children: "Buscar recursivamente en subcarpetas"
-													})
-												]
-											})
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📁" }),
+											"Escanear carpeta"
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 										type: "button",
-										className: "btn arch-hero-btn",
+										className: "btn sm",
 										onClick: () => {
 											haptic.tap();
 											const inp = document.createElement("input");
@@ -543,23 +512,8 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 											inp.click();
 										},
 										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "arch-btn-icon",
-												children: "📂"
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-												className: "arch-btn-info",
-												children: [
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "arch-btn-title",
-														children: "Elegir archivos"
-													}),
-													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-														className: "arch-btn-desc",
-														children: "Seleccionar libros individuales"
-													})
-												]
-											})
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📂" }),
+											"Elegir archivos"
 										]
 									})
 								]
@@ -625,48 +579,36 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 							})
 						]
 					}),
-					/* Selector de formatos */
+					/* Selector de formatos compacto en tira horizontal */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "arch-seccion-filtros",
+						className: "arch-formatos-scroll",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "arch-filtros-hdr",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "arch-chip-compact" + (filtros.size === 0 ? " on" : ""),
+								onClick: limpiarFiltros,
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Buscar por tipo de documento" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Formatos compatibles para lectura directa" })
+									filtros.size === 0 ? "☑" : "☐",
+									" Todos"
 								]
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "arch-filtros-chips",
+							FORMATOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								type: "button",
+								className: "arch-chip-compact" + (filtros.has(f.ext) ? " on" : ""),
+								onClick: () => alternarFiltro(f.ext),
+								title: `Filtrar por .${f.ext}`,
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										type: "button",
-										className: "chip" + (filtros.size === 0 ? " on" : ""),
-										onClick: limpiarFiltros,
-										children: [
-											filtros.size === 0 ? "☑" : "☐",
-											" Todos"
-										]
-									}),
-									FORMATOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										type: "button",
-										className: "chip" + (filtros.has(f.ext) ? " on" : ""),
-										onClick: () => alternarFiltro(f.ext),
-										title: `Filtrar por .${f.ext}`,
-										children: [
-											filtros.has(f.ext) ? "☑" : "☐",
-											" ",
-											f.icon,
-											" ",
-											f.label,
-											resumenFormatos[f.ext] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-												className: "arch-chip-badge",
-												children: resumenFormatos[f.ext]
-											}) : null
-										]
-									}, f.ext))
+									filtros.has(f.ext) ? "☑" : "☐",
+									" ",
+									f.icon,
+									" ",
+									f.label,
+									resumenFormatos[f.ext] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "arch-chip-badge",
+										children: resumenFormatos[f.ext]
+									}) : null
 								]
-							})
+							}, f.ext))
 						]
 					}),
 					hay && permiso && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
@@ -806,49 +748,19 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 							]
 						}),
 						!cargando && lista.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "arch-empty-card",
+							className: "arch-empty-compact",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 									className: "arch-empty-emoji",
 									children: "✨"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
-									className: "arch-empty-title",
-									children: "Encuentra y organiza tus documentos"
+									className: "arch-empty-tit",
+									children: "Listo para detectar documentos"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "arch-empty-desc",
-									children: "Haz clic en «Escanear carpeta» para buscar recursivamente en tu equipo, o en «Elegir archivos» para importar libros de inmediato."
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "arch-empty-actions",
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											type: "button",
-											className: "btn primary sm",
-											onClick: elegirCarpeta,
-											children: "📁 Escanear carpeta"
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											type: "button",
-											className: "btn ghost sm",
-											onClick: () => {
-												const inp = document.createElement("input");
-												inp.type = "file";
-												inp.multiple = true;
-												inp.accept = ".pdf,.epub,.mobi,.fb2,.txt,.md,.docx,.doc,.cbz,.cbr,.lumen,.rtf,.html,.srt,application/pdf,application/epub+zip,*/*";
-												inp.onchange = async () => {
-													const archivos = Array.from(inp.files || []);
-													if (archivos.length > 0) {
-														toast?.(`Importando ${archivos.length} archivo(s)…`);
-														await onImportar?.(archivos);
-													}
-												};
-												inp.click();
-											},
-											children: "📂 Elegir archivos"
-										})
-									]
+									children: "Usa «Escanear carpeta» para buscar libros en tus carpetas o «Elegir archivos» para importar al instante."
 								})
 							]
 						}),

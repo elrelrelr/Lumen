@@ -17272,193 +17272,118 @@ button.tp-acceso-primary {
   align-items: center;
 }
 
-/* ============ v256: Auto Detectar Documentos Responsive y Moderno ============ */
+/* ============ v256: Auto Detectar Documentos Compacto y Elegante ============ */
 .arch .tp-cuerpo {
   flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding: 16px 20px 80px;
-  max-width: 960px;
+  padding: 12px 14px 70px;
+  max-width: 680px;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
 }
 
-.arch-hero-card {
+.arch-panel-compact {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px;
-  border-radius: 18px;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 14px;
   background: var(--bg-elev);
   border: 1px solid var(--line);
-  margin-bottom: 16px;
-  box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.25);
+  margin-bottom: 12px;
 }
 
-.arch-hero-hdr {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-
-.arch-hero-ic {
-  font-size: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 50px;
-  height: 50px;
-  border-radius: 14px;
-  background: var(--chip-bg, rgba(255, 255, 255, 0.06));
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-}
-
-.arch-hero-meta {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.arch-hero-tit {
-  font-size: 15.5px;
-  font-weight: 700;
-  color: var(--fg);
-}
-
-.arch-hero-sub {
+.arch-panel-sub {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   color: var(--fg-mute);
 }
 
-.arch-hero-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
-}
-
-.arch-hero-btn {
+.arch-acciones-top {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border-radius: 14px;
-  text-align: left;
-  border: 1px solid var(--line);
-  cursor: pointer;
-  background: var(--chip-bg, rgba(255, 255, 255, 0.04));
-  color: var(--fg);
-  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.arch-hero-btn.primary {
+.arch-acciones-top .btn {
+  flex: 1;
+  min-width: 140px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  padding: 9px 12px;
+  border-radius: 10px;
+}
+
+/* Tiras de formato compactas */
+.arch-formatos-scroll {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 0 6px;
+  margin-bottom: 8px;
+  scrollbar-width: none;
+}
+.arch-formatos-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.arch-chip-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 9px;
+  border-radius: 8px;
+  font-size: 11.5px;
+  white-space: nowrap;
+  background: var(--chip-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--line);
+  color: var(--fg);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.12s ease;
+}
+
+.arch-chip-compact.on {
   background: var(--accent, #6366f1);
   color: #fff;
   border-color: transparent;
 }
 
-.arch-hero-btn.primary .arch-btn-desc {
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.arch-hero-btn:active {
-  transform: scale(0.985);
-}
-
-.arch-btn-icon {
-  font-size: 26px;
-  flex-shrink: 0;
-}
-
-.arch-btn-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.arch-btn-title {
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.arch-btn-desc {
-  font-size: 11.5px;
-  color: var(--fg-mute);
-}
-
-/* Sección de filtros por formato */
-.arch-seccion-filtros {
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.arch-filtros-hdr {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 0 4px;
-}
-
-.arch-filtros-hdr b {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: var(--fg);
-}
-
-.arch-filtros-hdr small {
-  font-size: 11.5px;
-  color: var(--fg-mute);
-}
-
-.arch-filtros-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  align-items: center;
-}
-
 .arch-chip-badge {
-  background: var(--bg);
-  border: 1px solid var(--line);
-  padding: 1px 6px;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 1px 5px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 700;
-  margin-left: 2px;
 }
 
-/* Buscador */
-.arch-busc-contenedor {
-  margin-bottom: 14px;
-}
-
+/* Buscador compacto */
 .arch-busc-campo {
   display: flex;
   align-items: center;
   gap: 8px;
   background: var(--bg-elev);
   border: 1px solid var(--line);
-  border-radius: 12px;
-  padding: 8px 12px;
+  border-radius: 10px;
+  padding: 7px 10px;
+  margin-bottom: 10px;
 }
 
 .arch-busc-icono {
-  font-size: 16px;
+  font-size: 15px;
   opacity: 0.6;
 }
 
 .arch-busc-input {
   flex: 1;
-  font-size: 13.5px;
+  font-size: 12.5px;
   color: var(--fg);
   background: transparent;
   border: none;
@@ -17470,8 +17395,8 @@ button.tp-acceso-primary {
   border: none;
   color: var(--fg-mute);
   cursor: pointer;
-  padding: 2px 6px;
-  font-size: 14px;
+  padding: 2px 5px;
+  font-size: 13px;
 }
 
 /* Barra de acciones de lista */
@@ -17479,46 +17404,46 @@ button.tp-acceso-primary {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
-  padding: 0 4px;
+  margin-bottom: 10px;
+  padding: 0 2px;
 }
 
 .arch-resumen-pill {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--fg-mute);
 }
 
-/* Grid responsive de documentos */
+/* Documentos en lista compacta */
 .arch-grid-documentos {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .arch-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 11px;
   background: var(--bg-elev);
   border: 1px solid var(--line);
   color: var(--fg);
   text-align: left;
   cursor: pointer;
-  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+  transition: background 0.12s ease, border-color 0.12s ease;
 }
 
 .arch-card:hover {
-  border-color: var(--line-strong, rgba(255, 255, 255, 0.2));
+  border-color: var(--line-strong, rgba(255, 255, 255, 0.25));
 }
 
 .arch-card.on {
-  border-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 12%, var(--bg-elev));
+  border-color: var(--accent, #6366f1);
+  background: color-mix(in srgb, var(--accent, #6366f1) 12%, var(--bg-elev));
 }
 
 .arch-card.ya {
@@ -17527,22 +17452,22 @@ button.tp-acceso-primary {
 }
 
 .arch-badge-ext {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 800;
-  padding: 4px 6px;
-  border-radius: 6px;
-  letter-spacing: 0.5px;
+  padding: 3px 5px;
+  border-radius: 5px;
+  letter-spacing: 0.3px;
   flex-shrink: 0;
   background: var(--chip-bg, rgba(255, 255, 255, 0.08));
   border: 1px solid var(--line);
 }
 
-.arch-ext-pdf { color: #f87171; border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.1); }
-.arch-ext-epub { color: #34d399; border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.1); }
-.arch-ext-docx, .arch-ext-doc { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); background: rgba(96, 165, 250, 0.1); }
-.arch-ext-mobi { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.1); }
-.arch-ext-txt, .arch-ext-md { color: #94a3b8; border-color: rgba(148, 163, 184, 0.3); background: rgba(148, 163, 184, 0.1); }
-.arch-ext-cbr, .arch-ext-cbz { color: #f472b6; border-color: rgba(244, 114, 182, 0.3); background: rgba(244, 114, 182, 0.1); }
+.arch-ext-pdf { color: #f87171; border-color: rgba(248, 113, 113, 0.3); background: rgba(248, 113, 113, 0.12); }
+.arch-ext-epub { color: #34d399; border-color: rgba(52, 211, 153, 0.3); background: rgba(52, 211, 153, 0.12); }
+.arch-ext-docx, .arch-ext-doc { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); background: rgba(96, 165, 250, 0.12); }
+.arch-ext-mobi { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.12); }
+.arch-ext-txt, .arch-ext-md { color: #94a3b8; border-color: rgba(148, 163, 184, 0.3); background: rgba(148, 163, 184, 0.12); }
+.arch-ext-cbr, .arch-ext-cbz { color: #f472b6; border-color: rgba(244, 114, 182, 0.3); background: rgba(244, 114, 182, 0.12); }
 
 .arch-card-info {
   flex: 1;
@@ -17553,7 +17478,7 @@ button.tp-acceso-primary {
 }
 
 .arch-card-tit {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--fg);
   overflow: hidden;
@@ -17562,107 +17487,99 @@ button.tp-acceso-primary {
 }
 
 .arch-card-sub {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--fg-mute);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.arch-card-end {
-  flex-shrink: 0;
-}
-
-.arch-pill-ya {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--fg-mute);
-}
-
 .arch-chk {
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
   border: 1.5px solid var(--line);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--fg);
-  transition: all 0.12s ease;
 }
 
 .arch-chk.on {
-  border-color: var(--accent);
-  background: var(--accent);
+  border-color: var(--accent, #6366f1);
+  background: var(--accent, #6366f1);
   color: #fff;
 }
 
-/* Tarjeta vacía */
-.arch-empty-card {
+.arch-pill-ya {
+  font-size: 9.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--fg-mute);
+}
+
+/* Empty state compacto */
+.arch-empty-compact {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  gap: 10px;
-  padding: 36px 20px;
-  border-radius: 18px;
+  gap: 6px;
+  padding: 24px 16px;
+  border-radius: 14px;
   background: var(--bg-elev);
   border: 1px dashed var(--line);
-  margin: 12px 0;
+  margin: 8px 0;
 }
 
 .arch-empty-emoji {
-  font-size: 40px;
+  font-size: 26px;
 }
 
-.arch-empty-title {
-  font-size: 16px;
-  font-weight: 700;
+.arch-empty-tit {
+  font-size: 13.5px;
+  font-weight: 650;
   color: var(--fg);
 }
 
 .arch-empty-desc {
   margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
+  font-size: 11.5px;
   color: var(--fg-mute);
-  max-width: 440px;
-}
-
-.arch-empty-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 6px;
-  flex-wrap: wrap;
-  justify-content: center;
+  max-width: 360px;
+  line-height: 1.4;
 }
 
 /* Escaneando banner */
 .arch-escaneando-box {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 14px;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
   background: rgba(99, 102, 241, 0.12);
   border: 1px solid rgba(99, 102, 241, 0.3);
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .arch-escaneando-txt {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  font-size: 12.5px;
+  gap: 1px;
+  font-size: 12px;
   color: var(--fg);
 }
 
-/* Barra inferior fija */
+.arch-escaneando-txt small {
+  color: var(--fg-mute);
+  font-size: 11px;
+}
+
+/* Barra inferior */
 .arch-barra {
   position: sticky;
   bottom: 0;
@@ -17670,33 +17587,27 @@ button.tp-acceso-primary {
   right: 0;
   background: var(--bg-elev);
   border-top: 1px solid var(--line);
-  padding: 12px 16px;
-  padding-bottom: max(12px, env(safe-area-inset-bottom));
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+  padding: 10px 14px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.2);
   z-index: 20;
 }
 
 .arch-barra-inner {
-  max-width: 960px;
+  max-width: 680px;
   margin: 0 auto;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   justify-content: flex-end;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .arch .tp-cuerpo {
-    padding: 12px 12px 80px;
+    padding: 10px 10px 70px;
   }
-  .arch-hero-card {
-    padding: 16px 14px;
-  }
-  .arch-hero-actions {
-    grid-template-columns: 1fr;
-  }
-  .arch-grid-documentos {
-    grid-template-columns: 1fr;
+  .arch-acciones-top .btn {
+    min-width: 100%;
   }
   .arch-barra-inner {
     flex-wrap: wrap;
