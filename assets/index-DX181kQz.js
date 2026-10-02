@@ -38432,7 +38432,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v256"
+							children: "v257"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -40588,7 +40588,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v256 · escritorio y móvil"
+					children: "Lumen Reader · v257 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -56807,6 +56807,19 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				setLectorGlobal(null);
 				openBook(existente.id);
 				toast?.("📖 Abriendo «" + existente.title + "» desde tu biblioteca");
+				return;
+			}
+
+			// Si es un manga o proviene de una biblioteca de manga, abrir directamente en lector online
+			const esManga = libro.categoria === "manga" || ["mangadex", "tmo", "comick", "mangakakalot"].includes(libro.fuente) || libro.isManga || (Array.isArray(libro.bookshelves) && libro.bookshelves.some((s) => typeof s === "string" && s.toLowerCase().includes("manga")));
+			if (esManga) {
+				const mangaUrl = libro.url || (libro.fuente === "mangadex" ? `https://mangadex.org/title/${String(targetId).replace(/^mdx_/, "")}` : null) || (libro.fuente === "tmo" ? `https://zonatmo.com/library?title=${encodeURIComponent(titOriginal)}` : null) || (libro.fuente === "comick" ? `https://comick.io/search?q=${encodeURIComponent(titOriginal)}` : null) || (libro.fuente === "mangakakalot" ? `https://mangakakalot.com/search/story/${encodeURIComponent(titOriginal)}` : null) || `https://mangadex.org/search?q=${encodeURIComponent(titOriginal)}`;
+				setCatalogoAbierto(false);
+				setMisPubsAbierto(false);
+				setQrPendiente(null);
+				setLectorGlobal(null);
+				window.open(mangaUrl, "_blank", "noopener");
+				toast?.(`🎌 Abriendo manga «${titOriginal.slice(0, 30)}» en lector online…`);
 				return;
 			}
 

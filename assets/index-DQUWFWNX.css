@@ -17619,3 +17619,35 @@ button.tp-acceso-primary {
 }
 
 
+
+/* ============ v257: Bibliotecas y Visor de Manga en Lumen Store ============ */
+.btn-manga-reader {
+  background: linear-gradient(135deg, #ff4757, #ff6b81) !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(255, 71, 87, 0.35) !important;
+  border: none !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.btn-manga-reader:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(255, 71, 87, 0.45) !important;
+}
+.btn-manga-reader:active {
+  transform: translateY(0);
+}
+.chip-manga {
+  border-color: rgba(255, 107, 107, 0.45);
+}
+.chip-manga.on {
+  background: linear-gradient(135deg, #ff6b6b, #ee5253) !important;
+  color: #fff !important;
+}
+.cg-badge-manga {
+  background: rgba(255, 71, 87, 0.18);
+  color: #ff4757;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+}

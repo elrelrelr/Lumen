@@ -166,9 +166,45 @@ var SITIOS = [
 		color: "#4a7a5a",
 		tipo: "busca",
 		nota: "Sólo archivos EPUB, que son los que mejor se leen en la app."
+	},
+	{
+		id: "mangadex",
+		nombre: "MangaDex",
+		url: "https://mangadex.org/search?q={q}",
+		color: "#ff6740",
+		tipo: "manga",
+		nota: "Plataforma abierta mundial de manga, manhwa y manhua en español e inglés sin publicidad."
+	},
+	{
+		id: "tmo",
+		nombre: "TuMangaOnline (TMO)",
+		url: "https://zonatmo.com/library?title={q}",
+		color: "#16a085",
+		tipo: "manga",
+		nota: "La mayor biblioteca comunitaria de manga y manhwa en español de Latinoamérica y España."
+	},
+	{
+		id: "comick",
+		nombre: "ComicK",
+		url: "https://comick.io/search?q={q}",
+		color: "#2980b9",
+		tipo: "manga",
+		nota: "Biblioteca masiva de manga, manhwa y cómics con lectura rápida y alta resolución."
+	},
+	{
+		id: "mangakakalot",
+		nombre: "MangaKakalot",
+		url: "https://mangakakalot.com/search/story/{q}",
+		color: "#e67e22",
+		tipo: "manga",
+		nota: "Catálogo universal de manga con miles de series y lectura de capítulos completa."
 	}
 ];
 var TIPOS = {
+	manga: {
+		etiqueta: "Manga & Manhwa",
+		color: "#e67e22"
+	},
 	libre: {
 		etiqueta: "Libre",
 		color: "#3f8f4f"
