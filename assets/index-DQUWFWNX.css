@@ -1978,7 +1978,7 @@ mark.hl.destello { animation: hlDestello 1.2s ease; }
 
 /* la barra inferior con 4 botones respira más */
 .rd-tools { position: relative; z-index: 22; pointer-events: auto; }
-.rd-tools .tool { padding: 9px 2px; font-size: 10.5px; pointer-events: auto; }
+.rd-tools .tool { padding: 9px 2px; font-size: calc(var(--font-size-tools, 10.5px) * var(--scale-tools, 1)); pointer-events: auto; }
 .rd-tools .tool span.i { font-size: 19px; }
 
 .lib { padding-bottom: calc(var(--safe-b) + 110px); }
@@ -15163,7 +15163,7 @@ body:has(.stories) .sidebar,
   gap: 3px !important;
   padding: 8px 1px !important;
   border-radius: 12px !important;
-  font-size: 10px !important;
+  font-size: calc(var(--font-size-tools, 10px) * var(--scale-tools, 1)) !important;
   font-weight: 600 !important;
   letter-spacing: -0.2px !important;
   white-space: nowrap !important;
@@ -17037,3 +17037,125 @@ body:has(.stories) .sidebar,
   border-color: #f59e0b !important;
   font-weight: 700;
 }
+
+/* ============ v256: Tipografía reactiva de ajustes y barra rd-tools ============ */
+:root {
+  --font-size-ajustes: 14px;
+  --font-size-tools: 11px;
+  --scale-tools: 1;
+}
+.sheet,
+.sheet .row,
+.sheet .row-sub,
+.sheet .section-title,
+.sheet select,
+.sheet input,
+.sheet .aj-row,
+.sheet .aj-seccion-envuelta {
+  font-size: calc(var(--font-size-ajustes, 14px) * var(--scale-menu, 1));
+}
+.sheet .row-label {
+  font-size: calc(var(--font-size-ajustes, 14px) * 1.02 * var(--scale-menu, 1)) !important;
+}
+.sheet .row-sub {
+  font-size: calc(var(--font-size-ajustes, 14px) * 0.85 * var(--scale-menu, 1)) !important;
+}
+.sheet .section-title {
+  font-size: calc(var(--font-size-ajustes, 14px) * 0.95 * var(--scale-menu, 1)) !important;
+}
+
+/* ============ v256: Importar contenido unificado con scroll único ============ */
+.imp-scroll-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 65vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 2px 14px;
+}
+.imp-seccion-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tp-acceso-primary {
+  background: linear-gradient(135deg, var(--accent, #6366f1), #4f46e5) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px -3px rgba(99, 102, 241, 0.4) !important;
+}
+
+/* ============ v256: Biblioteca Torrent y Catálogos Fluidos ============ */
+.tp-barra-enlace {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 10px 0 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+}
+.tp-catalogo-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.tp-catalogo-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tp-cat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.tp-cat-card:hover {
+  border-color: var(--accent);
+}
+.tp-cat-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.tp-cat-tit {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--fg);
+  line-height: 1.3;
+}
+.tp-cat-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--accent, #6366f1);
+  white-space: nowrap;
+}
+.tp-cat-desc {
+  font-size: 12px;
+  color: var(--fg-mute);
+  line-height: 1.45;
+}
+.tp-cat-meta {
+  font-size: 11px;
+  color: var(--fg-dim);
+  font-weight: 550;
+}
+.tp-cat-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+

@@ -38432,7 +38432,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v231"
+							children: "v256"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -40588,7 +40588,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v231 · escritorio y móvil"
+					children: "Lumen Reader · v256 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -40725,7 +40725,32 @@ const toquesDev = (0, import_react.useRef)(0);
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
 						style: { margin: "16px 4px 6px" },
-						children: "2. Menús y botones"
+						children: "2. Menús, ajustes y barra de lectura"
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Letra de ajustes y barra rd-tools" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "row-sub", children: ["Ajustes generales y barra de lectura (", settings.letraAjustesMenu || 14, " px)"] })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								className: "plain",
+								type: "range",
+								min: 11,
+								max: 22,
+								step: 1,
+								value: settings.letraAjustesMenu || 14,
+								onChange: (e) => {
+									const val = Number(e.target.value);
+									setSettings({ letraAjustesMenu: val });
+									document.documentElement.style.setProperty("--font-size-ajustes", val + "px");
+									document.documentElement.style.setProperty("--font-size-tools", Math.round(val * 0.78 * 10) / 10 + "px");
+								}
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
@@ -40754,7 +40779,7 @@ const toquesDev = (0, import_react.useRef)(0);
 								className: "letra-pv-hdr",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔘 Vista previa · Menús y botones" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "letra-pv-tag", children: [Math.round((settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 100), "% efectivo"] })
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { className: "letra-pv-tag", children: [Math.round((settings.escalaMenu ?? 1) * ((settings.appScale ?? 100) / 100) * 100), "% · ", settings.letraAjustesMenu || 14, "px"] })
 								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -40789,6 +40814,25 @@ const toquesDev = (0, import_react.useRef)(0);
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔖 Marcadores y notas guardadas" }),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { opacity: .5 }, children: "›" })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "letra-pv-rd-tools",
+										style: {
+											display: "flex",
+											justifyContent: "space-around",
+											padding: "8px 4px",
+											background: "rgba(255,255,255,0.05)",
+											borderRadius: 10,
+											marginTop: 8,
+											fontSize: Math.round((settings.letraAjustesMenu || 14) * 0.78 * 10) / 10 + "px"
+										},
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }, children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "▶" }), "Voz"] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }, children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📝" }), "Nota"] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }, children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "✨" }), "IA"] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }, children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🎨" }), "Lectura"] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { style: { display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }, children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "⋯" }), "Más"] })
 										]
 									})
 								]
@@ -41022,149 +41066,123 @@ const toquesDev = (0, import_react.useRef)(0);
 				children: [
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "row-sub",
-						style: { marginBottom: 12 },
-						children: "Elige de dónde sacar el texto."
+						style: { marginBottom: 14 },
+						children: "Elige de dónde añadir libros y documentos a tu biblioteca."
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "imp-tabs",
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "imp-scroll-lista",
 						children: [
-							[
-								"archivo",
-								"📂",
-								"Archivo"
-							],
-							[
-								"torrent",
-								"🧲",
-								"Torrent"
-							],
-							[
-								"global",
-								"🛒",
-								"Store"
-							]
-						].map(([id, ic, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "imp-tab" + (impTab === id ? " on" : ""),
-							onClick: () => {
-								setImpTab(id);
-								haptic$1.tap();
-							},
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: ic }), et]
-						}, id))
-					}),
-					impTab === "torrent" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "imp-bloque",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "tp-acceso",
-							onClick: () => {
-								setSheet(null);
-								onAbrirTorrent?.();
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-ic",
-									children: "🧲"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Biblioteca torrent" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Pega un enlace y elige qué libros bajar" })]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-fl",
-									children: "›"
-								})
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							style: {
-								marginTop: 12,
-								lineHeight: 1.5,
-								opacity: .75
-							},
-							children: "Se abre en su propia pantalla para ver bien los libros de cada enlace. El análisis sigue en segundo plano aunque salgas."
-						})]
-					}),
-					impTab === "global" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "imp-bloque",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "tp-acceso",
-							onClick: () => {
-								setSheet(null);
-								onAbrirCatalogo?.();
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-ic",
-									children: "🌐"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "tp-acceso-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Lumen Store" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo sin dueño: Nostr + P2P, publica y lee" })]
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "tp-acceso-fl",
-									children: "›"
-								})
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							style: {
-								marginTop: 12,
-								lineHeight: 1.5,
-								opacity: .75
-							},
-							children: "Libros firmados por sus autores, en relays públicos gratuitos. Cada libro se comparte por torrent desde el móvil de quien lo publicó. Nadie puede borrarlo: ni nosotros."
-						})]
-					}),
-					impTab === "archivo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "imp-bloque",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								className: "tp-acceso",
-								onClick: () => {
-									setSheet(null);
-									onAbrirArchivos?.();
-								},
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "tp-acceso-ic",
-										children: "✨"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-										className: "tp-acceso-txt",
-										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Auto detectar documentos" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Encuentra tus PDF, Word, EPUB… y los trae con un toque" })]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-										className: "tp-acceso-fl",
-										children: "›"
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "imp-separador" }),
+							/* 1. Elegir archivos del sistema */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-sub",
-								style: {
-									marginBottom: 14,
-									lineHeight: 1.5
-								},
-								children: "En el teléfono escanea las carpetas de siempre (Descargas, Documentos, Telegram…). En el PC eliges la carpeta a leer. Puedes filtrar por tipo de documento (.pdf, .txt, .lumen…)."
+								className: "imp-seccion-item",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "tp-acceso tp-acceso-primary",
+									onClick: () => {
+										setSheet(null);
+										folderRef.current?.click();
+									},
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-ic",
+											children: "📂"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "tp-acceso-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Elegir archivo(s) del sistema" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "PDF · DOCX · EPUB · TXT · MD · CBR · CBZ · imágenes (con OCR)" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-fl",
+											children: "›"
+										})
+									]
+								})
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "imp-separador" }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn primary imp-archivo",
-								onClick: () => {
-									setSheet(null);
-									folderRef.current?.click();
-								},
-								children: "📂 Elegir archivo(s) del sistema"
-							}),
+							/* 2. Auto detectar documentos */
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-sub",
-								style: {
-									margin: "6px 0 0",
-									textAlign: "center"
-								},
-								children: "PDF · DOCX · EPUB · TXT · MD · imágenes (con OCR)"
+								className: "imp-seccion-item",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "tp-acceso",
+									onClick: () => {
+										setSheet(null);
+										onAbrirArchivos?.();
+									},
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-ic",
+											children: "✨"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "tp-acceso-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Auto detectar documentos" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Escanea tus carpetas y trae tus libros con un toque" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-fl",
+											children: "›"
+										})
+									]
+								})
+							}),
+							/* 3. Botón de abrir Lumen Store */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "imp-seccion-item",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "tp-acceso",
+									onClick: () => {
+										setSheet(null);
+										onAbrirCatalogo?.();
+									},
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-ic",
+											children: "🌐"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "tp-acceso-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Abrir Lumen Store" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogo abierto y descentralizado con millones de obras gratuitas" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-fl",
+											children: "›"
+										})
+									]
+								})
+							}),
+							/* 4. Biblioteca Torrent */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "imp-seccion-item",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "tp-acceso",
+									onClick: () => {
+										setSheet(null);
+										onAbrirTorrent?.();
+									},
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-ic",
+											children: "🧲"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											className: "tp-acceso-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Biblioteca Torrent" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Catálogos P2P y enlaces magnet para descarga directa o externa" })
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "tp-acceso-fl",
+											children: "›"
+										})
+									]
+								})
 							})
 						]
 					})
@@ -53823,6 +53841,29 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "row",
+						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "row-label",
+							children: "Letra de menús y barra de lectura"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "row-sub",
+							children: ["Ajustes y barra rd-tools (", settings.letraAjustesMenu || 14, " px)"]
+						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+							className: "plain",
+							type: "range",
+							min: 11,
+							max: 22,
+							step: 1,
+							value: settings.letraAjustesMenu || 14,
+							onChange: (e) => {
+								const val = Number(e.target.value);
+								setSettings({ letraAjustesMenu: val });
+								document.documentElement.style.setProperty("--font-size-ajustes", val + "px");
+								document.documentElement.style.setProperty("--font-size-tools", Math.round(val * 0.78 * 10) / 10 + "px");
+							}
+						})]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "row",
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "row-label",
 							children: "Interlineado"
@@ -55956,6 +55997,7 @@ function App() {
 					academic: true,
 					sonidosUi: true,
 					gestoSens: 2,
+					letraAjustesMenu: 14,
 					...(() => {
 						try {
 							return JSON.parse(localStorage.getItem("lumen_settings_mirror") || "null");
@@ -56005,6 +56047,7 @@ function App() {
 				ttsRate: 1.25,
 				musicVolume: 1,
 				goal: 5,
+				letraAjustesMenu: 14,
 				mantenerPantallaEncendida: true,
 				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || "left",
 				fabPos: localStorage.getItem("lumen_fab_pos") || "right"
@@ -56265,6 +56308,10 @@ function App() {
 		document.documentElement.style.setProperty("--app-scale", String((settings.appScale ?? 100) / 100));
 		document.documentElement.style.setProperty("--scale-menu", String(settings.escalaMenu ?? 1));
 		document.documentElement.style.setProperty("--scale-lista", String(settings.escalaLista ?? 1));
+		const letraUi = settings.letraAjustesMenu ?? settings.tamanoLetraUi ?? 14;
+		document.documentElement.style.setProperty("--font-size-ajustes", letraUi + "px");
+		document.documentElement.style.setProperty("--font-size-tools", Math.round(letraUi * 0.78 * 10) / 10 + "px");
+		document.documentElement.style.setProperty("--scale-tools", String(settings.escalaMenu ?? 1));
 		__vitePreload(() => Promise.resolve().then(() => aspecto_exports).then((a) => {
 			a.aplicarTemaPersonaje?.(settings.theme);
 			const elegida = a.fuenteDelTema?.(settings.theme) || settings.appFuente;
