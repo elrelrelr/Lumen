@@ -10858,7 +10858,9 @@ function guardarPosLector(bookId, { lastMode, scrollPos }) {
 /** v160: esperar a que el último guardado en vuelo de un libro quede confirmado en la base. */
 const esperarGuardados = (id) => saveCadenas.get(id) || Promise.resolve();
 /** Guarda la página actual de forma fiable (IndexedDB + espejo). */
-async function guardarProgresoInterno(bookId, { page, pageCount, immediate = false }) {
+async function guardarProgresoInterno(bookId, { page, pageCount, immediate = false, mode = "text" }) {
+	// v255: Solo la pestaña T (Texto) progresa percentRead y computa libro leído. En Original o Imágenes no.
+	if (mode && mode !== "text") return false;
 	const pct = pageCount ? Math.round((page + 1) / pageCount * 100) : 0;
 	let ok = false;
 	try {
@@ -46221,7 +46223,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const [finAviso, setFinAviso] = (0, import_react.useState)(false);
 	const finVistoRef = (0, import_react.useRef)(false);
 	(0, import_react.useEffect)(() => {
-		if (!book || !pageCount || pageCount < 2) return;
+		if (!book || !pageCount || pageCount < 2 || mode !== "text") return; // v255: Solo pestaña T
 		if (page !== pageCount - 1) return;
 		if (finVistoRef.current || book.ratePrompted) return;
 		finVistoRef.current = true;
@@ -46233,7 +46235,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 			const run = prev.then(() => patchBook(book.id, { ratePrompted: true })).catch(() => {});
 			saveCadenas.set(book.id, run);
 		}
-	}, [book, page, pageCount]);
+	}, [book, page, pageCount, mode]);
 	/* v180b: PC — rueda del ratón en el borde = misma barra "mantener 2s" */
 	(0, import_react.useEffect)(() => {
 		if (mode !== "text" || carousel || (desp !== "scroll" && desp !== "mixto")) return;
@@ -46445,23 +46447,28 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		};
 	}, [book, page]);
 	(0, import_react.useEffect)(() => {
-		if (!book) return;
+		if (!book || mode !== "text") return; // v255: Solo la pestaña T (Texto) guarda progreso/percentRead
 		saveProgress(book.id, {
 			page,
-			pageCount
+			pageCount,
+			mode: "text"
 		});
 	}, [
 		book,
 		page,
-		pageCount
+		pageCount,
+		mode
 	]);
 	(0, import_react.useEffect)(() => {
-		if (!book) return;
-		const flush = () => saveProgress(book.id, {
-			page,
-			pageCount,
-			immediate: true
-		});
+		if (!book || mode !== "text") return; // v255: Solo la pestaña T (Texto) guarda progreso/percentRead
+		const flush = () => {
+			if (mode === "text") saveProgress(book.id, {
+				page,
+				pageCount,
+				immediate: true,
+				mode: "text"
+			});
+		};
 		const onHide = () => document.visibilityState === "hidden" && flush();
 		document.addEventListener("visibilitychange", onHide);
 		window.addEventListener("pagehide", flush);
@@ -46473,7 +46480,8 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	}, [
 		book,
 		page,
-		pageCount
+		pageCount,
+		mode
 	]);
 	// v159: capturar en vivo el ratio de scroll de la pestaña activa (0..1)
 	(0, import_react.useEffect)(() => {
@@ -46503,12 +46511,13 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		};
 	}, [book, page, mode]);
 	(0, import_react.useEffect)(() => {
-		if (!book || !pageCount) return;
+		// v255: Solo en la pestaña T (Texto) se detecta el libro como terminado y se otorgan logros/recompensas
+		if (!book || !pageCount || mode !== "text") return;
 		if (page < pageCount - 1) return;
 		let cancel = false;
 		(async () => {
+			if (mode !== "text") return; // Protección estricta: sólo pestaña T
 			const first = await markBookFinished(book.id);
-			if (mode !== "text") return; // v174 (P7): recompensa por terminar sólo si se leyó en Texto
 			try {
 				const r = await __vitePreload(() => Promise.resolve().then(() => lumo_exports).then((m) => m.onLibroFin()), void 0, import.meta.url);
 				if (first && !cancel) toast?.(`🐻 Lumo ganó +${r?.d?.coins || 50} 🪙 por terminar el libro`);
@@ -46646,20 +46655,22 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 		} catch {}
 	}, [book]);
 	(0, import_react.useEffect)(() => {
-		// v174 (P7): la lectura (XP, logros, racha, minutos) se cuenta solo en
-		// la pestaña Texto; no en Imágenes ni Original.
+		// v174 / v255: la lectura (XP, logros, racha, minutos, estadísticas) se cuenta
+		// EXCLUSIVAMENTE en la pestaña T (Texto); nunca en Imágenes ni Original.
 		if (!book || mode !== "text") return;
 		const delay = (settings.countSeconds ?? 4) * 1e3;
 		const startedAt = Date.now();
 		let counted = false;
 		clearTimeout(readTimer.current);
 		readTimer.current = setTimeout(() => {
-			counted = true;
-			onPageRead?.(book.id, page);
+			if (mode === "text") {
+				counted = true;
+				onPageRead?.(book.id, page, mode);
+			}
 		}, delay);
 		return () => {
 			clearTimeout(readTimer.current);
-			if (!counted && Date.now() - startedAt >= delay * .5) onPageRead?.(book.id, page);
+			if (!counted && Date.now() - startedAt >= delay * .5 && mode === "text") onPageRead?.(book.id, page, mode);
 		};
 	}, [
 		book,
@@ -57195,8 +57206,10 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 		refreshProgress();
 		if (pushHistory && window.history.state?.view === "reader") { ultimoAtrasPropio = Date.now(); window.history.back(); }
 	}, [refreshProgress]);
-	const onPageRead = (0, import_react.useCallback)(async (bookId, pageIndex) => {
-				// v127: detecta el logro «De vuelta» (retoma tras perder la racha)
+	const onPageRead = (0, import_react.useCallback)(async (bookId, pageIndex, modoLectura = "text") => {
+		// v255: Solo la pestaña T (Texto) progresa en estadísticas, racha, Lumo y logros
+		if (modoLectura && modoLectura !== "text") return;
+		// v127: detecta el logro «De vuelta» (retoma tras perder la racha)
 		const preStats = await loadStats().catch(() => null);
 const { justHitGoal, stats, goal, counted } = await recordPageRead(bookId, pageIndex);
 		if (counted && preStats) try {

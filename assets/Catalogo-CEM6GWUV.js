@@ -1,6 +1,6 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["./nostr-zC6Qsl2z.js","./db-Ii3ipPL7.js","./rolldown-runtime-D1cXj70v.js","./index-DX181kQz.js","./react-1WJTggxS.js","./pdf-C3eksu0f.js","./originals-D2DFW8Gx.js","./streak-CnTdupFR.js","./index-DQUWFWNX.css","./streaming-CGdx3ecV.js"])))=>i.map(i=>d[i]);
 import { t as require_react } from "./react-1WJTggxS.js";
-import { O as setMeta, h as getMeta, E as putPages, k as uid, w as putBook } from "./db-Ii3ipPL7.js";
+import { O as setMeta, h as getMeta, E as putPages, k as uid, w as putBook, S as patchBook, r as allBooks } from "./db-Ii3ipPL7.js";
 var __vitePreload = (fn) => fn();
 import { _ as Sheet, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime, A as importarDesdeUrl, B as paginate } from "./index-DX181kQz.js";
 import { buscarLibros, categoriasDe, contarReportes, eventoReporte, filtrarLibros, generarFacehashUri, generarIdentidad, guardarIdentidad, identidadGuardada, npubCorto, publicarEnRelays, refrescarCatalogo, relaysGuardados, conectarRelay, suscribir, crearEvento, firmarEvento, libroDeEvento } from "./nostr-zC6Qsl2z.js";
@@ -1231,12 +1231,140 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [sugVisible, setSugVisible] = (0, import_react.useState)(false);
 	const [sugIdx, setSugIdx] = (0, import_react.useState)(-1);
 	const sugTimerRef = (0, import_react.useRef)(null);
+
+	// v255: Búsquedas recientes en Lumen Store
+	const [busquedasRecientes, setBusquedasRecientes] = (0, import_react.useState)(() => {
+		try {
+			return JSON.parse(localStorage.getItem("lumen_store_busquedas_recientes") || "[]");
+		} catch {
+			return [];
+		}
+	});
+	const guardarBusquedaReciente = (termino) => {
+		const q = (termino || "").trim();
+		if (q.length < 2) return;
+		setBusquedasRecientes((prev) => {
+			const filtrados = prev.filter((item) => item.toLowerCase() !== q.toLowerCase());
+			const actualizados = [q, ...filtrados].slice(0, 10);
+			try {
+				localStorage.setItem("lumen_store_busquedas_recientes", JSON.stringify(actualizados));
+			} catch {}
+			return actualizados;
+		});
+	};
+	const eliminarBusquedaReciente = (termino, e) => {
+		e?.stopPropagation?.();
+		e?.preventDefault?.();
+		setBusquedasRecientes((prev) => {
+			const actualizados = prev.filter((item) => item.toLowerCase() !== termino.toLowerCase());
+			try {
+				localStorage.setItem("lumen_store_busquedas_recientes", JSON.stringify(actualizados));
+			} catch {}
+			return actualizados;
+		});
+	};
+	const limpiarBusquedasRecientes = (e) => {
+		e?.stopPropagation?.();
+		e?.preventDefault?.();
+		setBusquedasRecientes([]);
+		try {
+			localStorage.removeItem("lumen_store_busquedas_recientes");
+		} catch {}
+	};
+
+	// v255: Favoritos en información de libro en Lumen Store
+	const [favoritosStore, setFavoritosStore] = (0, import_react.useState)(() => {
+		try {
+			return JSON.parse(localStorage.getItem("lumen_store_favoritos") || "[]");
+		} catch {
+			return [];
+		}
+	});
+	const idLibroStore = (b) => {
+		if (!b) return "";
+		return (b.id || b.d || b.url || b.sourceUrl || b.fileUrl || b.titulo || b.title || "").trim();
+	};
+	const esFavoritoStore = (b) => {
+		if (!b) return false;
+		const id = idLibroStore(b);
+		const tit = (b.titulo || b.title || "").trim().toLowerCase();
+		return favoritosStore.some((f) => {
+			if (id && idLibroStore(f) === id) return true;
+			if (tit && (f.titulo || f.title || "").trim().toLowerCase() === tit) return true;
+			return false;
+		});
+	};
+	const toggleFavoritoStore = async (b) => {
+		if (!b) return;
+		haptic.tap();
+		const yaFav = esFavoritoStore(b);
+		const id = idLibroStore(b);
+		const tit = (b.titulo || b.title || "").trim().toLowerCase();
+		let nuevos;
+		if (yaFav) {
+			nuevos = favoritosStore.filter((f) => idLibroStore(f) !== id && (!tit || (f.titulo || f.title || "").trim().toLowerCase() !== tit));
+			toast?.("Quitado de favoritos de Lumen Store");
+		} else {
+			const item = {
+				id: b.id || b.d || uid(),
+				d: b.d || b.id || "",
+				titulo: b.titulo || b.title || "Libro",
+				autor: b.autor || b.author || "Autor",
+				portada: b.portada || b.cover || b.coverUrl || "",
+				categoria: b.categoria || b.category || "General",
+				descripcion: b.descripcion || b.description || "",
+				url: b.url || b.sourceUrl || b.fileUrl || "",
+				epub: b.epub || "",
+				fileUrl: b.fileUrl || "",
+				magnet: b.magnet || "",
+				downloads: b.downloads || b.descargas || 0,
+				rating: b.rating || 5,
+				fav: true,
+				agregadoAt: Date.now()
+			};
+			nuevos = [item, ...favoritosStore.filter((f) => idLibroStore(f) !== id && (!tit || (f.titulo || f.title || "").trim().toLowerCase() !== tit))];
+			toast?.("⭐ «" + item.titulo.slice(0, 28) + "» guardado en favoritos");
+		}
+		setFavoritosStore(nuevos);
+		try {
+			localStorage.setItem("lumen_store_favoritos", JSON.stringify(nuevos));
+		} catch {}
+		try {
+			const locales = await allBooks();
+			const enBiblioteca = locales.find((x) => x.id === b.id || (tit && (x.title || "").trim().toLowerCase() === tit));
+			if (enBiblioteca) {
+				await patchBook(enBiblioteca.id, { fav: !yaFav });
+			}
+		} catch (eLocal) {
+			console.warn("[fav sync local]", eLocal);
+		}
+	};
+
 	(0, import_react.useEffect)(() => {
 		if (sugTimerRef.current) clearTimeout(sugTimerRef.current);
 		const q = (lgQ || "").trim();
-		if (lgUrlAbierto || q.length < 2) {
+		if (lgUrlAbierto) {
 			setSugerencias([]);
 			setSugVisible(false);
+			setSugIdx(-1);
+			return;
+		}
+		if (q.length < 2) {
+			if (busquedasRecientes.length > 0) {
+				setSugerencias([
+					{ esHeaderRecientes: true },
+					...busquedasRecientes.map((r) => ({
+						texto: r,
+						sub: "Búsqueda reciente",
+						origen: "Historial",
+						icono: "🕒",
+						reciente: true
+					}))
+				]);
+			} else {
+				setSugerencias([]);
+				setSugVisible(false);
+			}
 			setSugIdx(-1);
 			return;
 		}
@@ -1244,6 +1372,16 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			const qNorm = q.toLowerCase();
 			const lista = [];
 			const seen = new Set();
+
+			// 1. Coincidencias con búsquedas recientes del usuario
+			for (const r of busquedasRecientes) {
+				if (r.toLowerCase().includes(qNorm) && !seen.has(r.toLowerCase())) {
+					seen.add(r.toLowerCase());
+					lista.push({ texto: r, sub: "Búsqueda reciente", origen: "Historial", icono: "🕒", reciente: true });
+				}
+				if (lista.length >= 2) break;
+			}
+
 			const pool = [...(libros || []), ...(misLibros || []), ...(librosFeed || [])];
 			for (const b of pool) {
 				const tit = b.title || b.titulo || "";
@@ -1252,7 +1390,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					seen.add(tit.toLowerCase());
 					lista.push({ texto: tit, sub: aut ? `Libro · ${aut}` : "Lumen Store", origen: "Store", icono: "📖" });
 				}
-				if (lista.length >= 3) break;
+				if (lista.length >= 4) break;
 			}
 			try {
 				const res = await fetch(`https://es.wikipedia.org/w/api.php?action=opensearch&search=${encodeURIComponent(q)}&limit=6&namespace=0&format=json&origin=*`);
@@ -1278,7 +1416,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			}
 		}, 150);
 		return () => { if (sugTimerRef.current) clearTimeout(sugTimerRef.current); };
-	}, [lgQ, lgUrlAbierto, libros, misLibros, librosFeed]);
+	}, [lgQ, lgUrlAbierto, libros, misLibros, librosFeed, busquedasRecientes]);
 	const [lgUrlWeb, setLgUrlWeb] = (0, import_react.useState)("");
 	const [lgUrlBusy, setLgUrlBusy] = (0, import_react.useState)(false);
 	const [lgUrlPaso, setLgUrlPaso] = (0, import_react.useState)("");
@@ -2475,10 +2613,25 @@ const cargar = (0, import_react.useCallback)(async () => {
 												ref: busqInputRef,
 												value: lgUrlAbierto ? lgUrlWeb : lgQ,
 												onFocus: () => {
-													if (!lgUrlAbierto && (lgQ || "").trim().length >= 2 && sugerencias.length > 0) setSugVisible(true);
+													if (!lgUrlAbierto) {
+														if ((lgQ || "").trim().length >= 2 && sugerencias.length > 0) setSugVisible(true);
+														else if (!(lgQ || "").trim() && busquedasRecientes.length > 0) {
+															setSugerencias([
+																{ esHeaderRecientes: true },
+																...busquedasRecientes.map((r) => ({
+																	texto: r,
+																	sub: "Búsqueda reciente",
+																	origen: "Historial",
+																	icono: "🕒",
+																	reciente: true
+																}))
+															]);
+															setSugVisible(true);
+														}
+													}
 												},
 												onBlur: () => {
-													setTimeout(() => setSugVisible(false), 220);
+													setTimeout(() => setSugVisible(false), 260);
 												},
 												onChange: (e) => {
 													const val = e.target.value;
@@ -2529,14 +2682,23 @@ const cargar = (0, import_react.useCallback)(async () => {
 														}
 														if (e.key === "Enter" && sugIdx >= 0 && sugerencias[sugIdx]) {
 															e.preventDefault();
-															if (sugerencias[sugIdx].web) onBuscarWeb?.(lgQ.trim());
-															else { setLgQ(sugerencias[sugIdx].texto); setCategoria(""); }
+															const sPick = sugerencias[sugIdx];
+															if (sPick.web) {
+																onBuscarWeb?.(lgQ.trim());
+																guardarBusquedaReciente(lgQ.trim());
+															} else if (!sPick.esHeaderRecientes) {
+																setLgQ(sPick.texto);
+																setCategoria("");
+																guardarBusquedaReciente(sPick.texto);
+															}
 															setSugVisible(false);
 															return;
 														}
 													}
 													if (e.key === "Enter") {
 														setSugVisible(false);
+														const qTrim = (lgQ || "").trim();
+														if (qTrim) guardarBusquedaReciente(qTrim);
 														const parsed = extraerDatosLibroEnlace(lgQ);
 														if (parsed?.id) {
 															e.preventDefault();
@@ -2567,26 +2729,64 @@ const cargar = (0, import_react.useCallback)(async () => {
 											sugVisible && sugerencias.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 												className: "cg-sugerencias",
 												role: "listbox",
-												children: sugerencias.map((s, idx) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-													className: "cg-sug-item" + (idx === sugIdx ? " active" : ""),
-													onMouseDown: (e) => {
-														e.preventDefault();
-														if (s.web) onBuscarWeb?.(lgQ.trim());
-														else { setLgQ(s.texto); setCategoria(""); }
-														setSugVisible(false);
-													},
-													children: [
-														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-icono", children: s.icono }),
-														/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-															className: "cg-sug-cuerpo",
-															children: [
-																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-texto", children: s.texto }),
-																s.sub && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-sub", children: s.sub })
-															]
-														}),
-														s.origen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-origen", children: s.origen })
-													]
-												}, idx))
+												children: sugerencias.map((s, idx) => s.esHeaderRecientes ? (
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "cg-sug-header",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🕒 Búsquedas recientes" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																className: "cg-sug-limpiar",
+																type: "button",
+																onMouseDown: (e) => {
+																	e.preventDefault();
+																	limpiarBusquedasRecientes(e);
+																	setSugerencias([]);
+																	setSugVisible(false);
+																},
+																children: "Limpiar"
+															})
+														]
+													}, "header-recientes")
+												) : (
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "cg-sug-item" + (idx === sugIdx ? " active" : ""),
+														onMouseDown: (e) => {
+															e.preventDefault();
+															if (s.web) onBuscarWeb?.(lgQ.trim());
+															else {
+																setLgQ(s.texto);
+																setCategoria("");
+																guardarBusquedaReciente(s.texto);
+															}
+															setSugVisible(false);
+														},
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-icono", children: s.icono }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+																className: "cg-sug-cuerpo",
+																children: [
+																	/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-texto", children: s.texto }),
+																	s.sub && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-sub", children: s.sub })
+																]
+															}),
+															s.reciente ? (
+																/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+																	className: "cg-sug-del",
+																	type: "button",
+																	title: "Eliminar de recientes",
+																	onMouseDown: (e) => {
+																		e.preventDefault();
+																		e.stopPropagation();
+																		eliminarBusquedaReciente(s.texto, e);
+																	},
+																	children: "✕"
+																})
+															) : (
+																s.origen && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-sug-origen", children: s.origen })
+															)
+														]
+													}, s.texto + "-" + idx)
+												))
 											})
 										]
 									}),
@@ -2625,6 +2825,22 @@ const cargar = (0, import_react.useCallback)(async () => {
 										},
 										children: "🔗"
 									})
+								]
+							}),
+							busqVisible && !lgUrlAbierto && !(lgQ || "").trim() && !sugVisible && busquedasRecientes.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-chips-recientes",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "cg-chips-recientes-lbl", children: "🕒 Recientes:" }),
+									busquedasRecientes.slice(0, 6).map((term) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "cg-chip-reciente",
+										onClick: () => {
+											setLgQ(term);
+											setCategoria("");
+											guardarBusquedaReciente(term);
+										},
+										children: term
+									}, "chip-" + term))
 								]
 							})
 						]
@@ -2765,6 +2981,13 @@ const cargar = (0, import_react.useCallback)(async () => {
 								onClick: () => { haptic.tap(); setCategoria(categoria === "__mis_libros__" ? "" : "__mis_libros__"); },
 								children: `📚 Mis libros (${misLibros.length})`
 							}),
+							favoritosStore.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								role: "tab",
+								"aria-selected": categoria === "__favoritos__",
+								className: "chip chip-favoritos" + (categoria === "__favoritos__" ? " on" : ""),
+								onClick: () => { haptic.tap(); setCategoria(categoria === "__favoritos__" ? "" : "__favoritos__"); },
+								children: ["⭐ Favoritos (", favoritosStore.length, ")"]
+							}),
 							...LISTA_CATS_UNIFICADAS.map((c) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								role: "tab",
 								"aria-selected": categoria === c.id,
@@ -2772,6 +2995,32 @@ const cargar = (0, import_react.useCallback)(async () => {
 								onClick: () => { haptic.tap(); setCategoria(categoria === c.id ? "" : c.id); },
 								children: [c.icon, " ", c.label]
 							}, c.id))
+						]
+					}),
+
+					/* Vista dedicada de FAVORITOS de la Store */
+					categoria === "__favoritos__" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "cg-seccion cg-seccion-favoritos",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-seccion-head",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "⭐ Mis libros favoritos de Lumen Store" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Libros que marcaste como favoritos para leer o consultar en cualquier momento." })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "cg-fila cg-fila-top",
+								onWheel: onWheelHorizontal,
+								children: favoritosStore.map((b) => (
+									(0, import_jsx_runtime.jsx)(Tarjeta, {
+										libro: b,
+										reportes,
+										onAbrir: () => { haptic.tap(); setDetalle(b); },
+										onLeer: () => { haptic.tap(); onAbrirLibro?.(b); }
+									}, "fav-card-" + (b.id || b.d || b.titulo))
+								))
+							})
 						]
 					}),
 
@@ -3417,7 +3666,20 @@ const cargar = (0, import_react.useCallback)(async () => {
 							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-detalle-info",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: detalle.titulo }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "cg-detalle-tit-row",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: detalle.titulo }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "cg-btn-fav-star" + (esFavoritoStore(detalle) ? " on" : ""),
+												onClick: () => toggleFavoritoStore(detalle),
+												title: esFavoritoStore(detalle) ? "Quitar de favoritos" : "Marcar como favorito",
+												"aria-label": "Marcar como favorito",
+												children: esFavoritoStore(detalle) ? "⭐" : "☆"
+											})
+										]
+									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 										className: "cg-autor",
 										children: detalle.autor
@@ -3592,6 +3854,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 										setDetalle(null);
 									},
 									children: ["👁 ", detalle.esMio && detalle._local ? "Leer (está en tu teléfono)" : "Leer"]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									className: "btn cg-btn-favorito" + (esFavoritoStore(detalle) ? " fav-activo" : ""),
+									onClick: () => toggleFavoritoStore(detalle),
+									children: [esFavoritoStore(detalle) ? "⭐ En favoritos" : "☆ Favorito"]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 									className: "btn",
