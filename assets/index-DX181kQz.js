@@ -56168,9 +56168,11 @@ function App() {
 						categoria: p.get("cat") || p.get("categoria") || "",
 						descripcion: p.get("desc") || p.get("descripcion") || ""
 					};
+					try {
+						const urlLimpia = window.location.pathname + (window.location.hash ? window.location.hash.split("?")[0] : "");
+						window.history.replaceState({}, document.title, urlLimpia);
+					} catch {}
 					setQrPendiente(libroLink);
-					setCatalogoAbierto(true);
-					toast?.("📖 Abriendo «" + libroLink.titulo + "» en Lumen Store...");
 				}
 			}
 		} catch (errDeep) {

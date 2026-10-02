@@ -28,6 +28,14 @@ function Portada({ titulo, formato }) {
 
 var CATALOGOS_TORRENT = [
 	{
+		id: "cat-thepiratebay",
+		titulo: "The Pirate Bay · Catálogo Abierto de E-Books",
+		descripcion: "Búsqueda directa y catálogo abierto de The Pirate Bay (Cat. 601 E-Books) con millones de títulos compartidos en la red BitTorrent mundial.",
+		magnet: "magnet:?xt=urn:btih:3fa892cb102874de90fa128475bc29183491ca02&dn=The+Pirate+Bay+Ebooks+Archive&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce",
+		detalles: "Cat. 601 E-Books · P2P Abierto · Millones de títulos",
+		etiqueta: "The Pirate Bay"
+	},
+	{
 		id: "cat-clasicos-hisp",
 		titulo: "Grandes Clásicos Hispánicos",
 		descripcion: "Colección curada en EPUB y PDF: Cervantes, García Márquez, Lorca, Calderón, Quevedo, Galdós y Sor Juana Inés de la Cruz.",
@@ -80,8 +88,48 @@ function TorrentPage({ onSalir, onImportar, toast }) {
 	const [hayMotor] = (0, import_react.useState)(() => torrentDisponible());
 	const [tabTorrents, setTabTorrents] = (0, import_react.useState)("mis");
 	const [filtroCat, setFiltroCat] = (0, import_react.useState)("");
+	const [tpbResultados, setTpbResultados] = (0, import_react.useState)(null);
+	const [buscandoTpb, setBuscandoTpb] = (0, import_react.useState)(false);
 	const abiertoRef = (0, import_react.useRef)(null);
 	abiertoRef.current = abierto;
+
+	const buscarThePirateBay = async (termino) => {
+		const q = (termino != null ? termino : enlace).trim();
+		if (!q) {
+			window.open("https://thepiratebay.org/search.php?q=ebook&cat=601", "_blank");
+			return;
+		}
+		setBuscandoTpb(true);
+		setAviso("");
+		try {
+			const res = await fetch(`https://apibay.org/q.php?q=${encodeURIComponent(q)}&cat=601`);
+			if (!res.ok) throw new Error("HTTP " + res.status);
+			const data = await res.json();
+			if (Array.isArray(data) && data.length > 0 && data[0].id !== "0") {
+				const convertidos = data.map((item) => ({
+					id: item.id,
+					titulo: item.name,
+					bytes: Number(item.size) || 0,
+					seeders: Number(item.seeders) || 0,
+					leechers: Number(item.leechers) || 0,
+					hash: item.info_hash,
+					magnet: `magnet:?xt=urn:btih:${item.info_hash}&dn=${encodeURIComponent(item.name)}&tr=udp%3A%2F%2Ftracker.opentrackr.org%3A1337%2Fannounce&tr=udp%3A%2F%2Ftracker.openbittorrent.com%3A6969&tr=udp%3A%2F%2Ftracker.torrent.eu.org%3A451`
+				}));
+				setTpbResultados(convertidos);
+				haptic.success();
+				toast?.(`🏴‍☠️ ${convertidos.length} resultado(s) de The Pirate Bay`);
+			} else {
+				setTpbResultados([]);
+				toast?.("No se encontraron libros para esa búsqueda en The Pirate Bay");
+			}
+		} catch (err) {
+			console.warn("[TPB fallback]", err);
+			window.open(`https://thepiratebay.org/search.php?q=${encodeURIComponent(q)}&cat=601`, "_blank");
+			toast?.("Abriendo The Pirate Bay en el navegador…");
+		} finally {
+			setBuscandoTpb(false);
+		}
+	};
 
 	const copiarTexto = async (txt, msg = "Enlace copiado al portapapeles") => {
 		if (!txt) return;
@@ -604,7 +652,108 @@ function TorrentPage({ onSalir, onImportar, toast }) {
 									setEntrada(r.entrada);
 								},
 								children: "Añadir"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "btn ghost",
+								type: "button",
+								title: "Buscar libros y e-books en The Pirate Bay",
+								style: { display: "inline-flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" },
+								onClick: () => buscarThePirateBay(enlace),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🏴‍☠️" }),
+									buscandoTpb ? "Buscando…" : "The Pirate Bay"
+								]
 							})]
+						}),
+						enlace.trim() && !enlace.startsWith("magnet:") && !enlace.startsWith("http") && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							style: { display: "flex", gap: 6, margin: "6px 0 10px", alignItems: "center" },
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									type: "button",
+									className: "chip on",
+									onClick: () => buscarThePirateBay(enlace),
+									children: [
+										"🏴‍☠️ Buscar «",
+										enlace.slice(0, 24),
+										enlace.length > 24 ? "…" : "",
+										"» en The Pirate Bay"
+									]
+								})
+							]
+						}),
+						tpbResultados && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "tp-tpb-wrap",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "tp-tpb-hdr",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+											children: [
+												"🏴‍☠️ Libros en The Pirate Bay (",
+												tpbResultados.length,
+												")"
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "icon-btn sm",
+											onClick: () => setTpbResultados(null),
+											title: "Cerrar resultados",
+											children: "✕"
+										})
+									]
+								}),
+								tpbResultados.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									children: "No se encontraron libros para este término en The Pirate Bay. Puedes probar en la web oficial."
+								}),
+								tpbResultados.map((it) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "tp-tpb-item",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "tp-tpb-info",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+													className: "tp-tpb-tit",
+													title: it.titulo,
+													children: it.titulo
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+													className: "tp-tpb-meta",
+													children: [
+														tam(it.bytes),
+														" · 🌱 ",
+														it.seeders,
+														" semillas"
+													]
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "tp-tpb-actions",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "icon-btn",
+													title: "Copiar enlace magnet",
+													onClick: () => copiarTexto(it.magnet, "🧲 Magnet copiado de The Pirate Bay"),
+													children: "📋"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													className: "btn sm primary",
+													onClick: async () => {
+														const r = await anadir(it.magnet, it.titulo);
+														if (!r.ok) return toast?.(r.error);
+														haptic.success();
+														if (r.repetido) toast?.("Enlace ya guardado");
+														analizar(r.entrada.id);
+														setAbierto(r.entrada.id);
+														setEntrada(r.entrada);
+													},
+													children: "Cargar"
+												})
+											]
+										})
+									]
+								}, it.id || it.hash))
+							]
 						}),
 						validez && !validez.ok && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "tp-invalido",

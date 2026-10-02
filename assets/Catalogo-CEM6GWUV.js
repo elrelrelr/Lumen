@@ -1202,6 +1202,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	const [filtrosAbiertos, setFiltrosAbiertos] = (0, import_react.useState)(false);
 	const [estado, setEstado] = (0, import_react.useState)("cargando");
 	const [detalle, setDetalle] = (0, import_react.useState)(null);
+	const [libroSugerido, setLibroSugerido] = (0, import_react.useState)(null);
 	const [reporteAbierto, setReporteAbierto] = (0, import_react.useState)(false);
 	const [qrAbierto, setQrAbierto] = (0, import_react.useState)(false);
 	const [publicandoReporte, setPublicandoReporte] = (0, import_react.useState)(false);
@@ -1494,9 +1495,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		const target = libroInicial || qrPendiente;
 		if (target) {
 			if (typeof target === "object" && (target.id || target.d)) {
-				setDetalle(target);
+				setLibroSugerido(target);
+				setBusqVisible(true);
 			} else if (typeof target === "string") {
-				resolverYMostrarLibro(target);
+				resolverYMostrarLibro(target, null, false);
 			}
 		}
 	}, [libroInicial, qrPendiente]);
@@ -1522,7 +1524,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						categoria: p.get("cat") || p.get("categoria") || "",
 						descripcion: p.get("desc") || p.get("descripcion") || ""
 					};
-					setDetalle(lObj);
+					// Limpiar la URL para que no persista indefinidamente en cada recarga
+					try {
+						const urlLimpia = window.location.pathname + (window.location.hash ? window.location.hash.split("?")[0] : "");
+						window.history.replaceState({}, document.title, urlLimpia);
+					} catch {}
+					setLibroSugerido(lObj);
+					setBusqVisible(true);
 				}
 			}
 		} catch {}
@@ -1743,18 +1751,26 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		return d?.id || null;
 	};
 
-	const resolverYMostrarLibro = async (targetId, meta = null) => {
+	const resolverYMostrarLibro = async (targetId, meta = null, autoAbrir = false) => {
 		if (!targetId) return false;
 		const target = typeof targetId === "object" ? (targetId.id || targetId.d) : String(targetId).trim();
 		const metaDatos = typeof targetId === "object" ? targetId : meta;
+		const aplicarLibro = (obj, msg) => {
+			if (autoAbrir) {
+				setDetalle(obj);
+				if (msg) toast?.(msg);
+			} else {
+				setLibroSugerido(obj);
+				setBusqVisible(true);
+			}
+			haptic.tap();
+		};
 		const pool = [...(libros || []), ...(misLibros || []), ...(librosFeed || [])];
 		const enMemoria = pool.find(
 			(b) => b.d === target || b.id === target || b.slug === target || (b.d && b.d.toLowerCase() === target.toLowerCase())
 		);
 		if (enMemoria) {
-			setDetalle(enMemoria);
-			toast?.("📖 Libro detectado: " + (enMemoria.titulo || enMemoria.title));
-			haptic.tap();
+			aplicarLibro(enMemoria, "📖 Libro detectado: " + (enMemoria.titulo || enMemoria.title));
 			return true;
 		}
 		try {
@@ -1764,9 +1780,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				(b) => b.d === target || b.id === target || b.slug === target
 			);
 			if (enStorage) {
-				setDetalle(enStorage);
-				toast?.("📖 Libro detectado: " + (enStorage.titulo || enStorage.title));
-				haptic.tap();
+				aplicarLibro(enStorage, "📖 Libro detectado: " + (enStorage.titulo || enStorage.title));
 				return true;
 			}
 		} catch {}
@@ -1788,9 +1802,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				esCompartido: true
 			};
 			setLibros((prev) => [libroShared, ...prev.filter((b) => b.d !== target && b.id !== target)]);
-			setDetalle(libroShared);
-			toast?.(metaDatos.mag ? ("🧲 Enlace torrent detectado: " + libroShared.titulo) : ("📖 Libro detectado: " + libroShared.titulo));
-			haptic.tap();
+			aplicarLibro(libroShared, metaDatos.mag ? ("🧲 Enlace torrent detectado: " + libroShared.titulo) : ("📖 Libro detectado: " + libroShared.titulo));
 			return true;
 		} else {
 			toast?.("🔎 Buscando libro en la red descentralizada…");
@@ -1818,9 +1830,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			const encontrado = resultados.map((r) => r.status === "fulfilled" ? r.value : null).find(Boolean);
 			if (encontrado) {
 				setLibros((prev) => [encontrado, ...prev.filter((b) => b.d !== encontrado.d && b.id !== encontrado.id)]);
-				setDetalle(encontrado);
-				toast?.("📖 Libro encontrado en la red: " + encontrado.titulo);
-				haptic.tap();
+				aplicarLibro(encontrado, "📖 Libro encontrado en la red: " + encontrado.titulo);
 				return true;
 			}
 		} catch (e) {
@@ -1838,6 +1848,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				const params = new URLSearchParams(window.location.search);
 				const p = params.get("b") || params.get("libro");
 				if (p) {
+					try {
+						const urlLimpia = window.location.pathname + (window.location.hash ? window.location.hash.split("?")[0] : "");
+						window.history.replaceState({}, document.title, urlLimpia);
+					} catch {}
 					resolverYMostrarLibro(p, {
 						id: p,
 						tit: params.get("t") || params.get("tit") || "",
@@ -1847,10 +1861,10 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						mag: params.get("m") || params.get("mag") || "",
 						cat: params.get("cat") || "",
 						desc: params.get("desc") || ""
-					});
+					}, false);
 				} else if (window.location.hash) {
 					const parsed = extraerDatosLibroEnlace(window.location.hash);
-					if (parsed?.id) resolverYMostrarLibro(parsed.id, parsed);
+					if (parsed?.id) resolverYMostrarLibro(parsed.id, parsed, false);
 				}
 			}
 		} catch {}
@@ -2614,7 +2628,28 @@ const cargar = (0, import_react.useCallback)(async () => {
 												value: lgUrlAbierto ? lgUrlWeb : lgQ,
 												onFocus: () => {
 													if (!lgUrlAbierto) {
-														if ((lgQ || "").trim().length >= 2 && sugerencias.length > 0) setSugVisible(true);
+														if (libroSugerido) {
+															const tit = libroSugerido.titulo || libroSugerido.title || "Libro";
+															const itemSug = {
+																texto: tit,
+																sub: (libroSugerido.autor || libroSugerido.author || "Enlace o libro sugerido"),
+																origen: "💡 Sugerencia",
+																icono: "💡",
+																esSugerido: true,
+																libroObj: libroSugerido
+															};
+															setSugerencias([
+																itemSug,
+																...busquedasRecientes.map((r) => ({
+																	texto: r,
+																	sub: "Búsqueda reciente",
+																	origen: "Historial",
+																	icono: "🕒",
+																	reciente: true
+																}))
+															]);
+															setSugVisible(true);
+														} else if ((lgQ || "").trim().length >= 2 && sugerencias.length > 0) setSugVisible(true);
 														else if (!(lgQ || "").trim() && busquedasRecientes.length > 0) {
 															setSugerencias([
 																{ esHeaderRecientes: true },
@@ -2752,7 +2787,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 														className: "cg-sug-item" + (idx === sugIdx ? " active" : ""),
 														onMouseDown: (e) => {
 															e.preventDefault();
-															if (s.web) onBuscarWeb?.(lgQ.trim());
+															if (s.esSugerido && s.libroObj) {
+																setLgQ(s.texto);
+																setDetalle(s.libroObj);
+																setLibroSugerido(null);
+															} else if (s.web) onBuscarWeb?.(lgQ.trim());
 															else {
 																setLgQ(s.texto);
 																setCategoria("");
@@ -2824,6 +2863,33 @@ const cargar = (0, import_react.useCallback)(async () => {
 											setTimeout(() => busqInputRef.current?.focus(), 50);
 										},
 										children: "🔗"
+									})
+								]
+							}),
+							busqVisible && libroSugerido && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "cg-sugerencia-enlace-wrap",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "cg-chip-sugerencia",
+										onClick: () => {
+											const tit = libroSugerido.titulo || libroSugerido.title || "";
+											setLgQ(tit);
+											setDetalle(libroSugerido);
+											setLibroSugerido(null);
+											haptic.tap();
+										},
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "💡" }),
+											`Sugerencia: «${libroSugerido.titulo || libroSugerido.title || "Libro"}» · Toca para ver ficha`
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "cg-chip-sug-x",
+										title: "Descartar sugerencia",
+										onClick: () => setLibroSugerido(null),
+										children: "✕"
 									})
 								]
 							}),

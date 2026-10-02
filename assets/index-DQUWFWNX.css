@@ -17080,10 +17080,9 @@ body:has(.stories) .sidebar,
   gap: 6px;
 }
 .tp-acceso-primary {
-  background: linear-gradient(135deg, var(--accent, #6366f1), #4f46e5) !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  color: #fff !important;
-  box-shadow: 0 4px 14px -3px rgba(99, 102, 241, 0.4) !important;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  color: var(--fg);
 }
 
 /* ============ v256: Biblioteca Torrent y Catálogos Fluidos ============ */
@@ -17158,4 +17157,105 @@ body:has(.stories) .sidebar,
   gap: 8px;
   margin-top: 4px;
 }
+
+/* ============ v256: Sugerencias en barra de búsqueda de Lumen Store ============ */
+.cg-sugerencia-enlace-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--bg-elev);
+  border: 1px solid var(--accent, #6366f1);
+  box-shadow: 0 2px 10px -3px rgba(99, 102, 241, 0.25);
+  animation: sel-entrar .18s ease;
+}
+.cg-chip-sugerencia {
+  background: transparent;
+  border: 0;
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 650;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+}
+.cg-chip-sugerencia:hover {
+  color: var(--accent, #6366f1);
+}
+.cg-chip-sug-x {
+  background: transparent;
+  border: 0;
+  color: var(--fg-mute);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+.cg-chip-sug-x:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--fg);
+}
+
+/* ============ v256: The Pirate Bay en Biblioteca Torrent ============ */
+.tp-tpb-wrap {
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+}
+.tp-tpb-hdr {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--fg);
+}
+.tp-tpb-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--chip-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--line);
+}
+.tp-tpb-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tp-tpb-tit {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tp-tpb-meta {
+  font-size: 11px;
+  color: var(--fg-mute);
+  display: flex;
+  gap: 8px;
+}
+.tp-tpb-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 
