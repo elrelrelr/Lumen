@@ -17651,3 +17651,13 @@ button.tp-acceso-primary {
   padding: 2px 6px;
   font-size: 11px;
 }
+
+/* v258: Sinopsis externa y busqueda en Wikipedia */
+.cg-desc-wrap { margin: 12px 0 4px; }
+.cg-desc-wrap .cg-desc { margin: 0; }
+.cg-desc-fuente { display: block; margin-top: 5px; font-size: 11px; color: var(--accent-2); opacity: 0.88; font-weight: 500; }
+.cg-desc-buscando {
+  margin: 12px 0 6px; padding: 9px 12px; background: var(--bg-elev);
+  border: 1px dashed var(--line); border-radius: 8px; color: var(--fg-dim);
+  font-size: 12.5px; font-style: italic; display: flex; align-items: center; gap: 8px;
+}

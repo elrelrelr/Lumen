@@ -1196,6 +1196,108 @@ function ChatResenas({ libro, toast }) {
 	});
 }
 
+
+const cacheSinopsisExterna = new Map();
+
+async function buscarSinopsisExterna(titulo, autor) {
+
+	if (!titulo) return null;
+	const titLimpio = String(titulo).replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").trim();
+	const autLimpio = String(autor || "").replace(/\(.*?\)/g, "").replace(/\[.*?\]/g, "").trim();
+	if (!titLimpio) return null;
+
+	const cacheKey = (titLimpio + "::" + autLimpio).toLowerCase();
+	if (cacheSinopsisExterna.has(cacheKey)) {
+		return cacheSinopsisExterna.get(cacheKey);
+	}
+
+	// 1. Wikipedia en español: consulta directa de títulos
+	const titulosProbar = [
+		titLimpio,
+		titLimpio + " (novela)",
+		titLimpio + " (libro)",
+		titLimpio + " (manga)",
+		titLimpio + " (manhwa)"
+	];
+	for (const t of titulosProbar) {
+		try {
+			const url = "https://es.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsentences=6&titles=" + encodeURIComponent(t) + "&format=json&origin=*";
+			const res = await fetch(url, { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+			const pg = Object.values(res?.query?.pages || {})[0];
+			if (pg && pg.pageid && pg.pageid > 0 && pg.extract && pg.extract.length > 50 && !pg.extract.includes("referirse a:")) {
+				const result = { desc: pg.extract.trim(), fuente: "Wikipedia (es)" };
+				cacheSinopsisExterna.set(cacheKey, result);
+				return result;
+			}
+		} catch (_) {}
+	}
+
+	// 2. Wikipedia en español: búsqueda libre con título y autor
+	try {
+		const q = autLimpio ? (titLimpio + " " + autLimpio) : titLimpio;
+		const url = "https://es.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=" + encodeURIComponent(q) + "&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&exsentences=6&format=json&origin=*";
+		const res = await fetch(url, { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+		const pages = Object.values(res?.query?.pages || {});
+		for (const pg of pages) {
+			if (pg && pg.extract && pg.extract.length > 70 && !pg.extract.includes("referirse a:")) {
+				const text = pg.extract.toLowerCase();
+				const tLower = titLimpio.toLowerCase();
+				if (pg.title.toLowerCase().includes(tLower) || text.includes(tLower)) {
+					const result = { desc: pg.extract.trim(), fuente: "Wikipedia (es)" };
+					cacheSinopsisExterna.set(cacheKey, result);
+					return result;
+				}
+			}
+		}
+	} catch (_) {}
+
+	// 3. Open Library (CORS, abierta)
+	try {
+		const olUrl = "https://openlibrary.org/search.json?title=" + encodeURIComponent(titLimpio) + (autLimpio ? ("&author=" + encodeURIComponent(autLimpio)) : "") + "&limit=2";
+		const olRes = await fetch(olUrl, { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+		if (olRes?.docs?.length) {
+			for (const doc of olRes.docs) {
+				if (doc.key) {
+					const work = await fetch("https://openlibrary.org" + doc.key + ".json", { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+					const d = typeof work.description === "string" ? work.description : (work.description?.value || "");
+					if (d && d.trim().length > 40) {
+						const result = { desc: d.trim().replace(/\r\n/g, "\n"), fuente: "Open Library" };
+						cacheSinopsisExterna.set(cacheKey, result);
+						return result;
+					}
+				}
+			}
+		}
+	} catch (_) {}
+
+	// 4. Wikipedia en inglés (para mangas/novelas traducidas)
+	try {
+		const urlEn = "https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exintro=1&explaintext=1&exsentences=6&titles=" + encodeURIComponent(titLimpio) + "&format=json&origin=*";
+		const resEn = await fetch(urlEn, { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+		const pgEn = Object.values(resEn?.query?.pages || {})[0];
+		if (pgEn && pgEn.pageid && pgEn.pageid > 0 && pgEn.extract && pgEn.extract.length > 50 && !pgEn.extract.includes("refer to:")) {
+			const result = { desc: pgEn.extract.trim(), fuente: "Wikipedia (en)" };
+			cacheSinopsisExterna.set(cacheKey, result);
+			return result;
+		}
+	} catch (_) {}
+
+	// 5. Google Books (respaldo)
+	try {
+		const gbUrl = "https://www.googleapis.com/books/v1/volumes?q=" + encodeURIComponent("intitle:" + titLimpio + (autLimpio ? (" inauthor:" + autLimpio) : "")) + "&maxResults=1";
+		const gbRes = await fetch(gbUrl, { signal: AbortSignal.timeout(3500) }).then((r) => r.json());
+		const desc = gbRes?.items?.[0]?.volumeInfo?.description;
+		if (desc && desc.trim().length > 40) {
+			const result = { desc: desc.trim(), fuente: "Google Books" };
+			cacheSinopsisExterna.set(cacheKey, result);
+			return result;
+		}
+	} catch (_) {}
+
+	return null;
+}
+try { if (typeof window !== "undefined") window.buscarSinopsisExterna = buscarSinopsisExterna; } catch(_) {}
+
 function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbrirAds, onAbrirMisPublicaciones, onBuscarWeb, toast, qrPendiente, libroInicial }) {
 	const [identidad, setIdentidad] = (0, import_react.useState)(null);
 	const [libros, setLibros] = (0, import_react.useState)([]);
@@ -1228,6 +1330,38 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 	// una sola consulta busca TODO (catálogo Nostr + libros gratis y las 5 bibliotecas).
 	const [lgQ, setLgQ] = (0, import_react.useState)("");
 	const [lgUrlAbierto, setLgUrlAbierto] = (0, import_react.useState)(false);
+	const [buscandoDesc, setBuscandoDesc] = (0, import_react.useState)(false);
+	// v258: Si no se detecta descripcion del libro, buscarla en Wikipedia, Open Library o Google Books
+	(0, import_react.useEffect)(() => {
+		if (!detalle) {
+			setBuscandoDesc(false);
+			return;
+		}
+		const dActual = (detalle.descripcion || detalle.description || detalle.synopsis || detalle.desc || "").trim();
+		if (dActual.length > 25) {
+			setBuscandoDesc(false);
+			return;
+		}
+		let vivo = true;
+		setBuscandoDesc(true);
+		buscarSinopsisExterna(detalle.titulo || detalle.title, detalle.autor || detalle.author).then((res) => {
+			if (!vivo) return;
+			setBuscandoDesc(false);
+			if (res && res.desc) {
+				setDetalle((prev) => {
+					if (!prev) return prev;
+					const pTit = prev.titulo || prev.title;
+					const dTit = detalle.titulo || detalle.title;
+					if (pTit !== dTit) return prev;
+					return { ...prev, descripcion: res.desc, _fuenteDesc: res.fuente };
+				});
+			}
+		}).catch(() => {
+			if (vivo) setBuscandoDesc(false);
+		});
+		return () => { vivo = false; };
+	}, [detalle?.id, detalle?.d, detalle?.titulo, detalle?.title]);
+
 	// v218 (#3b): la barra de búsqueda va oculta por defecto (cabecera más baja); la lupa la muestra/oculta
 	const [busqVisible, setBusqVisible] = (0, import_react.useState)(false);
 	const busqInputRef = (0, import_react.useRef)(null);
@@ -1591,6 +1725,16 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			setCargandoMasCat(false);
 			setPaginas((prev) => ({ ...prev, [catId]: pSiguiente }));
 		}
+	};
+
+	
+	const refrescarRecientes = async () => {
+		haptic.tap();
+		toast?.("🔄 Actualizando libros recién publicados…");
+		try {
+			await cargar();
+			toast?.("✓ Catálogo de recién publicados actualizado");
+		} catch (_) {}
 	};
 
 	const avanzarPagina = (k) => {
@@ -2575,7 +2719,8 @@ const cargar = (0, import_react.useCallback)(async () => {
 	const poolCategoriaActual = categoria && categoria !== "__populares__" && categoria !== "__recientes__" && categoria !== "__mis_libros__"
 		? obtenerLibrosDeCategoria(categoria)
 		: [];
-	const librosPantallaCat = poolCategoriaActual.slice(0, pagActual * 40);
+	const inicioPaginacionCat = (pagActual - 1) * 40;
+	const librosPantallaCat = poolCategoriaActual.slice(inicioPaginacionCat, inicioPaginacionCat + 40);
 	const top10Categoria = [...librosPantallaCat].sort((a, b) => (b.downloads || 0) - (a.downloads || 0)).slice(0, 10);
 	const categorias = categoriasDe(libros);
 
@@ -3204,7 +3349,19 @@ const cargar = (0, import_react.useCallback)(async () => {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion-head",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { children: "✨ Recién publicados" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: { display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%", flexWrap: "wrap", gap: 8 },
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", { style: { margin: 0 }, children: "✨ Recién publicados" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												type: "button",
+												className: "btn mini",
+												onClick: refrescarRecientes,
+												title: "Actualizar libros recién publicados",
+												children: "🔄 Actualizar recientes"
+											})
+										]
+									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", { className: "cg-seccion-sub", children: "Últimas obras publicadas por la comunidad en la red descentralizada y novedades de bibliotecas abiertas." })
 								]
 							}),
@@ -3234,15 +3391,23 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}, libro.id)
 								))
 							}),
-							listaRecientes.length > librosPantallaRec.length && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-paginacion-wrap",
-								style: { textAlign: "center", margin: "20px 0 30px" },
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-									type: "button",
-									className: "btn primary",
-									onClick: () => avanzarPagina("__recientes__"),
-									children: ["✨ Siguientes 40 libros recientes (", Math.min(listaRecientes.length, librosPantallaRec.length + 40), " de ", listaRecientes.length, ")"]
-								})
+								style: { textAlign: "center", margin: "20px 0 30px", display: "flex", justifyContent: "center", gap: 10, flexWrap: "wrap" },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "btn",
+										onClick: refrescarRecientes,
+										children: "🔄 Actualizar"
+									}),
+									listaRecientes.length > librosPantallaRec.length && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn primary",
+										onClick: () => avanzarPagina("__recientes__"),
+										children: ["✨ Siguientes 40 libros recientes (", Math.min(listaRecientes.length, librosPantallaRec.length + 40), " de ", listaRecientes.length, ")"]
+									})
+								]
 							})
 						]
 					}),
@@ -3261,7 +3426,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 							})
 							.map((b) => normalizarLibroGenerico(b, "lumen"));
 
-						const totalFilasCatalogo = Math.ceil(librosPantallaCat.length / 10);
+						const totalFilasCatalogo = Math.min(4, Math.ceil(librosPantallaCat.length / 10));
 
 						return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "cg-seccion cg-seccion-categoria" + (categoria === "politica" ? " cg-seccion-politica" : ""),
@@ -3273,56 +3438,21 @@ const cargar = (0, import_react.useCallback)(async () => {
 									children: [
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h3", {
 											style: { textTransform: "capitalize", margin: "0 0 6px" },
-											children: ["📚 ", nombreBonitoCat(categoria), " (", librosPantallaCat.length, " de ", poolCategoriaActual.length, " libros)"]
+											children: ["📚 ", nombreBonitoCat(categoria), " (Pág. ", pagActual, " · ", inicioPaginacionCat + 1, "–", Math.min(inicioPaginacionCat + librosPantallaCat.length, poolCategoriaActual.length), " de ", poolCategoriaActual.length, " libros)"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 											className: "cg-seccion-sub",
-											children: "Exploración completa en filas horizontales fluidas: Top 10 más populares, 4 filas del catálogo y obras de la red Lumen."
+											children: "Exploración en 4 filas de 10 libros cada una con desplazamiento horizontal (40 libros por página)."
 										})
 									]
 								}),
 
-								/* Fila 1: Los 10 más populares de esta categoría (actualizados según el pool cargado) */
-								top10Categoria.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "cg-seccion cg-seccion-fila-cat",
-									style: { marginBottom: 18 },
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "cg-seccion-head",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
-													style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
-													children: ["🔥 Los 10 más populares en ", nombreBonitoCat(categoria), ` (de ${librosPantallaCat.length} cargados)`]
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-													className: "cg-seccion-sub",
-													style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
-													children: "Títulos más descargados y leídos de esta categoría con desplazamiento horizontal exclusivo."
-												})
-											]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "lg-fila cg-fila cg-fila-top cg-scroll-x-only",
-											ref: carrilRefCallback,
-											onWheel: onWheelHorizontal,
-											children: desduplicarFila(top10Categoria).slice(0, 10).map((libro, idx) => (
-												(0, import_jsx_runtime.jsx)(Tarjeta, {
-													libro,
-													ranking: idx + 1,
-													descargas: libro.downloads ? formatearDescargas(libro.downloads) + " descargas" : null,
-													reportes,
-													onAbrir: () => { haptic.tap(); setDetalle(libro); },
-													onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
-												}, libro.id || `cat-top-${idx}`)
-											))
-										})
-									]
-								}),
-
-								/* Filas 2, 3, 4, 5 (y adicionales al paginar): Catálogo completo en 4 filas de 10 libros con portada adaptada */
+								/* Filas 1, 2, 3, 4: Exactamente hasta 4 filas de 10 libros */
 								...Array.from({ length: totalFilasCatalogo }, (_, fIdx) => {
 									const filaLibros = desduplicarFila(librosPantallaCat.slice(fIdx * 10, (fIdx + 1) * 10));
-									const numFila = fIdx + 2; // Fila 2, 3, 4, 5...
+									const numFila = fIdx + 1; // Fila 1, 2, 3, 4
+									const inicioFila = inicioPaginacionCat + fIdx * 10 + 1;
+									const finFila = inicioPaginacionCat + fIdx * 10 + filaLibros.length;
 									return (0, import_jsx_runtime.jsxs)("div", {
 										className: "cg-seccion cg-seccion-fila-cat",
 										style: { marginBottom: 18 },
@@ -3332,12 +3462,12 @@ const cargar = (0, import_react.useCallback)(async () => {
 												children: [
 													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
 														style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
-														children: [`Fila ${numFila} • Catálogo de ${nombreBonitoCat(categoria)}`, ` (${fIdx * 10 + 1}–${fIdx * 10 + filaLibros.length})`]
+														children: [numFila === 1 ? "🔥 Fila 1 • Obras destacadas de " : ("Fila " + numFila + " • Catálogo de "), nombreBonitoCat(categoria), " (" + inicioFila + "–" + finFila + ")"]
 													}),
 													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 														className: "cg-seccion-sub",
 														style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
-														children: `Catálogo general • ${filaLibros.length} títulos con desplazamiento horizontal`
+														children: (numFila === 1 ? "Selección principal • " : "Catálogo general • ") + filaLibros.length + " títulos con desplazamiento horizontal"
 													})
 												]
 											}),
@@ -3355,42 +3485,23 @@ const cargar = (0, import_react.useCallback)(async () => {
 												))
 											})
 										]
-									}, `fila-cat-${categoria}-${fIdx}`);
+									}, "fila-cat-" + categoria + "-" + fIdx);
 								}),
 
-								/* Fila 6: Libros de Lumen en esta categoría (si los hay, sino no se crea esta fila) */
-								lumenLibrosCat.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-									className: "cg-seccion cg-seccion-fila-cat cg-seccion-fila-lumen",
-									style: { marginBottom: 18 },
-									children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-											className: "cg-seccion-head",
-											children: [
-												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("h4", {
-													style: { margin: "0 0 4px", fontSize: "0.98rem", fontWeight: 700, color: "var(--fg)" },
-													children: [`Fila ${totalFilasCatalogo + 2} • 🌟 Libros de la red Lumen en `, nombreBonitoCat(categoria), ` (${lumenLibrosCat.length} ${lumenLibrosCat.length === 1 ? "libro" : "libros"})`]
-												}),
-												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-													className: "cg-seccion-sub",
-													style: { margin: 0, fontSize: "0.8rem", color: "var(--fg-muted)" },
-													children: "Publicaciones independientes creadas y compartidas por la comunidad de lectores de Lumen."
-												})
-											]
-										}),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "lg-fila cg-fila cg-fila-compacta cg-scroll-x-only",
-											ref: carrilRefCallback,
-											onWheel: onWheelHorizontal,
-											children: desduplicarFila(lumenLibrosCat).map((libro, idx) => (
-												(0, import_jsx_runtime.jsx)(Tarjeta, {
-													libro,
-													reportes,
-													onAbrir: () => { haptic.tap(); setDetalle(libro); },
-													onLeer: () => { haptic.tap(); onAbrirLibro?.(libro); }
-												}, libro.id || `lumen-cat-${idx}`)
-											))
-										})
-									]
+								/* Botón de paginación para avanzar a los siguientes 40 */
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "cg-paginacion-wrap",
+									style: { textAlign: "center", margin: "24px 0 20px" },
+									children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn primary" + (cargandoMasCat ? " busy" : ""),
+										disabled: cargandoMasCat,
+										onClick: () => {
+											avanzarPaginaCategoria(categoria);
+											document.querySelector(".cg-cuerpo")?.scrollTo({ top: 0, behavior: "smooth" });
+										},
+										children: [cargandoMasCat ? "⏳ Cargando…" : ("📚 Siguientes 40 libros de " + nombreBonitoCat(categoria) + " ⏩")]
+									})
 								})
 							]
 						});
@@ -3608,11 +3719,11 @@ const cargar = (0, import_react.useCallback)(async () => {
 									})
 								]
 							}),
-							(lgQ.trim() || (categoria && categoria !== "__mis_libros__")) && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							lgQ.trim() && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "cg-seccion",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("h3", {
-										children: lgQ.trim() ? `📚 Resultados de «${lgQ.trim()}» (${librosDelAutor.length + otrosResultados.length} obras)` : nombreBonitoCat(categoria)
+										children: `📚 Resultados de «${lgQ.trim()}» (${librosDelAutor.length + otrosResultados.length} obras)`
 									}),
 									cargandoRemotos && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										style: { padding: "6px 10px", color: "#a29bfe", fontSize: 12, fontStyle: "italic", marginBottom: 8 },
@@ -3620,7 +3731,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 										className: "cg-grid",
-										children: (lgQ.trim() ? (librosDelAutor.length > 0 ? otrosResultados : librosCoincidentes) : (categoria === "__populares__" ? librosPantallaPop : (categoria === "__recientes__" ? librosPantallaRec : librosPantallaCat))).map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
+										children: (librosDelAutor.length > 0 ? otrosResultados : librosCoincidentes).map((libro) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Tarjeta, {
 											libro,
 											reportes,
 											onAbrir: () => {
@@ -3826,6 +3937,10 @@ const cargar = (0, import_react.useCallback)(async () => {
 								detalle.descripcion ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 									className: "bc-desc",
 									children: textoLimpio(detalle.descripcion)
+								}) : buscandoDesc ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "bc-desc",
+									style: { fontStyle: "italic", opacity: 0.75 },
+									children: "🔍 Consultando sinopsis en Wikipedia…"
 								}) : null,
 								(() => {
 									const meta = [];
@@ -3902,10 +4017,25 @@ const cargar = (0, import_react.useCallback)(async () => {
 								})
 							]
 						}),
-						detalle.descripcion && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
-							className: "cg-desc",
-							children: textoLimpio(detalle.descripcion)
-						}),
+						detalle.descripcion ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-desc-wrap",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "cg-desc",
+									children: textoLimpio(detalle.descripcion)
+								}),
+								detalle._fuenteDesc && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+									className: "cg-desc-fuente",
+									children: "ℹ️ Sinopsis obtenida de " + detalle._fuenteDesc
+								})
+							]
+						}) : buscandoDesc ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "cg-desc-buscando",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔍" }),
+								"Consultando sinopsis en Wikipedia y bibliotecas abiertas…"
+							]
+						}) : null,
 						disponibilidad(detalle).nivel === "baja" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 							className: "cg-solo-catalogo",
 							children: [
@@ -4833,7 +4963,8 @@ const MAPA_SUBJECT_OL = {
 	"cómics": "comic_books",
 	"romance": "romance",
 	"politica": "politics_and_government",
-	"ficción": "fiction"
+	"ficción": "fiction",
+	"manga": "manga"
 };
 
 const docToLibroOL = (doc, catId) => {
