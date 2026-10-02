@@ -471,18 +471,100 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "tp-cuerpo",
 				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: {
-							padding: "0 4px 10px",
-							lineHeight: 1.5
-						},
-						children: hay ? "Lumen busca tus documentos en las carpetas de siempre (Descargas, Documentos, Telegram…) y los trae con un toque. Dale permiso para encontrarlos todos." : "En el navegador no se puede barrer todo el equipo: elige la carpeta donde guardas tus documentos y Lumen los trae de ahí (así no se tarda buscando en todo el PC)."
-					}),
-					!hay && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "tp-error",
-						style: { marginBottom: 14 },
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Sólo en la aplicación instalada" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "El escaneo automático del teléfono lo hace la app instalada. Aquí puedes elegir archivos o una carpeta." })]
+					/* Hero card con acciones destacadas y responsive */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "arch-hero-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-hero-hdr",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+										className: "arch-hero-ic",
+										children: "✨"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "arch-hero-meta",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+												className: "arch-hero-tit",
+												children: hay ? "Detección automática de documentos" : "Detección y escaneo de documentos"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+												className: "arch-hero-sub",
+												children: hay ? "Lumen busca tus libros en las carpetas habituales (Descargas, Documentos, Telegram…) y los añade en un toque." : "Explora carpetas en tu equipo para buscar libros recursivamente o selecciona documentos compatibles (PDF, EPUB, DOCX, cómics, MOBI) en un solo paso."
+											})
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-hero-actions",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn primary arch-hero-btn",
+										onClick: elegirCarpeta,
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "arch-btn-icon",
+												children: "📁"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "arch-btn-info",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "arch-btn-title",
+														children: "Escanear carpeta"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "arch-btn-desc",
+														children: "Buscar recursivamente en subcarpetas"
+													})
+												]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn arch-hero-btn",
+										onClick: () => {
+											haptic.tap();
+											const inp = document.createElement("input");
+											inp.type = "file";
+											inp.multiple = true;
+											inp.accept = ".pdf,.epub,.mobi,.fb2,.txt,.md,.docx,.doc,.cbz,.cbr,.lumen,.rtf,.html,.srt,application/pdf,application/epub+zip,*/*";
+											inp.onchange = async () => {
+												const archivos = Array.from(inp.files || []);
+												if (archivos.length > 0) {
+													toast?.(`Importando ${archivos.length} archivo(s)…`);
+													await onImportar?.(archivos);
+												}
+											};
+											inp.click();
+										},
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "arch-btn-icon",
+												children: "📂"
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "arch-btn-info",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "arch-btn-title",
+														children: "Elegir archivos"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+														className: "arch-btn-desc",
+														children: "Seleccionar libros individuales"
+													})
+												]
+											})
+										]
+									})
+								]
+							})
+						]
 					}),
 					hay && !permiso && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "arch-permiso",
@@ -517,98 +599,75 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							gap: 8,
-							marginBottom: 12,
-							flexWrap: "wrap"
-						},
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm",
-							style: {
-								flex: 1,
-								minWidth: 150,
-								fontSize: 13
-							},
-							onClick: () => {
-								haptic.tap();
-								const inp = document.createElement("input");
-								inp.type = "file";
-								inp.multiple = true;
-								inp.accept = ".pdf,.epub,.mobi,.fb2,.txt,.md,.docx,.doc,.cbz,.cbr,.lumen,.rtf,.html,.srt,application/pdf,application/epub+zip,*/*";
-								inp.onchange = async () => {
-									const archivos = Array.from(inp.files || []);
-									if (archivos.length > 0) {
-										toast?.(`Importando ${archivos.length} archivo(s)…`);
-										await onImportar?.(archivos);
-									}
-								};
-								inp.click();
-							},
-							children: "📂 Elegir archivos"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm",
-							style: {
-								flex: 1,
-								minWidth: 150,
-								fontSize: 13
-							},
-							onClick: elegirCarpeta,
-							children: "📁 Elegir carpeta"
-						})]
-					}),
 					carpetaBusca && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row-sub",
-						style: { margin: "-6px 4px 10px" },
+						className: "arch-escaneando-box",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "spinner",
 								style: {
 									display: "inline-block",
-									marginRight: 6,
-									verticalAlign: -2
+									marginRight: 6
 								}
 							}),
-							"Leyendo la carpeta… ",
-							carpetaBusca.encontrados,
-							" documento(s) encontrados"
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-escaneando-txt",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Escaneando carpeta en vivo…" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", {
+										children: [
+											carpetaBusca.encontrados,
+											" documento(s) compatibles encontrados (",
+											carpetaBusca.escaneados || 0,
+											" analizados)"
+										]
+									})
+								]
+							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: {
-							margin: "2px 4px 6px",
-							fontWeight: 700,
-							color: "var(--fg)"
-						},
-						children: "Buscar por tipo de documento"
-					}),
+					/* Selector de formatos */
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "chips",
-						style: { marginBottom: 4 },
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "chip" + (filtros.size === 0 ? " on" : ""),
-							onClick: limpiarFiltros,
-							children: "☑ Todos"
-						}), FORMATOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "chip" + (filtros.has(f.ext) ? " on" : ""),
-							onClick: () => alternarFiltro(f.ext),
-							title: `Filtrar por .${f.ext}`,
-							children: [
-								filtros.has(f.ext) ? "☑" : "☐",
-								" ",
-								f.icon,
-								" ",
-								f.label,
-								resumenFormatos[f.ext] ? ` (${resumenFormatos[f.ext]})` : ""
-							]
-						}, f.ext))]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "row-sub",
-						style: { margin: "0 4px 12px" },
-						children: "Marca los formatos que quieres encontrar. Sin marcar ninguno, se buscan todos."
+						className: "arch-seccion-filtros",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-filtros-hdr",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Buscar por tipo de documento" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Formatos compatibles para lectura directa" })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-filtros-chips",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "chip" + (filtros.size === 0 ? " on" : ""),
+										onClick: limpiarFiltros,
+										children: [
+											filtros.size === 0 ? "☑" : "☐",
+											" Todos"
+										]
+									}),
+									FORMATOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "chip" + (filtros.has(f.ext) ? " on" : ""),
+										onClick: () => alternarFiltro(f.ext),
+										title: `Filtrar por .${f.ext}`,
+										children: [
+											filtros.has(f.ext) ? "☑" : "☐",
+											" ",
+											f.icon,
+											" ",
+											f.label,
+											resumenFormatos[f.ext] ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "arch-chip-badge",
+												children: resumenFormatos[f.ext]
+											}) : null
+										]
+									}, f.ext))
+								]
+							})
+						]
 					}),
 					hay && permiso && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "mus-tabs",
@@ -714,13 +773,28 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 					] }),
 					modo === "auto" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "bp-campo",
-							style: { marginBottom: 10 },
-							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								className: "plain",
-								value: q,
-								placeholder: "Buscar por nombre o carpeta…",
-								onChange: (e) => setQ(e.target.value)
+							className: "arch-busc-contenedor",
+							children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-busc-campo",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "arch-busc-icono",
+										children: "🔍"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										className: "plain arch-busc-input",
+										value: q,
+										placeholder: "Filtrar por título, autor o subcarpeta…",
+										onChange: (e) => setQ(e.target.value)
+									}),
+									q && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										type: "button",
+										className: "arch-busc-clear",
+										onClick: () => setQ(""),
+										"aria-label": "Limpiar filtro",
+										children: "✕"
+									})
+								]
 							})
 						}),
 						cargando && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -728,89 +802,158 @@ function Archivos({ onSalir, onImportar, toast, yaImportados = [] }) {
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Buscando documentos…" }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Sólo en las carpetas donde suelen estar, para no tardar." })
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "Analizando carpetas y formatos compatibles." })
 							]
 						}),
-						!cargando && lista.length === 0 && hay && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "empty",
-							style: { padding: "28px 8px" },
+						!cargando && lista.length === 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "arch-empty-card",
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "empty-emoji",
-									children: "📂"
+									className: "arch-empty-emoji",
+									children: "✨"
 								}),
-								"No se encontraron documentos en las carpetas habituales.",
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "row-sub",
-									style: { marginTop: 8 },
-									children: "Prueba en «Carpetas» o tráelos con «Elegir archivos»."
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+									className: "arch-empty-title",
+									children: "Encuentra y organiza tus documentos"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+									className: "arch-empty-desc",
+									children: "Haz clic en «Escanear carpeta» para buscar recursivamente en tu equipo, o en «Elegir archivos» para importar libros de inmediato."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "arch-empty-actions",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											className: "btn primary sm",
+											onClick: elegirCarpeta,
+											children: "📁 Escanear carpeta"
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											type: "button",
+											className: "btn ghost sm",
+											onClick: () => {
+												const inp = document.createElement("input");
+												inp.type = "file";
+												inp.multiple = true;
+												inp.accept = ".pdf,.epub,.mobi,.fb2,.txt,.md,.docx,.doc,.cbz,.cbr,.lumen,.rtf,.html,.srt,application/pdf,application/epub+zip,*/*";
+												inp.onchange = async () => {
+													const archivos = Array.from(inp.files || []);
+													if (archivos.length > 0) {
+														toast?.(`Importando ${archivos.length} archivo(s)…`);
+														await onImportar?.(archivos);
+													}
+												};
+												inp.click();
+											},
+											children: "📂 Elegir archivos"
+										})
+									]
 								})
 							]
 						}),
-						!cargando && lista.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "arch-resumen",
-							children: [
-								visibles.length,
-								" de ",
-								lista.length,
-								" archivo(s)",
-								filtros.size > 0 && " · con el filtro puesto",
-								sel.size > 0 && ` · ${sel.size} seleccionado(s)`
-							]
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-							className: "btn primary",
-							style: {
-								width: "100%",
-								margin: "8px 0 12px"
-							},
-							onClick: importarTodos,
-							children: ["⬇ Importar todos los nuevos", (() => {
-								const n = listaFiltrada.filter((f) => !conocidos.has(f.nombre.toLowerCase())).length;
-								return n > 0 ? ` (${n})` : "";
-							})()]
-						})] }),
-						visibles.map((f) => {
-							const ya = conocidos.has(f.nombre.toLowerCase());
-							const marcado = sel.has(f.ruta);
-							return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-								className: "arch-fila" + (marcado ? " on" : "") + (ya ? " ya" : ""),
-								onClick: () => !ya && alternar(f.ruta),
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-									className: "arch-tick",
-									children: ya ? "✓" : marcado ? "☑" : "☐"
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-									className: "arch-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: f.nombre }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("small", { children: [
-										f.carpeta ? f.carpeta + " · " : "",
-										tam(f.bytes),
-										ya ? " · ya está en tu biblioteca" : ""
-									] })]
-								})]
-							}, f.ruta);
-						})
+						!cargando && lista.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "arch-acciones-bar",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "arch-resumen-pill",
+										children: [
+											visibles.length,
+											visibles.length === 1 ? " documento" : " documentos",
+											filtros.size > 0 && " · filtrados",
+											sel.size > 0 && ` · ${sel.size} seleccionado(s)`
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "btn sm primary",
+										onClick: importarTodos,
+										children: [
+											"⬇ Importar todos los nuevos",
+											(() => {
+												const n = listaFiltrada.filter((f) => !conocidos.has(f.nombre.toLowerCase())).length;
+												return n > 0 ? ` (${n})` : "";
+											})()
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "arch-grid-documentos",
+								children: visibles.map((f) => {
+									const ya = conocidos.has(f.nombre.toLowerCase());
+									const marcado = sel.has(f.ruta);
+									const ext = extensionDe(f.nombre) || "doc";
+									return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										className: "arch-card" + (marcado ? " on" : "") + (ya ? " ya" : ""),
+										onClick: () => !ya && alternar(f.ruta),
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: `arch-badge-ext arch-ext-${ext}`,
+												children: ext.toUpperCase()
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "arch-card-info",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", {
+														className: "arch-card-tit",
+														title: f.nombre,
+														children: f.nombre
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+														className: "arch-card-sub",
+														children: [
+															f.carpeta ? `${f.carpeta} · ` : "",
+															tam(f.bytes)
+														]
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "arch-card-end",
+												children: ya ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "arch-pill-ya",
+													children: "En biblioteca"
+												}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+													className: "arch-chk" + (marcado ? " on" : ""),
+													children: marcado ? "✓" : ""
+												})
+											})
+										]
+									}, f.ruta);
+								})
+							})
+						] })
 					] })
 				]
 			}),
-			sel.size > 0 && !progreso && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			sel.size > 0 && !progreso && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "arch-barra",
-				children: [
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn ghost",
-						onClick: () => setSel(/* @__PURE__ */ new Set()),
-						children: "Quitar"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "btn",
-						onClick: () => setSel(new Set(visibles.filter((f) => !conocidos.has(f.nombre.toLowerCase())).map((f) => f.ruta))),
-						children: "Todos"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-						className: "btn primary",
-						style: { flex: 1 },
-						onClick: importarSeleccion,
-						children: ["Importar ", sel.size]
-					})
-				]
+				children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "arch-barra-inner",
+					children: [
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "btn ghost sm",
+							onClick: () => setSel(/* @__PURE__ */ new Set()),
+							children: "Deseleccionar"
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							type: "button",
+							className: "btn sm",
+							onClick: () => setSel(new Set(visibles.filter((f) => !conocidos.has(f.nombre.toLowerCase())).map((f) => f.ruta))),
+							children: `Marcar todos (${visibles.filter((f) => !conocidos.has(f.nombre.toLowerCase())).length})`
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+							type: "button",
+							className: "btn primary sm arch-btn-importar-sel",
+							onClick: importarSeleccion,
+							children: ["📥 Importar ", sel.size, " seleccionado(s)"]
+						})
+					]
+				})
 			}),
 			progreso && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "arch-barra progreso",

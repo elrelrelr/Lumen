@@ -41076,7 +41076,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "imp-seccion-item",
 								children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-									className: "tp-acceso tp-acceso-primary",
+									className: "tp-acceso",
 									onClick: () => {
 										setSheet(null);
 										folderRef.current?.click();
