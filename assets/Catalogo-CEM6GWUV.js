@@ -271,7 +271,10 @@ function BookCard({ libro, onAbrir, grande = false }) {
 	if (libro?.tamano) meta.push(String(libro.tamano));
 	if (libro?.categoria) meta.push(libro.categoria);
 	if (libro?.license) meta.push(libro.license);
-	const portada = libro?.portada && !portadaRota ? libro.portada : null;
+	let portada = libro?.portada && !portadaRota ? libro.portada : null;
+	if (portada && typeof portada === "string" && portada.includes("uploads.mangadex.org")) {
+		portada = (typeof MANGA_COVERS_MAP !== "undefined" && (MANGA_COVERS_MAP[titulo] || MANGA_COVERS_MAP[libro?.titulo] || MANGA_COVERS_MAP[libro?.title])) || null;
+	}
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "bc" + (grande ? " bc-grande" : ""),
 		role: "button",
@@ -284,6 +287,7 @@ function BookCard({ libro, onAbrir, grande = false }) {
 				src: portada,
 				alt: "",
 				loading: "lazy",
+				referrerPolicy: "no-referrer",
 				onError: () => setPortadaRota(true),
 				draggable: false
 			}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(PortadaFallback, {
@@ -447,6 +451,7 @@ function Portada({ libro, titulo, grande = false, prioritaria = false }) {
 				src: portadaEfectiva,
 				alt: titulo,
 				loading: prioritaria ? "eager" : "lazy",
+				referrerPolicy: "no-referrer",
 				onLoad: () => setCargada(true),
 				onError: () => setRota(true),
 				draggable: false,
@@ -2377,6 +2382,37 @@ const cargar = (0, import_react.useCallback)(async () => {
 	const buscandoStore = lgQ.trim().length >= 2;
 	const destacado = recientes.find((b) => !ocultarAdultos || !esContenidoAdulto(b)) || (ocultarAdultos ? null : recientes[0]);
 
+	const CANON_PAGINAS = {
+		"capital": 850,
+		"manifiesto comunista": 75,
+		"cien anos de soledad": 471,
+		"cien años de soledad": 471,
+		"1984": 328,
+		"quijote": 860,
+		"arte de la guerra": 110,
+		"biblia": 1350,
+		"odisea": 380,
+		"iliada": 450,
+		"ilíada": 450,
+		"crimen y castigo": 540,
+		"metamorfosis": 80,
+		"principito": 96,
+		"divina comedia": 420,
+		"orgullo y prejuicio": 430,
+		"guerra y paz": 1250,
+		"miserables": 1400,
+		"fahrenheit": 250,
+		"mundo feliz": 280,
+		"ensayo sobre la ceguera": 330,
+		"extranjero": 120,
+		"rebelion en la granja": 140,
+		"rebelión en la granja": 140,
+		"pedro paramo": 130,
+		"pedro páramo": 130,
+		"rayuela": 600,
+		"ficciones": 180
+	};
+
 	const normalizarLibroGenerico = (b, catDef = "general") => {
 		if (!b) return null;
 		const tit = aTextoPlano(b.titulo || b.title).trim() || "Libro";
@@ -2384,9 +2420,27 @@ const cargar = (0, import_react.useCallback)(async () => {
 		if (!aut) aut = "Autor";
 		const dl = Number(b.downloads) || (b.rating ? Math.round((ratingDe(b).estrellas || 4.5) * 3200) : 1200);
 		const cat = aTextoPlano(b.categoria || (b.bookshelves && b.bookshelves[0])) || catDef;
-		const rawCov = b.portada || b.cover || null;
+		let rawCov = b.portada || b.cover || null;
+		if (rawCov && typeof rawCov === "string" && rawCov.includes("uploads.mangadex.org")) {
+			rawCov = (typeof MANGA_COVERS_MAP !== "undefined" && (MANGA_COVERS_MAP[tit] || MANGA_COVERS_MAP[b.titulo] || MANGA_COVERS_MAP[b.title])) || null;
+		}
 		const cov = (rawCov && rawCov !== "assets/icon-192.png") ? (typeof rawCov === "string" ? rawCov : null) : null;
 		const desc = aTextoPlano(b.descripcion || b.synopsis || b.description).trim();
+		let pags = Number(b.paginas || b.pageCount || b.pages || b.number_of_pages_median || b.paginasGB) || 0;
+		if (!pags) {
+			const titL = tit.toLowerCase();
+			for (const [clave, cant] of Object.entries(CANON_PAGINAS)) {
+				if (titL.includes(clave)) { pags = cant; break; }
+			}
+		}
+		if (!pags) {
+			const catL = cat.toLowerCase();
+			if (catL.includes("manga") || catL.includes("comic")) pags = 180;
+			else if (catL.includes("biblia") || catL.includes("religion") || catL.includes("teologia")) pags = 1200;
+			else if (catL.includes("ciencia") || catL.includes("paper") || catL.includes("arxiv")) pags = 25;
+			else if (catL.includes("poesia") || catL.includes("poesía")) pags = 90;
+			else pags = 220;
+		}
 		return {
 			id: b.id || b.bookId || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
 			d: b.d || b.id || ("gen-" + tit.toLowerCase().replace(/[^a-z0-9]/g, "")),
@@ -2403,7 +2457,8 @@ const cargar = (0, import_react.useCallback)(async () => {
 			url: b.url || null,
 			descripcion: desc,
 			esMio: !!b.esMio,
-			rating: b.rating
+			rating: b.rating,
+			paginas: pags
 		};
 	};
 
@@ -4097,10 +4152,27 @@ const cargar = (0, import_react.useCallback)(async () => {
 									className: "btn",
 									disabled: descargando,
 									onClick: async () => {
-										// Descarga directa en la app con fallback a búsqueda en navegador si falla
+										// Descarga directa en la app con fallback a descarga de navegador si es cross-origin o falla
 										const urlDirecta = detalle.epub || detalle.fileUrl || detalle.download || detalle.file || "";
 										if (urlDirecta && /^https?:\/\//i.test(urlDirecta) && !detalle.magnet) {
 											setDescargando(true);
+											// Si la URL es de archive.org/download/, fetch() desde JavaScript en el navegador
+											// falla por CORS. Descargamos de inmediato mediante el navegador para que el usuario obtenga el archivo íntegro y real sin errores.
+											if (urlDirecta.includes("archive.org/download/")) {
+												const ext = urlDirecta.endsWith(".pdf") ? ".pdf" : ".epub";
+												const nom = ((detalle.titulo || detalle.title || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "libro") + ext;
+												const a = document.createElement("a");
+												a.href = urlDirecta;
+												a.download = nom;
+												a.target = "_blank";
+												a.rel = "noopener";
+												document.body.appendChild(a);
+												a.click();
+												document.body.removeChild(a);
+												toast("⬇️ Descargando libro completo (" + (detalle.paginas ? detalle.paginas + " págs." : "obra completa") + ") en tu navegador. Al terminar, selecciónalo con «+»");
+												setDescargando(false);
+												return;
+											}
 											try {
 												const r = await fetch(urlDirecta, { signal: AbortSignal.timeout(15000) });
 												if (r.ok) {
@@ -4197,17 +4269,6 @@ const cargar = (0, import_react.useCallback)(async () => {
 											setDescargando(true);
 											const { construirLumenPersonal } = await __vitePreload(() => import("./lumenbook-D1rmZfn6.js"), __vite__mapDeps([13,14,10]), import.meta.url);
 											let caps = [detalle.descripcion || detalle.synopsis || `Capítulo 1: ${detalle.titulo}`];
-											const _tD = (detalle.titulo || "").toLowerCase();
-											const _aD = (detalle.autor || "").toLowerCase();
-											if (_tD.includes("capital") || (_aD.includes("marx") && !_tD.includes("manifiesto"))) {
-												caps = [
-													"PREFACIOS DE KARL MARX\n\nPrefacio a la primera edición alemana (1867) y segunda edición (1873).\n\nLa obra cuyo primer volumen entrego al público constituye la continuación de mi escrito publicado en 1859 con el título de Contribución a la crítica de la economía política...",
-													"CAPÍTULO I: LA MERCANCÍA\n\nI. Los dos factores de la mercancía: valor de uso y valor (sustancia y magnitud del valor).\n\nLa riqueza de las sociedades en las que domina el modo de producción capitalista se presenta como una inmensa acumulación de mercancías, y la mercancía individual como la forma elemental de esa riqueza...\n\nII. Doble carácter del trabajo representado en las mercancías.\n\nIII. El fetichismo de la mercancía y su secreto.",
-													"CAPÍTULO IV: LA FÓRMULA GENERAL DEL CAPITAL\n\nLa circulación de mercancías es el punto de partida del capital. Ciclo D - M - D' (Dinero - Mercancía - Dinero incrementado). El incremento sobre el valor originario es el plusvalor.",
-													"CAPÍTULO VII: PROCESO DE TRABAJO Y PROCESO DE VALORIZACIÓN\n\nLa producción del plusvalor absoluto y la prolongación de la jornada laboral más allá del tiempo de trabajo necesario.",
-													"CAPÍTULO XXIV: LA LLAMADA ACUMULACIÓN ORIGINARIA\n\nEl secreto de la acumulación originaria: la escisión histórica entre los productores directos y los medios de producción. La expropiación del suelo y la tendencia histórica de la acumulación capitalista: ¡Suena la hora de la propiedad privada capitalista. Los expropiadores son expropiados!"
-												];
-											}
 											const meta = {
 												titulo: detalle.titulo,
 												autor: detalle.autor || "Autor Lumen",
@@ -4215,7 +4276,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 												descripcion: detalle.descripcion || "",
 												idioma: detalle.idioma || "es",
 												audioUrl: detalle.audioUrl || "",
-												paginas: 1
+												paginas: detalle.paginas || 1
 											};
 											const personal = {
 												titulo: detalle.titulo,
@@ -4400,6 +4461,7 @@ const LIBROS_TOP_DESCARGAS = [
  "autor": "Karl Marx",
  "fuente": "archive",
  "downloads": 78900,
+ "paginas": 850,
  "portada": "https://archive.org/services/img/marx-el-capital-obra-completa",
  "categoria": "politica",
  "idioma": "es",
@@ -4414,11 +4476,12 @@ const LIBROS_TOP_DESCARGAS = [
  "autor": "Karl Marx y Friedrich Engels",
  "fuente": "gutenberg",
  "downloads": 84200,
+ "paginas": 75,
  "portada": "https://covers.openlibrary.org/b/id/8231920-M.jpg",
  "categoria": "politica",
  "idioma": "es",
  "epub": "https://www.gutenberg.org/ebooks/10.epub3.images",
- "fileUrl": "https://archive.org/download/marx-el-capital-obra-completa/Manifiesto_Comunista.pdf",
+ "fileUrl": "https://es.wikisource.org/wiki/Manifiesto_del_Partido_Comunista",
  "descripcion": "Tratado político fundacional sobre la lucha de clases, el desarrollo de las fuerzas productivas y el devenir del movimiento obrero."
 },
  {
@@ -4428,11 +4491,13 @@ const LIBROS_TOP_DESCARGAS = [
  "autor": "Gabriel García Márquez",
  "fuente": "openlibrary",
  "downloads": 96500,
+ "paginas": 471,
  "portada": "https://covers.openlibrary.org/b/id/11153218-M.jpg",
  "categoria": "ficción",
  "idioma": "es",
- "epub": "https://archive.org/download/marx-el-capital-obra-completa/Cien_Anos_de_Soledad.epub",
- "fileUrl": "https://archive.org/download/marx-el-capital-obra-completa/Cien_Anos_de_Soledad.pdf",
+ "epub": "",
+ "fileUrl": "",
+ "url": "https://openlibrary.org/works/OL18143324W",
  "descripcion": "La cumbre del realismo mágico y la epopeya de las siete generaciones de la familia Buendía en el mítico pueblo de Macondo."
 },
  {
@@ -4442,6 +4507,7 @@ const LIBROS_TOP_DESCARGAS = [
   "autor": "George Orwell",
   "fuente": "archive",
   "downloads": 35400,
+  "paginas": 328,
   "portada": "https://covers.openlibrary.org/b/id/12629471-M.jpg",
   "categoria": "politica",
   "fileUrl": "https://ia800100.us.archive.org/view_archive.php?archive=/28/items/1984_orwell/1984.zip"
@@ -4453,6 +4519,7 @@ const LIBROS_TOP_DESCARGAS = [
   "autor": "George Orwell",
   "fuente": "archive",
   "downloads": 28900,
+  "paginas": 140,
   "portada": "https://covers.openlibrary.org/b/id/11153210-M.jpg",
   "categoria": "politica"
  },
@@ -4463,6 +4530,7 @@ const LIBROS_TOP_DESCARGAS = [
   "autor": "Sun Tzu",
   "fuente": "gutenberg",
   "downloads": 25300,
+  "paginas": 110,
   "portada": "https://archive.org/services/img/elartedelaguerra00sunt",
   "categoria": "politica",
   "epub": "https://www.gutenberg.org/ebooks/132.epub3.images"

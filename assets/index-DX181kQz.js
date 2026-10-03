@@ -11715,6 +11715,9 @@ async function importarDesdeUrl(url, onProgress = () => {}) {
 	let dir = String(url || "").trim();
 	if (!dir) throw new Error("Escribe una dirección");
 	if (!/^https?:\/\//i.test(dir)) dir = "https://" + dir;
+	if (/\.(epub|pdf|docx|zip|rar|torrent|mobi|azw3|bin)($|\?)/i.test(dir)) {
+		throw new Error("La dirección corresponde a un archivo binario, no a una página de texto web");
+	}
 	onProgress(15, "Descargando la página…");
 	let html = "";
 	try {
@@ -38432,7 +38435,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v259"
+							children: "v260"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -40588,7 +40591,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v259 · escritorio y móvil"
+					children: "Lumen Reader · v260 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -56823,6 +56826,78 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				return;
 			}
 
+			// =========================================================================
+			// PASO 0: Estimar de antemano la cantidad aproximada de páginas de la obra
+			// =========================================================================
+			let paginasEsperadas = Number(libro.paginas || libro.pageCount || libro.pages || libro.number_of_pages_median || libro.paginasGB) || 0;
+			if (!paginasEsperadas) {
+				const CANON_PAGS = {
+					"capital": 850,
+					"manifiesto comunista": 75,
+					"cien anos de soledad": 471,
+					"cien años de soledad": 471,
+					"1984": 328,
+					"quijote": 860,
+					"arte de la guerra": 110,
+					"biblia": 1350,
+					"odisea": 380,
+					"iliada": 450,
+					"ilíada": 450,
+					"crimen y castigo": 540,
+					"metamorfosis": 80,
+					"principito": 96,
+					"divina comedia": 420,
+					"orgullo y prejuicio": 430,
+					"guerra y paz": 1250,
+					"miserables": 1400,
+					"fahrenheit": 250,
+					"mundo feliz": 280,
+					"ensayo sobre la ceguera": 330,
+					"extranjero": 120,
+					"rebelion en la granja": 140,
+					"rebelión en la granja": 140,
+					"pedro paramo": 130,
+					"pedro páramo": 130,
+					"rayuela": 600,
+					"ficciones": 180
+				};
+				for (const [clave, cant] of Object.entries(CANON_PAGS)) {
+					if (titNorm.includes(clave)) {
+						paginasEsperadas = cant;
+						break;
+					}
+				}
+			}
+			if (!paginasEsperadas && titNorm.length >= 3) {
+				try {
+					const qT = encodeURIComponent(titOriginal);
+					const qA = autNorm ? encodeURIComponent(autOriginal) : "";
+					const rOL = await fetch(`https://openlibrary.org/search.json?title=${qT}${qA ? `&author=${qA}` : ""}&fields=number_of_pages_median`, { signal: AbortSignal.timeout(2000) }).catch(() => null);
+					if (rOL && rOL.ok) {
+						const dataOL = await rOL.json().catch(() => null);
+						const doc = dataOL?.docs?.find((d) => d.number_of_pages_median && d.number_of_pages_median > 10);
+						if (doc?.number_of_pages_median) paginasEsperadas = Number(doc.number_of_pages_median);
+					}
+				} catch {}
+			}
+			if (!paginasEsperadas) {
+				const cat = String(libro.categoria || libro.category || "").toLowerCase();
+				if (cat.includes("manga") || cat.includes("comic")) paginasEsperadas = 180;
+				else if (cat.includes("ciencia") || cat.includes("paper") || cat.includes("arxiv")) paginasEsperadas = 25;
+				else if (cat.includes("biblia") || cat.includes("religion") || cat.includes("teologia")) paginasEsperadas = 1200;
+				else if (cat.includes("poesia") || cat.includes("poesía")) paginasEsperadas = 90;
+				else paginasEsperadas = 220;
+			}
+
+			// Validador estricto: rechaza muestras cortas, índices o fragmentos
+			const verificarPaginas = (paginasObtenidas) => {
+				if (!paginasEsperadas || paginasEsperadas <= 0) return true;
+				const umbralMin = paginasEsperadas <= 60 
+					? Math.max(15, Math.floor(paginasEsperadas * 0.45))
+					: Math.max(25, Math.floor(paginasEsperadas * 0.40));
+				return paginasObtenidas >= umbralMin;
+			};
+
 			// Helper para importar y abrir un blob binario (.epub, .pdf, .txt, .docx, .lumen)
 			const importarYMostrarBlob = async (blob, nombreSugerido, extPorDefecto = ".epub") => {
 				if (!blob || blob.size < 400) return false;
@@ -56840,19 +56915,27 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 					if (label) toast?.(label);
 				});
 				if (nuevo && nuevo.id) {
+					const paginasObtenidas = nuevo.pageCount || 0;
+					if (!verificarPaginas(paginasObtenidas)) {
+						console.warn(`[verificacion paginas] Muestra parcial descartada: ${paginasObtenidas} de ~${paginasEsperadas} págs.`);
+						toast?.(`⚠️ Contenido parcial descartado (${paginasObtenidas} de ~${paginasEsperadas} págs.). Buscando libro completo…`);
+						await deleteBook(nuevo.id).catch(() => {});
+						return false;
+					}
 					await patchBook(nuevo.id, {
 						title: titOriginal || nuevo.title,
 						author: autOriginal || nuevo.author || "Autor",
 						coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
 						category: libro.categoria || libro.category || nuevo.category || "General",
-						d: libro.d || libro.id || nuevo.id
+						d: libro.d || libro.id || nuevo.id,
+						pageCount: paginasObtenidas
 					}).catch(() => {});
 					setCatalogoAbierto(false);
 					setMisPubsAbierto(false);
 					setQrPendiente(null);
 					setLectorGlobal(null);
 					openBook(nuevo.id);
-					toast?.("✓ «" + (titOriginal || nuevo.title) + "» listo en tu lector");
+					toast?.("✓ «" + (titOriginal || nuevo.title) + "» verificado (" + paginasObtenidas + " págs., completo)");
 					return true;
 				}
 				return false;
@@ -56863,6 +56946,12 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				if (!texto || texto.trim().length < 600) return false;
 				const paginas = paginate(texto);
 				if (!paginas || paginas.length === 0) return false;
+				const paginasObtenidas = paginas.length;
+				if (!verificarPaginas(paginasObtenidas)) {
+					console.warn(`[verificacion paginas texto] Muestra parcial descartada: ${paginasObtenidas} de ~${paginasEsperadas} págs.`);
+					toast?.(`⚠️ Texto parcial descartado (${paginasObtenidas} de ~${paginasEsperadas} págs.). Buscando edición completa…`);
+					return false;
+				}
 				const id = uid();
 				const now = Date.now();
 				await putBook({
@@ -56875,7 +56964,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 					kind: "web",
 					sourceUrl: libro.url || libro.sourceUrl || "",
 					size: texto.length,
-					pageCount: paginas.length,
+					pageCount: paginasObtenidas,
 					lastPage: 0,
 					addedAt: now,
 					openedAt: now,
@@ -56900,7 +56989,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				setQrPendiente(null);
 				setLectorGlobal(null);
 				openBook(id);
-				toast?.("✓ «" + titOriginal + "» extraído (" + paginas.length + " págs.) listo en tu lector");
+				toast?.("✓ «" + titOriginal + "» verificado (" + paginasObtenidas + " págs., completo)");
 				return true;
 			};
 
@@ -56956,23 +57045,25 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				libro.url
 			].filter((u) => u && typeof u === "string" && /^https?:\/\//i.test(u));
 
-			toast?.("📥 Extrayendo «" + titOriginal.slice(0, 30) + "» desde su enlace web…");
+			toast?.("📥 Verificando libro completo «" + titOriginal.slice(0, 30) + "» (~" + paginasEsperadas + " págs.)…");
 
 			for (const u of urlsDirectas) {
 				// 1a. Si apunta a un archivo binario directo
 				if (/\.(epub|pdf|txt|docx|lumen)($|\?)/i.test(u)) {
 					try {
-						let r = await fetch(u, { signal: AbortSignal.timeout(12000) }).catch(() => null);
-						if (!r || !r.ok) {
-							r = await fetch("https://corsproxy.io/?" + encodeURIComponent(u), { signal: AbortSignal.timeout(15000) }).catch(() => null);
-						}
-						if (r && r.ok) {
-							const ct = (r.headers.get("content-type") || "").toLowerCase();
-							if (!ct.includes("text/html")) {
-								const b = await r.blob();
-								if (b && b.size > 800) {
-									const ok = await importarYMostrarBlob(b, u, u.match(/\.(epub|pdf|txt|docx|lumen)/i)?.[0] || ".epub");
-									if (ok) return;
+						// Si la URL es de archive.org/download/, fetch() desde JavaScript en el navegador
+						// fallará con error CORS ('No Access-Control-Allow-Origin').
+						// Omitimos fetch() aquí y lo reservamos para descarga nativa de navegador en Paso 3.
+						if (!u.includes("archive.org/download/")) {
+							let r = await fetch(u, { signal: AbortSignal.timeout(12000) }).catch(() => null);
+							if (r && r.ok) {
+								const ct = (r.headers.get("content-type") || "").toLowerCase();
+								if (!ct.includes("text/html")) {
+									const b = await r.blob();
+									if (b && b.size > 800) {
+										const ok = await importarYMostrarBlob(b, u, u.match(/\.(epub|pdf|txt|docx|lumen)/i)?.[0] || ".epub");
+										if (ok) return;
+									}
 								}
 							}
 						}
@@ -56981,26 +57072,28 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 					}
 				}
 
-				// 1b. Si es una URL web (Royal Road, Wattpad, arXiv, Internet Archive, Gutenberg HTML, etc.)
-				// Extraer el texto completo con la herramienta de extractor web (importarDesdeUrl / r.jina.ai)
-				try {
-					toast?.("🔍 Extrayendo contenido web de la obra…");
-					const resWeb = await importarDesdeUrl(u, (_pct, txt) => {
-						if (txt) toast?.(txt);
-					}).catch(() => null);
-					if (resWeb && resWeb.texto && resWeb.texto.trim().length >= 800) {
-						const ok = await importarYMostrarTexto(resWeb.texto, "Web");
-						if (ok) return;
+				// 1b. Si es una URL web (NO binaria)
+				// Extraer el texto completo con la herramienta de extractor web
+				if (!/\.(epub|pdf|docx|lumen|zip|rar|torrent|mobi|azw3|bin)($|\?)/i.test(u)) {
+					try {
+						toast?.("🔍 Extrayendo contenido web de la obra…");
+						const resWeb = await importarDesdeUrl(u, (_pct, txt) => {
+							if (txt) toast?.(txt);
+						}).catch(() => null);
+						if (resWeb && resWeb.texto && resWeb.texto.trim().length >= 800) {
+							const ok = await importarYMostrarTexto(resWeb.texto, "Web");
+							if (ok) return;
+						}
+					} catch (eWeb) {
+						console.warn("[extraccion web]", eWeb);
 					}
-				} catch (eWeb) {
-					console.warn("[extraccion web]", eWeb);
 				}
 			}
 
 			// =========================================================================
 			// PASO 2: Si no encuentra nada, buscar el mismo libro en otras bibliotecas
 			// =========================================================================
-			toast?.("🌐 Buscando libro completo en bibliotecas abiertas…");
+			toast?.("🌐 Buscando edición completa en bibliotecas abiertas…");
 
 			// 2a. Project Gutenberg (Gutendex)
 			try {
@@ -57017,9 +57110,6 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 						if (epubUrl) {
 							toast?.("⬇️ Descargando edición desde Project Gutenberg…");
 							let rEpub = await fetch(epubUrl, { signal: AbortSignal.timeout(15000) }).catch(() => null);
-							if (!rEpub || !rEpub.ok) {
-								rEpub = await fetch("https://corsproxy.io/?" + encodeURIComponent(epubUrl), { signal: AbortSignal.timeout(15000) }).catch(() => null);
-							}
 							if (rEpub && rEpub.ok) {
 								const b = await rEpub.blob();
 								const ok = await importarYMostrarBlob(b, `${titOriginal}.epub`, ".epub");
@@ -57048,47 +57138,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				console.warn("[gutenberg fallback]", eGuten);
 			}
 
-			// 2b. Internet Archive (Texts & EPUB/PDF/TXT)
-			try {
-				const qIA = encodeURIComponent(`(title:("${titOriginal}") OR title:(${titOriginal})) AND mediatype:(texts)`);
-				const rIA = await fetch(`https://archive.org/advancedsearch.php?q=${qIA}&fl[]=identifier,title,creator,downloads&sort[]=downloads+desc&rows=3&output=json`, { signal: AbortSignal.timeout(8000) }).catch(() => null);
-				if (rIA && rIA.ok) {
-					const dataIA = await rIA.json().catch(() => null);
-					const docs = dataIA?.response?.docs || [];
-					for (const doc of docs) {
-						const iaId = doc.identifier;
-						if (!iaId) continue;
-						const urlEpub = `https://archive.org/download/${iaId}/${iaId}.epub`;
-						let rEp = await fetch(urlEpub, { signal: AbortSignal.timeout(10000) }).catch(() => null);
-						if (!rEp || !rEp.ok) {
-							rEp = await fetch("https://corsproxy.io/?" + encodeURIComponent(urlEpub), { signal: AbortSignal.timeout(12000) }).catch(() => null);
-						}
-						if (rEp && rEp.ok && !rEp.headers.get("content-type")?.includes("text/html")) {
-							const b = await rEp.blob();
-							if (b.size > 2000) {
-								const ok = await importarYMostrarBlob(b, `${iaId}.epub`, ".epub");
-								if (ok) return;
-							}
-						}
-						const urlTxt = `https://archive.org/download/${iaId}/${iaId}_djvu.txt`;
-						let rTx = await fetch(urlTxt, { signal: AbortSignal.timeout(10000) }).catch(() => null);
-						if (!rTx || !rTx.ok) {
-							rTx = await fetch("https://corsproxy.io/?" + encodeURIComponent(urlTxt), { signal: AbortSignal.timeout(12000) }).catch(() => null);
-						}
-						if (rTx && rTx.ok) {
-							const t = await rTx.text();
-							if (t && t.length >= 1200) {
-								const ok = await importarYMostrarTexto(t, "Internet Archive");
-								if (ok) return;
-							}
-						}
-					}
-				}
-			} catch (eIA) {
-				console.warn("[internet archive fallback]", eIA);
-			}
-
-			// 2c. Wikisource en español
+			// 2b. Wikisource en español
 			try {
 				const qWiki = encodeURIComponent(titOriginal.replace(/[:(].*$/, "").trim());
 				const rW = await fetch(`https://es.wikisource.org/w/api.php?action=opensearch&search=${qWiki}&limit=1&format=json&origin=*`, { signal: AbortSignal.timeout(6000) }).catch(() => null);
@@ -57114,7 +57164,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				console.warn("[wikisource fallback]", eWiki);
 			}
 
-			// 2d. arXiv (Papers científicos, IA, Matemáticas, Física)
+			// 2c. arXiv (Papers científicos, IA, Matemáticas, Física)
 			try {
 				const qArxiv = encodeURIComponent(titOriginal);
 				const rAx = await fetch(`https://export.arxiv.org/api/query?search_query=ti:${qArxiv}&max_results=1`, { signal: AbortSignal.timeout(7000) }).catch(() => null);
@@ -57125,9 +57175,6 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 						const pdfLink = mPdf[1].startsWith("http") ? mPdf[1] : `https://arxiv.org/pdf/${mPdf[1]}.pdf`;
 						toast?.("⬇️ Descargando documento científico de arXiv…");
 						let rPdf = await fetch(pdfLink, { signal: AbortSignal.timeout(15000) }).catch(() => null);
-						if (!rPdf || !rPdf.ok) {
-							rPdf = await fetch("https://corsproxy.io/?" + encodeURIComponent(pdfLink), { signal: AbortSignal.timeout(15000) }).catch(() => null);
-						}
 						if (rPdf && rPdf.ok) {
 							const b = await rPdf.blob();
 							const ok = await importarYMostrarBlob(b, `${titOriginal}.pdf`, ".pdf");
@@ -57139,18 +57186,34 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				console.warn("[arxiv fallback]", eArxiv);
 			}
 
-			// 2e. Si es una obra canónica con texto íntegro precargado (ej. El Capital o La Biblia)
-			if (titNorm.includes("capital") || (autNorm.includes("marx") && !titNorm.includes("manifiesto")) || titNorm.includes("biblia") || titNorm.includes("evangelio")) {
-				const textoCompleto = await obtenerTextoCompletoLibro(libro);
-				if (textoCompleto && textoCompleto.length > 2000) {
-					const ok = await importarYMostrarTexto(textoCompleto, "Lumen");
-					if (ok) return;
+			// =========================================================================
+			// PASO 3: Descarga nativa directa en navegador, torrent o buscador universal
+			// =========================================================================
+			// Si el libro traía un enlace de archivo directo (como Archive.org o Gutenberg)
+			const urlDescargaDirecta = [libro.epub, libro.fileUrl, libro.download].find((u) => u && typeof u === "string" && /^https?:\/\//i.test(u) && !/\.torrent$/i.test(u));
+			if (urlDescargaDirecta) {
+				try {
+					const ext = urlDescargaDirecta.endsWith(".pdf") ? ".pdf" : ".epub";
+					const nom = (titOriginal || "libro").replace(/[^\w\s.-]/gi, "_").trim() + ext;
+					const a = document.createElement("a");
+					a.href = urlDescargaDirecta;
+					a.download = nom;
+					a.target = "_blank";
+					a.rel = "noopener";
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+					setCatalogoAbierto(false);
+					setMisPubsAbierto(false);
+					setQrPendiente(null);
+					setLectorGlobal(null);
+					toast?.(`⬇️ Descargando libro completo (~${paginasEsperadas} págs.) en tu navegador. Selecciónalo con «+» para leerlo.`);
+					return;
+				} catch (eDlDirect) {
+					console.warn("[descarga navegador]", eDlDirect);
 				}
 			}
 
-			// =========================================================================
-			// PASO 3: Si sigue sin encontrarlo, buscar un torrent
-			// =========================================================================
 			toast?.("🧲 Buscando torrent de la obra…");
 
 			let magnetEncontrado = libro.magnet || "";
@@ -57207,7 +57270,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 			setLectorGlobal(null);
 			setBuscadorQ(`${titOriginal} ${autOriginal}`.trim());
 			setBuscadorAbierto(true);
-			toast?.(`🔍 Buscando descargas y torrents de «${titOriginal}» en Anna's Archive y la web…`);
+			toast?.(`🔍 Buscando versión completa de «${titOriginal}» (~${paginasEsperadas} págs.) en Anna's Archive y torrents…`);
 
 		} catch (err) {
 			console.error("[manejarAbrirLibro]", err);

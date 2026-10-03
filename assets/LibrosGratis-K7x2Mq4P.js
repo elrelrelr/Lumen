@@ -1,7 +1,7 @@
 const MANGA_COVERS_MAP = {"One Piece":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg","Berserk":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30002-Cul4OeN7bYtn.jpg","Solo Leveling (Na Honjaman Level-Up)":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx105398-b673Vt5ZSuz3.jpg","Naruto":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30011-9yUF1dXWgDOx.jpg","Dragon Ball":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg","Bleach":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30012-1epmVfTSv2rr.png","Hunter x Hunter":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30026-uCvXMudMzmwI.jpg","Jujutsu Kaisen":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx101517-H3TdM3g5ZUe9.jpg","Chainsaw Man":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx105778-euxXZEIfDY2u.png","Attack on Titan (Shingeki no Kyojin)":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53390-1RsuABC34P9D.jpg","Demon Slayer (Kimetsu no Yaiba)":"https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx131348-hIwM9o1TioxX.jpg","My Hero Academia (Boku no Hero Academia)":"https://media.kitsu.app/manga/26004/poster_image/large-226bfa9e2bb2d77058802994345e1d7f.jpeg","Death Note":"https://media.kitsu.app/manga/57/poster_image/large-c45932b7d7e5981ad4afb466befd7434.jpeg","Fullmetal Alchemist":"https://media.kitsu.app/manga/66/poster_image/large-1dbec771ad51716858f0388bfc6018ac.jpeg","Tokyo Ghoul":"https://media.kitsu.app/manga/7176/poster_image/large-b444d6029fffc54ca5c7b161075a1adf.jpeg","Vinland Saga":"https://media.kitsu.app/manga/poster_images/1456/large.jpg","Vagabond":"https://media.kitsu.app/manga/1482/poster_image/large-4f73288f94d60d913e90c262e0041a09.jpeg","Monster":"https://media.kitsu.app/manga/4/poster_image/large-26c815f31d36f3b2854d777da1667370.jpeg","Kingdom":"https://media.kitsu.app/manga/3480/poster_image/large-e3766868a64e86d1197691382286fbdb.jpeg","Oyasumi Punpun (Goodnight Punpun)":"https://media.kitsu.app/manga/9964/poster_image/large-0d0be88534fc16af09014b00076e8896.jpeg","Parasyte (Kiseijuu)":"https://media.kitsu.app/manga/906/poster_image/large-79be82502a2be51714d01ad3d56c4a89.jpeg","Gantz":"https://media.kitsu.app/manga/1282/poster_image/large-27446b1a98ae6bbb04e3178ac8b9a56b.jpeg","JoJo's Bizarre Adventure (Steel Ball Run)":"https://media.kitsu.app/manga/poster_images/3625/large.jpg","Tower of God (Sin-ui Tap)":"https://media.kitsu.app/manga/25436/poster_image/large-b392a06d60c1e7a525887c73de11a3be.jpeg","Omniscient Reader's Viewpoint":"https://media.kitsu.app/manga/poster_images/55196/large.jpg","The Beginning After the End":"https://media.kitsu.app/manga/54597/poster_image/large-d5f120451631e8e2334a7629f994dd03.jpeg","Lookism":"https://media.kitsu.app/manga/39293/poster_image/large-68c4db12d087ebb9e69cd21deba575a8.jpeg","Noblesse":"https://media.kitsu.app/manga/poster_images/23815/large.jpg","Bastard":"https://media.kitsu.app/manga/poster_images/37696/large.jpg","Sweet Home":"https://media.kitsu.app/manga/40731/poster_image/large-52e01161f49f4cc0d0dd97dadd1cfc7e.jpeg","Eleceed":"https://media.kitsu.app/manga/poster_images/54688/large.jpg","Spy x Family":"https://media.kitsu.app/manga/54448/poster_image/large-0ff02098a7d97a91d5e4cb8ec597165a.jpeg","Kimi ni Todoke (Llegando a ti)":"https://media.kitsu.app/manga/poster_images/7375/large.jpg","Nana":"https://media.kitsu.app/manga/74/poster_image/large-2f59bc17eb8f66ba2f0e120125910c84.jpeg","Fruits Basket":"https://media.kitsu.app/manga/267/poster_image/large-ba6ca2faa8c11627b0786cafca13e7c2.jpeg","Horimiya":"https://media.kitsu.app/manga/poster_images/22352/large.jpg","Frieren: Beyond Journey's End (Sousou no Frieren)":"https://media.kitsu.app/manga/56355/poster_image/large-265716645df8b8e0861ba826aa74486e.jpeg","Mushoku Tensei: Jobless Reincarnation":"https://media.kitsu.app/manga/poster_images/25541/large.jpg","The Eminence in Shadow (Kage no Jitsuryokusha)":"https://media.kitsu.app/manga/poster_images/54238/large.jpg","The Apothecary Diaries (Kusuriya no Hitorigoto)":"https://media.kitsu.app/manga/poster_images/39631/large.jpg","Dandadan":"https://media.kitsu.app/manga/59289/poster_image/large-0655a0074c54abb22539ab982f721c41.jpeg","Oshi no Ko":"https://media.kitsu.app/manga/56391/poster_image/large-03cc75c7d6e4a3aaacbafd09de68a8c5.jpeg","Blue Lock":"https://media.kitsu.app/manga/poster_images/53928/large.jpg","20th Century Boys":"https://media.kitsu.app/manga/12/poster_image/eea2c84ed054f1fd77e55a8b74da7a88.jpg"};
 import { t as require_react } from "./react-1WJTggxS.js";
 import { A as importarDesdeUrl, B as paginate, c as haptic, v as usarPantallaAtras, y as require_jsx_runtime } from "./index-DX181kQz.js";
-import { E as putPages, h as getMeta, k as uid, O as setMeta, r as allBooks, w as putBook, S as patchBook } from "./db-Ii3ipPL7.js";
+import { c as deleteBook, E as putPages, h as getMeta, k as uid, O as setMeta, r as allBooks, w as putBook, S as patchBook } from "./db-Ii3ipPL7.js";
 import { generarFacehashUri } from "./nostr-zC6Qsl2z.js";
 var import_react = require_react();
 var import_jsx_runtime = require_jsx_runtime();
@@ -1550,6 +1550,12 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 					pct: 0
 				});
 			}
+			if (url && url.includes("archive.org/download/")) {
+				abrirConNavegador(libro, navDisponible() ? "lumen" : "dispositivo");
+				toast?.("⬇️ Descargando libro completo en tu navegador. Al terminar, selecciónalo con «+»");
+				setDescarga(null);
+				return;
+			}
 			const blob = await fetchConProgreso(url, (pct) => setDescarga({
 				clave: String(libro.id),
 				nombre: titulo,
@@ -1569,6 +1575,11 @@ function LibrosGratis({ toast, onSalir, onAbrirLibro, modo, onVentana, onBuscarW
 				if (b && b.status === "ready") nuevo = b;
 			}
 			if (!nuevo) throw new Error("El archivo se descargó pero no terminó de importarse");
+			const pagsEsp = Number(libro.paginas || libro.paginasGB || 0);
+			if (pagsEsp > 0 && nuevo.pageCount && nuevo.pageCount < Math.max(20, Math.floor(pagsEsp * 0.40))) {
+				await deleteBook(nuevo.id).catch(() => {});
+				throw new Error(`Muestra parcial rechazada (${nuevo.pageCount} de ~${pagsEsp} págs.)`);
+			}
 			misRef.current = await allBooks().catch(() => misLibros);
 			setMisLibros(misRef.current);
 			// v209: éxito → panel con las opciones de guardado (no abre solo)
