@@ -22842,8 +22842,9 @@ const send = async () => {
 								className: "sel-acciones",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "chat-act act-copiar",
 										"aria-label": "Copiar",
+										title: "Copiar selección",
 										onClick: async () => {
 											await copyText(seleccionados().map((x) => x.text || x.note || "").filter(Boolean).join("\n\n"));
 											toast?.(`${sel.size} mensaje(s) copiados`);
@@ -22852,8 +22853,9 @@ const send = async () => {
 										children: "📋"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "chat-act act-compartir",
 										"aria-label": "Compartir",
+										title: "Compartir selección",
 										onClick: async () => {
 											const txt = seleccionados().map((x) => x.text || x.note || "").filter(Boolean).join("\n\n");
 											try {
@@ -22869,8 +22871,9 @@ const send = async () => {
 										children: "📤"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "chat-act act-pdf",
 										"aria-label": "Exportar a PDF",
+										title: "Exportar PDF",
 										onClick: async () => {
 											const lista = seleccionados();
 											if (!lista.length) return;
@@ -22886,8 +22889,9 @@ const send = async () => {
 										children: "📄"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "chat-act act-cita",
 										"aria-label": "Exportar como cita",
+										title: "Crear tarjeta de cita",
 										onClick: () => {
 											const txt = seleccionados().map((x) => x.text || x.note || "").filter(Boolean).join("\n\n");
 											if (!txt) return toast?.("Nada que exportar");
@@ -22897,8 +22901,9 @@ const send = async () => {
 										children: "🖼"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act",
+										className: "chat-act act-texto",
 										"aria-label": "Seleccionar el texto",
+										title: "Seleccionar texto",
 										onClick: () => {
 											const lista = seleccionados();
 											if (lista.length !== 1) return toast?.("Marca un solo mensaje para seleccionar su texto");
@@ -22909,8 +22914,9 @@ const send = async () => {
 										children: "✍️"
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "chat-act peligro",
+										className: "chat-act act-borrar peligro",
 										"aria-label": "Eliminar",
+										title: "Eliminar selección",
 										onClick: async () => {
 											const lista = seleccionados();
 											if (!lista.length) return;
@@ -22989,7 +22995,7 @@ const send = async () => {
 									children: [
 										// v202: botón especial para abrir el libro desde el mensaje
 										g.it.bookId && onOpenBook && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill",
+											className: "gd-action-pill pill-abrir",
 											"aria-label": "Abrir en el libro",
 											onClick: (e) => {
 												e.stopPropagation();
@@ -23002,7 +23008,7 @@ const send = async () => {
 											}), " Abrir"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											className: "gd-action-pill pin" + (g.it.pinned ? " on" : ""),
+											className: "gd-action-pill pill-pin pin" + (g.it.pinned ? " on" : ""),
 											onClick: async (e) => {
 												e.stopPropagation();
 												fijarMensaje(g.it, !g.it.pinned);
@@ -23012,7 +23018,7 @@ const send = async () => {
 											children: "📌"
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill",
+											className: "gd-action-pill pill-copiar",
 											onClick: async (e) => {
 												e.stopPropagation();
 												const txt = g.it.text || g.it.note || "";
@@ -23023,7 +23029,7 @@ const send = async () => {
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcCopiar, {}), " Copiar"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill" + (leyendoId === claveDe(g.it) ? " on" : ""),
+											className: "gd-action-pill pill-leer" + (leyendoId === claveDe(g.it) ? " on" : ""),
 											"aria-label": "Leer en voz alta",
 											onClick: (e) => {
 												e.stopPropagation();
@@ -23032,7 +23038,7 @@ const send = async () => {
 											children: [leyendoId === claveDe(g.it) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcParar, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcLeer, {}), leyendoId === claveDe(g.it) ? "Parar" : "Leer"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill",
+											className: "gd-action-pill pill-cita",
 											onClick: (e) => {
 												e.stopPropagation();
 												const txt = g.it.text || g.it.note || "";
@@ -23042,7 +23048,7 @@ const send = async () => {
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcCita, {}), " Cita"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill",
+											className: "gd-action-pill pill-imagen",
 											onClick: (e) => {
 												e.stopPropagation();
 												shareAsImage(g.it);
@@ -23050,7 +23056,7 @@ const send = async () => {
 											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcImagen, {}), " Imagen"]
 										}),
 										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-											className: "gd-action-pill peligro",
+											className: "gd-action-pill pill-borrar peligro",
 											onClick: async (e) => {
 												e.stopPropagation();
 												if (!window.confirm("¿Eliminar este mensaje?")) return;
@@ -23154,7 +23160,7 @@ const send = async () => {
 											children: [
 												// v202: botón especial para abrir el libro desde el pin
 												item.bookId && onOpenBook && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill",
+													className: "gd-action-pill pill-abrir",
 													"aria-label": "Abrir en el libro",
 													onClick: (e) => {
 														e.stopPropagation();
@@ -23167,7 +23173,7 @@ const send = async () => {
 													}), " Abrir"]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-													className: "gd-action-pill",
+													className: "gd-action-pill pill-editar",
 													onClick: (e) => {
 														e.stopPropagation();
 														setEditing({
@@ -23183,7 +23189,7 @@ const send = async () => {
 													children: "✏️ Editar"
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill",
+													className: "gd-action-pill pill-copiar",
 													onClick: async (e) => {
 														e.stopPropagation();
 														const txt = item.text || item.note || "";
@@ -23194,7 +23200,7 @@ const send = async () => {
 													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcCopiar, {}), " Copiar"]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill" + (leyendoId === claveDe(item) ? " on" : ""),
+													className: "gd-action-pill pill-leer" + (leyendoId === claveDe(item) ? " on" : ""),
 													onClick: (e) => {
 														e.stopPropagation();
 														leerMensaje(item);
@@ -23202,7 +23208,7 @@ const send = async () => {
 													children: [leyendoId === claveDe(item) ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcParar, {}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcLeer, {}), leyendoId === claveDe(item) ? "Parar" : "Leer"]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill",
+													className: "gd-action-pill pill-cita",
 													onClick: (e) => {
 														e.stopPropagation();
 														const txt = item.text || item.note || "";
@@ -23212,7 +23218,7 @@ const send = async () => {
 													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcCita, {}), " Cita"]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill",
+													className: "gd-action-pill pill-imagen",
 													onClick: (e) => {
 														e.stopPropagation();
 														shareAsImage(item);
@@ -23220,7 +23226,7 @@ const send = async () => {
 													children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(IcImagen, {}), " Imagen"]
 												}),
 												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-													className: "gd-action-pill peligro",
+													className: "gd-action-pill pill-borrar peligro",
 													onClick: async (e) => {
 														e.stopPropagation();
 														if (!window.confirm("¿Eliminar este mensaje?")) return;
@@ -38435,7 +38441,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v260"
+							children: "v261"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -40591,7 +40597,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v260 · escritorio y móvil"
+					children: "Lumen Reader · v261 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -52517,17 +52523,18 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 									})]
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "icon-btn",
+									className: "icon-btn note-btn-ir",
 									onClick: () => setPage(n.page),
-									title: "Ir",
+									title: "Ir a la página",
 									children: "↗"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "icon-btn",
+									className: "icon-btn note-btn-del",
 									onClick: async () => {
 										await deleteNote(n.id);
 										await reloadMarks();
 									},
+									title: "Eliminar nota",
 									children: "🗑"
 								})
 							]
@@ -57289,12 +57296,16 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 			setPublicarOpen({ modo: "nuevo", libroId: ev?.detail?.libroId });
 		};
 		const onPedirCatalogo = () => { setCatalogoAbierto(true); };
+		const onPedirGuardados = () => { setSheetReq({ id: "chat", nonce: Date.now() }); };
 		window.__lumenAbrirCatalogo = onPedirCatalogo;
+		window.__lumenAbrirGuardados = onPedirGuardados;
 		window.addEventListener("lumen:abrir-catalogo", onPedirCatalogo);
+		window.addEventListener("lumen:abrir-guardados", onPedirGuardados);
 		window.addEventListener("lumen:importar-y-abrir", onPedirImportar);
 		window.addEventListener("lumen:abrir-publicar", onPedirPublicar);
 		return () => {
 			window.removeEventListener("lumen:abrir-catalogo", onPedirCatalogo);
+			window.removeEventListener("lumen:abrir-guardados", onPedirGuardados);
 			window.removeEventListener("lumen:importar-y-abrir", onPedirImportar);
 			window.removeEventListener("lumen:abrir-publicar", onPedirPublicar);
 		};

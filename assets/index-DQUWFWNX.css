@@ -17661,3 +17661,927 @@ button.tp-acceso-primary {
   border: 1px dashed var(--line); border-radius: 8px; color: var(--fg-dim);
   font-size: 12.5px; font-style: italic; display: flex; align-items: center; gap: 8px;
 }
+
+/* ============ v261: Rediseño Premium de Botones en Mensajes Guardados y Notas (PC & Móvil) ============ */
+
+/* Animación de pulso para estados activos y grabación */
+@keyframes lumenPulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.65); }
+  70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+@keyframes lumenGlowPulse {
+  0% { box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); }
+  50% { box-shadow: 0 0 18px color-mix(in srgb, var(--accent) 60%, transparent); }
+  100% { box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 30%, transparent); }
+}
+
+/* 1. Tarjeta de Mensajes Guardados en la Biblioteca (.book-saved) */
+.book-saved {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  margin-bottom: 12px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--bg-soft)), var(--bg-soft));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, var(--line));
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--accent) 14%, transparent), 0 1px 3px rgba(0,0,0,0.06);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.book-saved::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, color-mix(in srgb, var(--accent) 18%, transparent) 50%, transparent 70%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+.book-saved:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--accent) 26%, transparent), 0 2px 6px rgba(0,0,0,0.1);
+}
+.book-saved:hover::before {
+  opacity: 1;
+}
+.book-saved:active {
+  transform: scale(0.985);
+}
+.book-saved .saved-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), #6d47ff);
+  color: #fff;
+  font-size: 23px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 42%, transparent), inset 0 1px 1px rgba(255,255,255,0.3);
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+}
+.book-saved:hover .saved-cover {
+  transform: scale(1.06) rotate(3deg);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.book-saved .saved-title {
+  font-weight: 750;
+  font-size: 15px;
+  color: var(--fg);
+  transition: color 0.15s ease;
+}
+.book-saved:hover .saved-title {
+  color: var(--accent);
+}
+.book-saved .saved-sub {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--fg-mute);
+}
+.book-saved .saved-sub .tag {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 10px;
+  padding: 1.5px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.book-saved .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 14%, var(--track));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+.book-saved:hover .icon-btn {
+  background: var(--accent);
+  color: #fff;
+  transform: translateX(3px) scale(1.05);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* 2. Pestañas de Guardados (.gd-tabs, .gd-tab, .gd-tab-n) */
+.gd-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 5px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--track) 85%, var(--bg-soft));
+  border: 1.5px solid var(--line);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.12);
+  margin-bottom: 12px;
+}
+.gd-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--fg-dim);
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+.gd-tab:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transform: translateY(-1px);
+}
+.gd-tab:active {
+  transform: scale(0.96);
+}
+.gd-tab.on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--bg-elev)), color-mix(in srgb, var(--accent) 12%, var(--bg-soft)));
+  color: var(--fg);
+  border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 28%, transparent), inset 0 1px 1px rgba(255,255,255,0.16);
+}
+.gd-tab-ico {
+  font-size: 15px;
+  line-height: 1;
+}
+.gd-tab-lbl {
+  letter-spacing: 0.1px;
+}
+.gd-tab-n {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7.5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  color: var(--fg-mute);
+  transition: all 0.2s ease;
+}
+.gd-tab.on .gd-tab-n {
+  background: linear-gradient(135deg, var(--accent), #6d47ff);
+  color: #fff;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* 3. Buscador y Botones de Filtro/PDF en Guardados (.gd-search) */
+.gd-search {
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: var(--bg-soft);
+  border: 1.5px solid var(--line);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.gd-search:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent), 0 3px 12px rgba(0,0,0,0.08);
+}
+.gd-search input {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg);
+}
+.search-clear {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--track);
+  color: var(--fg-dim);
+  font-size: 11px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.search-clear:hover {
+  background: color-mix(in srgb, var(--danger, #ef4444) 22%, var(--track));
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+  transform: scale(1.12);
+}
+.gd-filter-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  border: 1px solid var(--line);
+  background: color-mix(in srgb, var(--track) 90%, transparent);
+  color: var(--fg);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.gd-filter-btn:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--track));
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1.5px) scale(1.05);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.gd-filter-btn:active {
+  transform: scale(0.94);
+}
+.gd-filter-btn.on {
+  background: linear-gradient(135deg, var(--accent), #6d47ff);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+/* 4. Chips de Filtros y Botón de Paleta (.chips, .chip) */
+.chip {
+  padding: 6px 13px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1.5px solid var(--line);
+  background: var(--bg-soft);
+  color: var(--fg-dim);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.chip:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+  transform: translateY(-1px);
+}
+.chip:active {
+  transform: scale(0.94);
+}
+.chip.on {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, var(--bg-soft)), color-mix(in srgb, var(--accent) 15%, var(--bg-elev)));
+  border-color: var(--accent);
+  color: var(--fg);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* 5. Barra de Selección Múltiple y Botones de Acción (.sel-barra, .chat-act) */
+.sel-barra {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--bg-elev) 88%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px -4px rgba(0,0,0,0.4), 0 0 16px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+.sel-x {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--track);
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.sel-x:hover {
+  background: color-mix(in srgb, var(--danger, #ef4444) 25%, transparent);
+  border-color: var(--danger, #ef4444);
+  color: var(--danger, #ef4444);
+  transform: scale(1.1);
+}
+.sel-n {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 30%, transparent), color-mix(in srgb, var(--accent) 15%, transparent));
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 12.5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  min-width: 24px;
+  text-align: center;
+}
+.sel-todos {
+  background: color-mix(in srgb, var(--track) 80%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 11px;
+  font-size: 11.5px;
+  font-weight: 750;
+  color: var(--fg);
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.18s ease;
+}
+.sel-todos:hover {
+  background: color-mix(in srgb, var(--accent) 20%, transparent);
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+.sel-acciones {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.sel-acciones .chat-act,
+.chat-act.act-copiar,
+.chat-act.act-compartir,
+.chat-act.act-pdf,
+.chat-act.act-cita,
+.chat-act.act-texto,
+.chat-act.act-borrar {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 11px !important;
+  border: 1.5px solid var(--line);
+  background: color-mix(in srgb, var(--bg-soft) 85%, transparent);
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  opacity: 1;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+.sel-acciones .chat-act:hover {
+  transform: translateY(-2px) scale(1.08);
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+}
+.sel-acciones .chat-act:active {
+  transform: scale(0.92);
+}
+.sel-acciones .chat-act.act-copiar:hover {
+  border-color: #38bdf8;
+  box-shadow: 0 4px 14px rgba(56, 189, 248, 0.35);
+  background: color-mix(in srgb, #38bdf8 15%, var(--bg-soft));
+}
+.sel-acciones .chat-act.act-compartir:hover {
+  border-color: #34d399;
+  box-shadow: 0 4px 14px rgba(52, 211, 153, 0.35);
+  background: color-mix(in srgb, #34d399 15%, var(--bg-soft));
+}
+.sel-acciones .chat-act.act-pdf:hover {
+  border-color: #a78bfa;
+  box-shadow: 0 4px 14px rgba(167, 139, 250, 0.35);
+  background: color-mix(in srgb, #a78bfa 15%, var(--bg-soft));
+}
+.sel-acciones .chat-act.act-cita:hover {
+  border-color: #f472b6;
+  box-shadow: 0 4px 14px rgba(244, 114, 182, 0.35);
+  background: color-mix(in srgb, #f472b6 15%, var(--bg-soft));
+}
+.sel-acciones .chat-act.act-texto:hover {
+  border-color: #fbbf24;
+  box-shadow: 0 4px 14px rgba(251, 191, 36, 0.35);
+  background: color-mix(in srgb, #fbbf24 15%, var(--bg-soft));
+}
+.sel-acciones .chat-act.peligro,
+.sel-acciones .chat-act.act-borrar {
+  background: color-mix(in srgb, var(--danger, #ef4444) 16%, var(--bg-soft));
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 45%, transparent);
+  color: #f87171;
+}
+.sel-acciones .chat-act.peligro:hover,
+.sel-acciones .chat-act.act-borrar:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+}
+
+/* 6. Barra de Acciones de Mensajes y Tarjetas (.gd-msg-actions-bar, .gd-action-pill) */
+.gd-msg-actions-bar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--bg-soft) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.gd-body .pin-foot .gd-msg-actions-bar {
+  margin-top: 10px;
+  padding: 6px 8px;
+  border-radius: 14px;
+}
+.gd-action-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5.5px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  border: 1px solid color-mix(in srgb, var(--line) 90%, transparent);
+  background: color-mix(in srgb, var(--bg-elev) 85%, transparent);
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.gd-body .pin-foot .gd-action-pill {
+  min-height: 30px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  border-radius: 11px;
+  gap: 5px;
+}
+.gd-action-pill svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  transition: transform 0.18s ease;
+}
+.gd-action-pill:hover {
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+  border-color: var(--accent);
+  color: var(--fg);
+}
+.gd-action-pill:hover svg {
+  transform: scale(1.15);
+}
+.gd-action-pill:active {
+  transform: scale(0.95);
+}
+
+/* Modificadores temáticos llamativos para .gd-action-pill */
+.gd-action-pill.pill-abrir {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 25%, var(--bg-elev)), color-mix(in srgb, var(--accent) 12%, var(--bg-soft)));
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--fg);
+}
+.gd-action-pill.pill-abrir:hover {
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.gd-action-pill.pill-pin,
+.gd-action-pill.pin {
+  font-size: 14px;
+}
+.gd-action-pill.pill-pin.on,
+.gd-action-pill.pin.on {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.18));
+  border-color: #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.4);
+}
+.gd-action-pill.pill-copiar:hover {
+  background: color-mix(in srgb, #0ea5e9 18%, var(--bg-elev));
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 3px 12px rgba(56, 189, 248, 0.3);
+}
+.gd-action-pill.pill-leer.on,
+.gd-action-pill.on {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.35), rgba(5, 150, 105, 0.2));
+  border-color: #10b981;
+  color: #34d399;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+}
+.gd-action-pill.pill-cita:hover {
+  background: color-mix(in srgb, #a855f7 18%, var(--bg-elev));
+  border-color: #c084fc;
+  color: #c084fc;
+  box-shadow: 0 3px 12px rgba(192, 132, 252, 0.3);
+}
+.gd-action-pill.pill-imagen:hover {
+  background: color-mix(in srgb, #ec4899 18%, var(--bg-elev));
+  border-color: #f472b6;
+  color: #f472b6;
+  box-shadow: 0 3px 12px rgba(244, 114, 182, 0.3);
+}
+.gd-action-pill.pill-editar:hover {
+  background: color-mix(in srgb, #f59e0b 18%, var(--bg-elev));
+  border-color: #fbbf24;
+  color: #fbbf24;
+  box-shadow: 0 3px 12px rgba(251, 191, 36, 0.3);
+}
+.gd-action-pill.peligro,
+.gd-action-pill.pill-borrar {
+  background: color-mix(in srgb, var(--danger, #ef4444) 14%, var(--bg-elev));
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 40%, transparent);
+  color: #f87171;
+}
+.gd-action-pill.peligro:hover,
+.gd-action-pill.pill-borrar:hover {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.45);
+}
+.gd-action-pill.peligro svg,
+.gd-action-pill.pill-borrar svg {
+  color: inherit;
+}
+
+/* 7. Barra de Formato Markdown y Emojis (.emoji-bar, .fmt-btn, .emoji-btn) */
+.emoji-bar {
+  border-top: 1.5px solid var(--line);
+  background: color-mix(in srgb, var(--bg-soft) 95%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 10px 14px 12px;
+}
+.fmt-row {
+  display: flex;
+  gap: 7px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.fmt-btn {
+  min-width: 42px;
+  height: 35px;
+  padding: 0 12px;
+  border-radius: 11px;
+  font-size: 13.5px;
+  font-weight: 750;
+  color: var(--fg);
+  background: var(--bg-elev);
+  border: 1.5px solid var(--line);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fmt-btn:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.fmt-btn:active {
+  transform: scale(0.92);
+}
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 6px;
+}
+.emoji-btn {
+  height: 38px;
+  font-size: 20px;
+  border-radius: 11px;
+  border: 1px solid transparent;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.emoji-btn:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--track));
+  transform: scale(1.22);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow: 0 3px 10px rgba(0,0,0,0.12);
+}
+.emoji-btn:active {
+  transform: scale(0.9);
+}
+
+/* 8. Píldora de Entrada Estilo Telegram (.tg-pill, .tg-ico, .chat-attach) */
+.tg-pill {
+  background: var(--bg-soft);
+  border: 1.5px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  border-radius: 26px;
+  padding: 4px 7px 4px 6px;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+}
+.tg-pill:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 24%, transparent), 0 6px 20px rgba(0,0,0,0.14);
+}
+.tg-pill.rec {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3.5px rgba(239, 68, 68, 0.25), 0 0 18px rgba(239, 68, 68, 0.35);
+}
+.tg-ico.chat-attach {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--track) 65%, transparent);
+  border: 1px solid transparent;
+  color: var(--accent);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tg-ico.chat-attach:hover {
+  background: color-mix(in srgb, var(--accent) 20%, var(--track));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  transform: scale(1.08);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.tg-ico.chat-attach:active {
+  transform: scale(0.92);
+}
+.tg-ico.chat-attach.mic-on {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+  color: #fff !important;
+  border-color: #b91c1c !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.6) !important;
+  animation: lumenPulse 1.4s infinite !important;
+}
+.tg-ico.chat-attach.pausa {
+  background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+  color: #fff !important;
+  border-color: #b45309 !important;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.6) !important;
+  animation: none !important;
+}
+
+/* 9. Botón Avión de Envío (.chat-send) */
+.chat-send {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  color: #fff;
+  background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #4f46e5 100%);
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.48), 0 2px 6px rgba(0,0,0,0.25);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chat-send:not(:disabled):hover {
+  transform: translateY(-2.5px) scale(1.09) rotate(-7deg);
+  box-shadow: 0 8px 26px rgba(99, 102, 241, 0.65), 0 3px 8px rgba(0,0,0,0.3);
+}
+.chat-send:not(:disabled):active {
+  transform: scale(0.92) rotate(0deg);
+}
+.chat-send:disabled {
+  background: var(--track);
+  color: var(--fg-mute);
+  opacity: 0.42;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+}
+
+/* 10. Hoja de Notas del Lector: Cabecera y Botón "Ver guardados" (.notas-cab, .notas-cab-btn) */
+.notas-cab {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0 12px;
+}
+.notas-cab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, var(--bg-soft)), color-mix(in srgb, var(--accent) 12%, var(--bg-elev)));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  color: var(--fg);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.notas-cab-btn:hover {
+  transform: translateY(-2px) scale(1.04);
+  border-color: var(--accent);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent);
+  color: var(--fg);
+}
+.notas-cab-btn:active {
+  transform: scale(0.95);
+}
+
+/* 11. Buscador en Notas (.notas-busq) y Badge de Página (.notas-pg) */
+.notas-busq {
+  border: 1.5px solid var(--line);
+  border-radius: 14px;
+  background: var(--bg-soft);
+  padding: 9px 13px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.notas-busq:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3.5px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.notas-pg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 22%, transparent), color-mix(in srgb, var(--accent) 8%, transparent));
+  border: 1.5px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: 999px;
+  padding: 4px 12px;
+  margin: 12px 0 8px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+/* 12. Botones de Acción en Notas (.note-item .icon-btn, .note-btn-ir, .note-btn-del) */
+.note-item {
+  border-radius: 18px;
+  border-left: 5px solid var(--accent);
+  padding: 13px 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.note-item .icon-btn,
+.note-btn-ir,
+.note-btn-del {
+  width: 36px;
+  height: 36px;
+  border-radius: 50% !important;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  font-size: 15px;
+  border: 1.5px solid transparent;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.note-item .icon-btn.note-btn-ir,
+.note-btn-ir,
+.note-item .icon-btn:first-of-type {
+  background: color-mix(in srgb, var(--accent) 18%, var(--bg-soft));
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent);
+  font-weight: 800;
+}
+.note-item .icon-btn.note-btn-ir:hover,
+.note-btn-ir:hover,
+.note-item .icon-btn:first-of-type:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.note-item .icon-btn.note-btn-del,
+.note-btn-del,
+.note-item .icon-btn:last-of-type {
+  background: color-mix(in srgb, var(--danger, #ef4444) 15%, var(--bg-soft));
+  border-color: color-mix(in srgb, var(--danger, #ef4444) 40%, transparent);
+  color: #f87171;
+}
+.note-item .icon-btn.note-btn-del:hover,
+.note-btn-del:hover,
+.note-item .icon-btn:last-of-type:hover {
+  background: var(--danger, #ef4444);
+  color: #fff;
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.5);
+}
+.note-item .icon-btn:active {
+  transform: scale(0.92);
+}
+
+/* 13. Adjuntos, Cierre y Modales (.chat-adj-x, .foto-x, .sheet-x) */
+.chat-adj-x {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.4);
+  background: rgba(0,0,0,0.68);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.chat-adj-x:hover {
+  background: var(--danger, #ef4444);
+  transform: scale(1.15);
+  border-color: transparent;
+}
+.sheet:has(.gd-body) .sheet-x,
+.sheet:has(.note-compose) .sheet-x {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid var(--line);
+  background: var(--track);
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.sheet:has(.gd-body) .sheet-x:hover,
+.sheet:has(.note-compose) .sheet-x:hover {
+  background: color-mix(in srgb, var(--accent) 22%, var(--track));
+  border-color: var(--accent);
+  transform: scale(1.1);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+/* 14. Responsive Móvil y Escritorio */
+@media (max-width: 600px) {
+  .gd-msg-actions-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 5px 6px;
+    gap: 5px;
+  }
+  .gd-msg-actions-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .gd-action-pill {
+    min-height: 30px;
+    padding: 3px 9px;
+    font-size: 11px;
+  }
+  .gd-tabs {
+    gap: 4px;
+    padding: 3px;
+  }
+  .gd-tab {
+    padding: 8px 4px;
+    font-size: 12px;
+    gap: 4px;
+  }
+  .fmt-row {
+    gap: 5px;
+  }
+  .fmt-btn {
+    min-width: 36px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 12.5px;
+  }
+  .emoji-grid {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+  }
+  .emoji-btn {
+    height: 34px;
+    font-size: 18px;
+  }
+  .notas-cab {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}
