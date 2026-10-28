@@ -17334,6 +17334,104 @@ body:has(.stories) .sidebar,
   overflow-y: auto;
   color: var(--fg-muted);
 }
+.p2p-confirm-card {
+  background: linear-gradient(135deg, color-mix(in srgb, #10b981 16%, var(--card)), var(--bg-soft));
+  border: 2px solid #10b981;
+  border-radius: 18px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: p2p-pop .24s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 12px 35px -6px rgba(16, 185, 129, 0.25);
+}
+@keyframes p2p-pop {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.p2p-confirm-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #10b981;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 750;
+  padding: 4px 12px;
+  border-radius: 99px;
+  width: fit-content;
+}
+.p2p-confirm-nombre {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--fg);
+}
+.p2p-confirm-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13.5px;
+  color: var(--fg-muted);
+}
+.p2p-confirm-pregunta {
+  font-size: 14.5px;
+  color: var(--fg);
+  line-height: 1.45;
+  margin: 0;
+}
+.p2p-confirm-btns {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.p2p-step-box {
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.p2p-step-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.p2p-step-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.p2p-step-title {
+  font-size: 15.5px;
+  font-weight: 750;
+  color: var(--fg);
+}
+.p2p-step-sub {
+  font-size: 13px;
+  color: var(--fg-muted);
+  line-height: 1.4;
+}
+.p2p-success-banner {
+  background: linear-gradient(135deg, color-mix(in srgb, #10b981 18%, var(--card)), var(--bg-soft));
+  border: 1.5px solid #10b981;
+  border-radius: 16px;
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: center;
+  align-items: center;
+  box-shadow: 0 8px 24px -4px rgba(16, 185, 129, 0.2);
+}
 
 /* ============ v256: Importar contenido unificado con scroll único ============ */
 .imp-scroll-lista {

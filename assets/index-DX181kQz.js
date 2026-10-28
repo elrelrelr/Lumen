@@ -37054,376 +37054,503 @@ function generarQrDataUrl(texto, lado = 260) {
 	}
 }
 
-function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P }) {
-	const [tab, setTab] = (0, import_react.useState)(() => cuentaP2P?.usuario ? "sincronizar" : "perfil");
-	const [nombre, setNombre] = (0, import_react.useState)(cuentaP2P?.usuario || "");
-	const [telefono, setTelefono] = (0, import_react.useState)(cuentaP2P?.telefono || "");
-	const [password, setPassword] = (0, import_react.useState)(cuentaP2P?.contrasena || "");
-	const [dispositivo, setDispositivo] = (0, import_react.useState)(cuentaP2P?.dispositivo || (typeof navigator !== "undefined" && /Android|iPhone|iPad/i.test(navigator.userAgent) ? "Móvil Lumen" : "Computador Lumen"));
-	const [autoSync, setAutoSync] = (0, import_react.useState)(cuentaP2P?.autoSync !== false);
-	const [estadoP2P, setEstadoP2P] = (0, import_react.useState)("desconectado");
-	const [parRemoto, setParRemoto] = (0, import_react.useState)(null);
+function parsearCodigoP2P(str) {
+	if (!str || typeof str !== "string") return null;
+	let raw = str.trim();
+	if (raw.startsWith("LUMEN-P2P:")) raw = raw.slice(10).trim();
+	try {
+		const obj = JSON.parse(raw);
+		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
+	} catch {}
+	try {
+		const decoded = decodeURIComponent(escape(atob(raw)));
+		const obj = JSON.parse(decoded);
+		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
+	} catch {}
+	try {
+		const decoded = atob(raw);
+		const obj = JSON.parse(decoded);
+		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
+	} catch {}
+	try {
+		const url = new URL(raw);
+		const hashData = url.hash?.replace(/^#/, "");
+		if (hashData) {
+			const parsed = parsearCodigoP2P(decodeURIComponent(hashData));
+			if (parsed) return parsed;
+		}
+		const param = url.searchParams.get("p2p") || url.searchParams.get("c");
+		if (param) {
+			const parsed = parsearCodigoP2P(decodeURIComponent(param));
+			if (parsed) return parsed;
+		}
+	} catch {}
+	return null;
+}
+
+function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P, cargarJSZip, descargarBlob }) {
+	const [nombre, setNombre] = (0, import_react.useState)(() => cuentaP2P?.usuario || "");
+	const [telefono, setTelefono] = (0, import_react.useState)(() => cuentaP2P?.telefono || "");
+	const [dispositivo, setDispositivo] = (0, import_react.useState)(() => cuentaP2P?.dispositivo || (typeof navigator !== "undefined" && /Android|iPhone|iPad/i.test(navigator.userAgent) ? "Móvil Lumen" : "Computador Lumen"));
+	const [editandoPerfil, setEditandoPerfil] = (0, import_react.useState)(() => !cuentaP2P?.usuario);
+	
+	const [detectado, setDetectado] = (0, import_react.useState)(null);
+	const [codigoEntrada, setCodigoEntrada] = (0, import_react.useState)("");
+	const [miQr, setMiQr] = (0, import_react.useState)("");
+	const [miCodigo, setMiCodigo] = (0, import_react.useState)("");
+	const [miRoomId, setMiRoomId] = (0, import_react.useState)("");
+	
+	const [sincronizando, setSincronizando] = (0, import_react.useState)(false);
 	const [progresoSync, setProgresoSync] = (0, import_react.useState)(null);
 	const [progresoTexto, setProgresoTexto] = (0, import_react.useState)("");
-	
-	const [qrOferta, setQrOferta] = (0, import_react.useState)("");
-	const [codigoOferta, setCodigoOferta] = (0, import_react.useState)("");
-	const [codigoEntrada, setCodigoEntrada] = (0, import_react.useState)("");
-	const [qrRespuesta, setQrRespuesta] = (0, import_react.useState)("");
-	const [codigoRespuesta, setCodigoRespuesta] = (0, import_react.useState)("");
-	const [generandoQR, setGenerandoQR] = (0, import_react.useState)(false);
+	const [sincronizadoExitoso, setSincronizadoExitoso] = (0, import_react.useState)(false);
 
-	const pcRef = (0, import_react.useRef)(null);
-	const dcRef = (0, import_react.useRef)(null);
 	const broadcastRef = (0, import_react.useRef)(null);
-	const bufferRxRef = (0, import_react.useRef)(new Map());
 
+	// Actualizar datos locales al cambiar cuentaP2P
 	(0, import_react.useEffect)(() => {
 		if (cuentaP2P?.usuario) {
 			setNombre(cuentaP2P.usuario);
 			setTelefono(cuentaP2P.telefono || "");
-			setPassword(cuentaP2P.contrasena || "");
 			setDispositivo(cuentaP2P.dispositivo || "Mi Dispositivo");
 		}
 	}, [cuentaP2P]);
 
+	// Generar automáticamente el código de este aparato y su QR
 	(0, import_react.useEffect)(() => {
 		if (!open) return;
+		const idLimpio = cuentaP2P?.id || ("p2p_" + Math.random().toString(36).slice(2, 9));
+		const room = cuentaP2P?.roomId || ("lumen_p2p_" + idLimpio);
+		setMiRoomId(room);
+		
+		const payload = {
+			tipo: "LUMEN_P2P_PAIR",
+			roomId: room,
+			id: idLimpio,
+			usuario: nombre.trim() || cuentaP2P?.usuario || "Lector Lumen",
+			telefono: telefono.trim() || cuentaP2P?.telefono || "",
+			dispositivo: dispositivo.trim() || cuentaP2P?.dispositivo || "Dispositivo Lumen",
+			ts: Date.now()
+		};
 		try {
-			if (typeof BroadcastChannel !== "undefined") {
-				const bc = new BroadcastChannel("lumen_p2p_signal_bus");
-				broadcastRef.current = bc;
-				bc.onmessage = async (ev) => {
-					const msg = ev.data;
-					if (!msg || !msg.tipo) return;
-					if (msg.tipo === "LUMEN_P2P_DESCUBRIR" && msg.id !== cuentaP2P?.id) {
-						bc.postMessage({
-							tipo: "LUMEN_P2P_PRESENCIA",
-							id: cuentaP2P?.id || "local",
-							usuario: cuentaP2P?.usuario || nombre || "Lector",
-							telefono: cuentaP2P?.telefono || telefono,
-							dispositivo: cuentaP2P?.dispositivo || dispositivo
-						});
-					} else if (msg.tipo === "LUMEN_P2P_PRESENCIA" && msg.id !== cuentaP2P?.id) {
-						setParRemoto({ usuario: msg.usuario, telefono: msg.telefono, dispositivo: msg.dispositivo });
-						setEstadoP2P("conectado");
-					} else if (msg.tipo === "LUMEN_P2P_AUTO_SYNC" && msg.id !== cuentaP2P?.id) {
-						if (msg.datos) {
-							setProgresoSync(60);
-							setProgresoTexto("Recibiendo actualización P2P...");
-							try {
-								const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-								await t.importarProgreso(msg.datos, (p, tx) => {
-									setProgresoSync(p);
-									setProgresoTexto(tx);
-								});
-								await reload?.();
-								toast?.("✓ Sincronizado con " + (msg.usuario || "otro dispositivo"));
-							} catch (err) {
-								console.warn("[p2p-auto-sync]", err);
-							}
-							setTimeout(() => { setProgresoSync(null); setProgresoTexto(""); }, 1200);
-						}
-					}
-				};
-				bc.postMessage({ tipo: "LUMEN_P2P_DESCUBRIR", id: cuentaP2P?.id || "local" });
+			const jsonStr = JSON.stringify(payload);
+			let b64 = "";
+			try {
+				b64 = btoa(unescape(encodeURIComponent(jsonStr)));
+			} catch {
+				b64 = jsonStr;
 			}
+			const cod = "LUMEN-P2P:" + b64;
+			setMiCodigo(cod);
+			const qr = generarQrDataUrl(cod, 240);
+			setMiQr(qr);
 		} catch (e) {
-			console.warn("[p2p-bc]", e);
+			console.warn("[p2p-gen-code]", e);
 		}
-		return () => {
-			try { broadcastRef.current?.close(); } catch {}
-		};
-	}, [open, cuentaP2P, nombre, telefono, dispositivo, reload, toast]);
+	}, [open, cuentaP2P, nombre, telefono, dispositivo]);
 
-	const enlazarDataChannel = (dc) => {
-		dcRef.current = dc;
-		dc.onopen = () => {
-			setEstadoP2P("conectado");
-			haptic$1.success?.();
-			toast?.("🟢 Conexión P2P directa establecida");
-			try {
-				dc.send(JSON.stringify({
-					tipo: "LUMEN_P2P_HOLA",
-					usuario: cuentaP2P?.usuario || nombre,
-					telefono: cuentaP2P?.telefono || telefono,
-					dispositivo: cuentaP2P?.dispositivo || dispositivo
-				}));
-			} catch {}
-		};
-		dc.onclose = () => {
-			setEstadoP2P("desconectado");
-		};
-		dc.onmessage = async (e) => {
-			try {
-				const data = JSON.parse(e.data);
-				if (data.tipo === "LUMEN_P2P_HOLA") {
-					setParRemoto({ usuario: data.usuario, telefono: data.telefono, dispositivo: data.dispositivo });
-					setEstadoP2P("conectado");
-				} else if (data.tipo === "LUMEN_P2P_START") {
-					bufferRxRef.current.set(data.transferId, {
-						total: data.totalChunks,
-						chunks: new Array(data.totalChunks),
-						count: 0
-					});
-					setProgresoSync(5);
-					setProgresoTexto(`Recibiendo datos P2P (0/${data.totalChunks})...`);
-				} else if (data.tipo === "LUMEN_P2P_CHUNK") {
-					const b = bufferRxRef.current.get(data.transferId);
-					if (b) {
-						b.chunks[data.index] = data.chunk;
-						b.count++;
-						const p = 5 + Math.round((b.count / b.total) * 85);
-						setProgresoSync(p);
-						setProgresoTexto(`Recibiendo fragmento ${b.count}/${b.total}...`);
-					}
-				} else if (data.tipo === "LUMEN_P2P_FINISH") {
-					const b = bufferRxRef.current.get(data.transferId);
-					if (b && b.count >= b.total) {
-						const fullStr = b.chunks.join("");
-						bufferRxRef.current.delete(data.transferId);
-						setProgresoSync(92);
-						setProgresoTexto("Restaurando libros, notas, mensajes y Lumo...");
-						const payload = JSON.parse(fullStr);
-						const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-						await t.importarProgreso(payload.datos, (p, tx) => {
-							setProgresoSync(p);
-							setProgresoTexto(tx);
-						});
-						await reload?.();
-						actualizarUltimaSync();
-						toast?.("✓ Sincronización P2P completada");
-						setTimeout(() => { setProgresoSync(null); setProgresoTexto(""); }, 1500);
-					}
-				} else if (data.tipo === "LUMEN_P2P_REQUEST_SYNC") {
-					ejecutarEnvioP2P();
-				}
-			} catch (err) {
-				console.warn("[p2p-dc-rx]", err);
+	const fnDescargarZip = async (datos, nomDisp) => {
+		try {
+			const fnCargar = cargarJSZip || (async () => {
+				const mod = await __vitePreload(async () => {
+					const { default: JSZip } = await import("./epub-B8oVrWvJ.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1));
+					return { default: JSZip };
+				}, __vite__mapDeps([4,1]), import.meta.url);
+				return mod.default;
+			});
+			const JSZip = await fnCargar();
+			const zip = new JSZip();
+			const fecha = new Date().toISOString().slice(0, 10);
+			zip.file("respaldo_lumen.json", JSON.stringify(datos, null, 2));
+			zip.file("LEEME_SINCRONIZACION.txt", "Respaldo sincronizado vía Mi Cuenta P2P de Lumen\nAparato: " + (nomDisp || "Otro dispositivo") + "\nFecha: " + (new Date().toLocaleString()) + "\nLibros incluidos: " + ((datos.libros || []).length) + "\nNotas incluidas: " + ((datos.notas || []).length) + "\nFrases destacadas: " + ((datos.frases || []).length) + "\n");
+			const blob = await zip.generateAsync({ type: "blob" });
+			const limpio = String(nomDisp || "dispositivo").replace(/[^a-zA-Z0-9_-]+/g, "_");
+			const nombreArchivo = "Lumen-Respaldo-P2P-" + limpio + "-" + fecha + ".zip";
+			if (descargarBlob) {
+				descargarBlob(blob, nombreArchivo);
+			} else {
+				const a = document.createElement("a");
+				a.href = URL.createObjectURL(blob);
+				a.download = nombreArchivo;
+				document.body.appendChild(a);
+				a.click();
+				setTimeout(() => {
+					URL.revokeObjectURL(a.href);
+					a.remove();
+				}, 5000);
 			}
-		};
+			return true;
+		} catch (e) {
+			console.warn("[p2p-zip-err]", e);
+			return false;
+		}
 	};
 
-	const actualizarUltimaSync = () => {
+	const actualizarDispositivoVinculado = (disp) => {
 		const ahora = Date.now();
 		const actualizada = {
-			...(cuentaP2P || { usuario: nombre, telefono, contrasena: password, dispositivo }),
+			...(cuentaP2P || {
+				id: "p2p_" + Math.random().toString(36).slice(2, 9),
+				usuario: nombre.trim() || "Lector Lumen",
+				telefono: telefono.trim(),
+				dispositivo: dispositivo.trim() || "Dispositivo Lumen"
+			}),
 			ultimaSync: ahora
 		};
-		if (parRemoto) {
-			const devs = [...(actualizada.dispositivos || [])];
-			const idx = devs.findIndex((d) => d.nombre === parRemoto.dispositivo || d.telefono === parRemoto.telefono);
-			if (idx >= 0) devs[idx] = { ...devs[idx], fecha: ahora };
-			else devs.push({ nombre: parRemoto.dispositivo || "Otro dispositivo", telefono: parRemoto.telefono, fecha: ahora });
-			actualizada.dispositivos = devs;
-		}
+		const devs = [...(actualizada.dispositivos || [])];
+		const idx = devs.findIndex((d) => d.dispositivo === disp.dispositivo || (disp.telefono && d.telefono === disp.telefono));
+		if (idx >= 0) devs[idx] = { ...devs[idx], fecha: ahora };
+		else devs.push({ usuario: disp.usuario, telefono: disp.telefono, dispositivo: disp.dispositivo, fecha: ahora });
+		actualizada.dispositivos = devs;
 		setCuentaP2P(actualizada);
 		try { localStorage.setItem("lumen_cuenta_p2p", JSON.stringify(actualizada)); } catch {}
 	};
 
+	// Escuchar confirmaciones automáticas de otros aparatos
+	(0, import_react.useEffect)(() => {
+		if (!open || !miRoomId) return;
+		
+		const procesarMensajeEntrante = async (msg) => {
+			if (!msg || typeof msg !== "object") return;
+			// Confirmación de conexión y envío de datos
+			if (msg.tipo === "LUMEN_P2P_CONFIRM" && msg.roomId === miRoomId) {
+				if (msg.de && msg.de.id !== cuentaP2P?.id) {
+					toast?.("📡 ¡Conexión confirmada por " + (msg.de.usuario || "el otro aparato") + "!");
+					setSincronizando(true);
+					setProgresoSync(30);
+					setProgresoTexto("Descargando respaldo .zip de " + (msg.de.usuario || "otro aparato") + "…");
+					try {
+						// Descargar respaldo .zip automáticamente
+						if (msg.datos) {
+							await fnDescargarZip(msg.datos, msg.de.dispositivo || msg.de.usuario);
+							setProgresoSync(60);
+							setProgresoTexto("Fusionando libros, notas, rachas y Lumo…");
+							const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+							await t.importarProgreso(msg.datos, (p, tx) => {
+								setProgresoSync(60 + Math.round(p * 0.25));
+								setProgresoTexto(tx || "Fusionando biblioteca…");
+							});
+							await reload?.();
+						}
+						// Responder con ACK y enviar los datos locales al par
+						setProgresoSync(88);
+						setProgresoTexto("Enviando libros y respaldo al otro aparato…");
+						const t2 = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+						const misDatos = await t2.reunirTodo();
+						const ack = {
+							tipo: "LUMEN_P2P_ACK",
+							de: cuentaP2P || { id: "local", usuario: nombre, telefono, dispositivo },
+							para: msg.de,
+							roomId: miRoomId,
+							datos: misDatos,
+							ts: Date.now()
+						};
+						try { broadcastRef.current?.postMessage(ack); } catch {}
+						try { localStorage.setItem("lumen_p2p_channel", JSON.stringify(ack)); } catch {}
+
+						actualizarDispositivoVinculado(msg.de);
+						setProgresoSync(100);
+						setProgresoTexto("¡Sincronización bilateral completada con éxito!");
+						setSincronizadoExitoso(true);
+						haptic$1.success?.();
+						toast?.("🎉 ¡Aparatos sincronizados y respaldo descargado!");
+					} catch (e) {
+						console.warn("[p2p-rx-confirm-err]", e);
+					} finally {
+						setTimeout(() => {
+							setSincronizando(false);
+							setProgresoSync(null);
+						}, 2500);
+					}
+				}
+			}
+		};
+
+		// BroadcastChannel
+		try {
+			if (typeof BroadcastChannel !== "undefined") {
+				const bc = new BroadcastChannel("lumen_p2p_signal_bus");
+				broadcastRef.current = bc;
+				bc.onmessage = (ev) => procesarMensajeEntrante(ev.data);
+			}
+		} catch {}
+
+		// Storage event bus
+		const onStorage = (e) => {
+			if (e.key === "lumen_p2p_channel" && e.newValue) {
+				try {
+					procesarMensajeEntrante(JSON.parse(e.newValue));
+				} catch {}
+			}
+		};
+		window.addEventListener("storage", onStorage);
+
+		return () => {
+			try { broadcastRef.current?.close(); } catch {}
+			window.removeEventListener("storage", onStorage);
+		};
+	}, [open, miRoomId, cuentaP2P, nombre, telefono, dispositivo, reload, toast]);
+
+	// Guardar perfil de este aparato
 	const guardarCuenta = () => {
 		const nom = nombre.trim();
-		if (!nom) return toast?.("Ingresa al menos un nombre de usuario");
+		if (!nom) return toast?.("Ingresa al menos tu nombre");
 		const nueva = {
 			id: cuentaP2P?.id || ("p2p_" + Math.random().toString(36).slice(2, 9)),
+			roomId: miRoomId || ("lumen_p2p_" + Math.random().toString(36).slice(2, 9)),
 			usuario: nom,
 			telefono: telefono.trim(),
-			contrasena: password.trim(),
 			dispositivo: dispositivo.trim() || "Dispositivo Lumen",
-			autoSync,
 			creadoEn: cuentaP2P?.creadoEn || Date.now(),
 			ultimaSync: cuentaP2P?.ultimaSync || null,
 			dispositivos: cuentaP2P?.dispositivos || []
 		};
 		setCuentaP2P(nueva);
 		try { localStorage.setItem("lumen_cuenta_p2p", JSON.stringify(nueva)); } catch {}
+		setEditandoPerfil(false);
 		haptic$1.success?.();
-		toast?.("✓ Cuenta P2P activada en este dispositivo");
-		setTab("sincronizar");
+		toast?.("✓ Datos guardados para este aparato");
 	};
 
-	const generarOfertaQR = async () => {
-		setGenerandoQR(true);
-		setEstadoP2P("buscando");
-		try {
-			const pc = new RTCPeerConnection({
-				iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }]
-			});
-			pcRef.current = pc;
-			const dc = pc.createDataChannel("lumen-p2p", { ordered: true });
-			enlazarDataChannel(dc);
-
-			pc.onicecandidate = (e) => {
-				if (!e.candidate) {
-					const payload = {
-						tipo: "LUMEN_OFERTA",
-						sdp: pc.localDescription?.sdp,
-						usuario: cuentaP2P?.usuario || nombre,
-						telefono: cuentaP2P?.telefono || telefono,
-						dispositivo: cuentaP2P?.dispositivo || dispositivo
-					};
-					const txt = JSON.stringify(payload);
-					setCodigoOferta(txt);
-					setQrOferta(generarQrDataUrl(txt, 260));
-					setGenerandoQR(false);
-				}
-			};
-
-			const offer = await pc.createOffer();
-			await pc.setLocalDescription(offer);
-
-			setTimeout(() => {
-				if (!codigoOferta && pc.localDescription) {
-					const payload = {
-						tipo: "LUMEN_OFERTA",
-						sdp: pc.localDescription.sdp,
-						usuario: cuentaP2P?.usuario || nombre,
-						telefono: cuentaP2P?.telefono || telefono,
-						dispositivo: cuentaP2P?.dispositivo || dispositivo
-					};
-					const txt = JSON.stringify(payload);
-					setCodigoOferta(txt);
-					setQrOferta(generarQrDataUrl(txt, 260));
-					setGenerandoQR(false);
-				}
-			}, 1800);
-		} catch (e) {
-			console.warn("[p2p-oferta]", e);
-			toast?.("Error generando oferta P2P");
-			setGenerandoQR(false);
+	// Detectar código pegado o escrito
+	const onCambioCodigo = (val) => {
+		setCodigoEntrada(val);
+		if (val.trim().length > 10) {
+			const parsed = parsearCodigoP2P(val);
+			if (parsed && (parsed.usuario || parsed.roomId)) {
+				setDetectado(parsed);
+				haptic$1.success?.();
+				toast?.("📡 ¡Aparato detectado: " + (parsed.usuario || "Lector") + "!");
+			}
 		}
 	};
 
-	const procesarOfertaEntrante = async (str) => {
+	const ejecutarDeteccion = () => {
+		const parsed = parsearCodigoP2P(codigoEntrada);
+		if (!parsed) {
+			toast?.("No se detectó un código válido de Lumen. Pega el código de tu otro aparato.");
+			return;
+		}
+		setDetectado(parsed);
+		haptic$1.success?.();
+		toast?.("📡 ¡Aparato detectado: " + (parsed.usuario || "Lector") + "!");
+	};
+
+	const escanearImagenQR = () => {
+		const inp = document.createElement("input");
+		inp.type = "file";
+		inp.accept = "image/*";
+		inp.setAttribute("capture", "environment");
+		inp.onchange = async () => {
+			const file = inp.files?.[0];
+			if (!file) return;
+			try {
+				const { decodificarQr } = await __vitePreload(() => import("./qrLumen-BDUGNJQb.js"), __vite__mapDeps([14,0,1,2,3,4,5,6,7]), import.meta.url);
+				const img = new Image();
+				const url = URL.createObjectURL(file);
+				img.onload = async () => {
+					const cv = document.createElement("canvas");
+					cv.width = img.width;
+					cv.height = img.height;
+					const ctx = cv.getContext("2d");
+					ctx.drawImage(img, 0, 0);
+					URL.revokeObjectURL(url);
+					const txt = await decodificarQr(cv);
+					if (txt) {
+						setCodigoEntrada(txt);
+						const parsed = parsearCodigoP2P(txt);
+						if (parsed) {
+							setDetectado(parsed);
+							haptic$1.success?.();
+							toast?.("📡 ¡Aparato detectado: " + (parsed.usuario || "Lector") + "!");
+						} else {
+							toast?.("El código QR no contiene datos de Lumen");
+						}
+					} else {
+						toast?.("No se detectó un código QR válido en la imagen");
+					}
+				};
+				img.src = url;
+			} catch (err) {
+				toast?.("Error leyendo imagen QR: " + (err?.message || err));
+			}
+		};
+		inp.click();
+	};
+
+	const copiarMiCodigo = () => {
+		if (!miCodigo) return;
 		try {
-			const obj = JSON.parse(str.trim());
-			if (obj.tipo !== "LUMEN_OFERTA" || !obj.sdp) throw new Error("Código de oferta inválido");
-			setParRemoto({ usuario: obj.usuario, telefono: obj.telefono, dispositivo: obj.dispositivo });
-			setEstadoP2P("buscando");
-
-			const pc = new RTCPeerConnection({
-				iceServers: [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun1.l.google.com:19302" }]
-			});
-			pcRef.current = pc;
-			pc.ondatachannel = (e) => enlazarDataChannel(e.channel);
-
-			await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: obj.sdp }));
-			const answer = await pc.createAnswer();
-			await pc.setLocalDescription(answer);
-
-			pc.onicecandidate = (e) => {
-				if (!e.candidate) {
-					const resp = {
-						tipo: "LUMEN_RESPUESTA",
-						sdp: pc.localDescription?.sdp,
-						usuario: cuentaP2P?.usuario || nombre,
-						telefono: cuentaP2P?.telefono || telefono,
-						dispositivo: cuentaP2P?.dispositivo || dispositivo
-					};
-					const respTxt = JSON.stringify(resp);
-					setCodigoRespuesta(respTxt);
-					setQrRespuesta(generarQrDataUrl(respTxt, 260));
-					toast?.("✓ Respuesta generada. Muéstrala o cópiala al primer dispositivo.");
-				}
-			};
-
-			setTimeout(() => {
-				if (!codigoRespuesta && pc.localDescription) {
-					const resp = {
-						tipo: "LUMEN_RESPUESTA",
-						sdp: pc.localDescription.sdp,
-						usuario: cuentaP2P?.usuario || nombre,
-						telefono: cuentaP2P?.telefono || telefono,
-						dispositivo: cuentaP2P?.dispositivo || dispositivo
-					};
-					const respTxt = JSON.stringify(resp);
-					setCodigoRespuesta(respTxt);
-					setQrRespuesta(generarQrDataUrl(respTxt, 260));
-				}
-			}, 1800);
-		} catch (e) {
-			toast?.("Error procesando oferta: " + (e?.message || e));
+			navigator.clipboard?.writeText(miCodigo);
+			haptic$1.tap?.();
+			toast?.("✓ Código copiado. Pégalo en tu otro aparato.");
+		} catch {
+			toast?.("Copia el código manualmente");
 		}
 	};
 
-	const aplicarRespuesta = async (str) => {
+	// Confirmar conexión bilateral y sincronizar todo
+	const confirmarYConectar = async () => {
+		if (!detectado) return;
+		setSincronizando(true);
+		setProgresoSync(10);
+		setProgresoTexto("Conectando con " + (detectado.usuario || "el otro aparato") + "…");
+		haptic$1.tap?.();
 		try {
-			const obj = JSON.parse(str.trim());
-			if (obj.tipo !== "LUMEN_RESPUESTA" || !obj.sdp) throw new Error("Código de respuesta inválido");
-			if (!pcRef.current) throw new Error("No hay conexión activa iniciada");
-			await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: "answer", sdp: obj.sdp }));
-			setParRemoto({ usuario: obj.usuario, telefono: obj.telefono, dispositivo: obj.dispositivo });
-			toast?.("✓ Vinculación completada con " + (obj.usuario || "el dispositivo"));
-			setCodigoEntrada("");
-		} catch (e) {
-			toast?.("Error aplicando respuesta: " + (e?.message || e));
-		}
-	};
-
-	const ejecutarEnvioP2P = async () => {
-		setProgresoSync(5);
-		setProgresoTexto("Recopilando libros, notas, mensajes y Lumo...");
-		haptic$1.tap();
-		try {
+			// 1. Reúne los datos locales
 			const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-			const datos = await t.reunirTodo((pct, msg) => {
-				setProgresoSync(Math.round(pct * 0.4));
-				setProgresoTexto(msg);
+			setProgresoSync(25);
+			setProgresoTexto("Preparando tus libros, notas y Lumo…");
+			const datosLocales = await t.reunirTodo((pct, msg) => {
+				setProgresoSync(25 + Math.round(pct * 0.25));
+				setProgresoTexto(msg || "Empaquetando datos…");
 			});
 
-			const payload = {
-				tipo: "LUMEN_P2P_SYNC_DATA",
-				usuario: cuentaP2P?.usuario || nombre,
-				telefono: cuentaP2P?.telefono || telefono,
-				dispositivo: cuentaP2P?.dispositivo || dispositivo,
-				fecha: Date.now(),
-				datos
+			const miCuenta = cuentaP2P || {
+				id: "p2p_" + Math.random().toString(36).slice(2, 9),
+				usuario: nombre.trim() || "Lector Lumen",
+				telefono: telefono.trim(),
+				dispositivo: dispositivo.trim() || "Dispositivo Lumen",
+				creadoEn: Date.now()
 			};
 
-			const dc = dcRef.current;
-			if (dc && dc.readyState === "open") {
-				const jsonStr = JSON.stringify(payload);
-				const CHUNK_SIZE = 32 * 1024;
-				const totalChunks = Math.ceil(jsonStr.length / CHUNK_SIZE);
-				const transferId = "tx_" + Date.now();
+			const paquete = {
+				tipo: "LUMEN_P2P_CONFIRM",
+				de: miCuenta,
+				para: detectado,
+				roomId: detectado.roomId || miRoomId,
+				datos: datosLocales,
+				ts: Date.now()
+			};
 
-				dc.send(JSON.stringify({ tipo: "LUMEN_P2P_START", transferId, totalChunks }));
-				for (let i = 0; i < totalChunks; i++) {
-					const chunk = jsonStr.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-					dc.send(JSON.stringify({ tipo: "LUMEN_P2P_CHUNK", transferId, index: i, chunk }));
-					setProgresoSync(40 + Math.round(((i + 1) / totalChunks) * 55));
-					setProgresoTexto(`Transmitiendo fragmento ${i + 1}/${totalChunks}...`);
-					if (dc.bufferedAmount > 128 * 1024) await new Promise((r) => setTimeout(r, 30));
-				}
-				dc.send(JSON.stringify({ tipo: "LUMEN_P2P_FINISH", transferId }));
-			} else {
-				try {
-					broadcastRef.current?.postMessage({
-						tipo: "LUMEN_P2P_AUTO_SYNC",
-						id: cuentaP2P?.id || "local",
-						usuario: cuentaP2P?.usuario || nombre,
-						datos
-					});
-				} catch {}
+			// Transmitir confirmación a canales locales y bus
+			try { broadcastRef.current?.postMessage(paquete); } catch {}
+			try { localStorage.setItem("lumen_p2p_channel", JSON.stringify(paquete)); } catch {}
+
+			// Esperar datos del otro aparato o usar los incluidos
+			let datosRemotos = detectado.datos || null;
+			if (!datosRemotos) {
+				setProgresoSync(55);
+				setProgresoTexto("Esperando libros y respaldo del otro aparato…");
+				datosRemotos = await new Promise((resolve) => {
+					let terminado = false;
+					const timer = setTimeout(() => {
+						if (!terminado) {
+							terminado = true;
+							resolve(null);
+						}
+					}, 12000);
+
+					const onMsg = (m) => {
+						if (!m || terminado) return;
+						if ((m.tipo === "LUMEN_P2P_ACK" || m.tipo === "LUMEN_P2P_CONFIRM") && m.datos) {
+							terminado = true;
+							clearTimeout(timer);
+							resolve(m.datos);
+						}
+					};
+
+					const hBC = (ev) => onMsg(ev.data);
+					const hST = (e) => {
+						if (e.key === "lumen_p2p_channel" && e.newValue) {
+							try { onMsg(JSON.parse(e.newValue)); } catch {}
+						}
+					};
+
+					broadcastRef.current?.addEventListener?.("message", hBC);
+					window.addEventListener("storage", hST);
+				});
 			}
 
-			setProgresoSync(100);
-			setProgresoTexto("¡Sincronización P2P enviada con éxito!");
-			actualizarUltimaSync();
-			haptic$1.success?.();
-			toast?.("✓ Sincronización enviada");
-			setTimeout(() => { setProgresoSync(null); setProgresoTexto(""); }, 1600);
-		} catch (e) {
-			console.warn("[p2p-sync-error]", e);
-			toast?.("Error en la sincronización: " + (e?.message || e));
-			setProgresoSync(null);
+			if (datosRemotos) {
+				setProgresoSync(70);
+				setProgresoTexto("Descargando archivo de respaldo .zip del otro aparato…");
+				await fnDescargarZip(datosRemotos, detectado.dispositivo || detectado.usuario);
+
+				setProgresoSync(85);
+				setProgresoTexto("Fusionando libros, notas, rachas y Lumo en tu biblioteca…");
+				await t.importarProgreso(datosRemotos, (p, tx) => {
+					setProgresoSync(85 + Math.round(p * 0.12));
+					setProgresoTexto(tx || "Fusionando biblioteca…");
+				});
+
+				setProgresoSync(100);
+				setProgresoTexto("¡Sincronización completada con éxito!");
+				await reload?.();
+
+				actualizarDispositivoVinculado(detectado);
+				setSincronizadoExitoso(true);
+				haptic$1.success?.();
+				toast?.("🎉 ¡Conexión y sincronización completada!");
+			} else {
+				setProgresoSync(100);
+				setProgresoTexto("Señal enviada al otro aparato. Confirma la conexión en ambos.");
+				toast?.("Enlace enviado al otro aparato");
+			}
+		} catch (err) {
+			console.warn("[p2p-confirmar-err]", err);
+			toast?.("Error en la conexión: " + (err?.message || err));
+		} finally {
+			setTimeout(() => {
+				setSincronizando(false);
+				setProgresoSync(null);
+			}, 2200);
 		}
+	};
+
+	const exportarZipManual = async () => {
+		toast?.("Preparando respaldo .zip de este aparato…");
+		try {
+			const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+			const datos = await t.reunirTodo();
+			await fnDescargarZip(datos, dispositivo || nombre || "Lumen");
+			toast?.("✓ Respaldo .zip descargado con éxito");
+		} catch (e) {
+			toast?.("Error exportando zip: " + (e?.message || e));
+		}
+	};
+
+	const importarZipManual = () => {
+		const inp = document.createElement("input");
+		inp.type = "file";
+		inp.accept = ".zip,.json";
+		inp.onchange = async () => {
+			const file = inp.files?.[0];
+			if (!file) return;
+			try {
+				toast?.("Importando y fusionando respaldo…");
+				let datos = null;
+				if (file.name.endsWith(".json")) {
+					datos = JSON.parse(await file.text());
+				} else {
+					const fnCargar = cargarJSZip || (async () => {
+						const mod = await __vitePreload(async () => {
+							const { default: JSZip } = await import("./epub-B8oVrWvJ.js").then((n) => /* @__PURE__ */ __toESM(n.t(), 1));
+							return { default: JSZip };
+						}, __vite__mapDeps([4,1]), import.meta.url);
+						return mod.default;
+					});
+					const JSZip = await fnCargar();
+					const zip = await JSZip.loadAsync(file);
+					const fJson = zip.file("respaldo_lumen.json") || Object.values(zip.files).find((f) => f.name.endsWith(".json"));
+					if (!fJson) throw new Error("No se encontró respaldo_lumen.json dentro del archivo .zip");
+					datos = JSON.parse(await fJson.async("text"));
+				}
+				const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+				await t.importarProgreso(datos);
+				await reload?.();
+				toast?.("🎉 ¡Respaldo importado y libros fusionados con éxito!");
+			} catch (e) {
+				toast?.("Error importando archivo: " + (e?.message || e));
+			}
+		};
+		inp.click();
 	};
 
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 		open,
 		onClose,
-		title: "🛡️ Mi Cuenta P2P (Signal Sync)",
+		title: "🛡️ Mi Cuenta P2P (Sincronización Directa)",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "p2p-modal",
@@ -37440,288 +37567,44 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P 
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", {
 										children: [
-											nombre || "Cuenta P2P sin configurar",
-											telefono ? ` (${telefono})` : ""
+											nombre || "Este Aparato",
+											telefono ? " (" + telefono + ")" : ""
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 										children: [
 											dispositivo,
-											cuentaP2P?.ultimaSync ? ` · Última sync: ${new Date(cuentaP2P.ultimaSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : " · Servidor P2P local activo"
+											cuentaP2P?.ultimaSync ? " · Sincronizado: " + (new Date(cuentaP2P.ultimaSync).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })) : " · Sincronización P2P directa"
 										]
 									}),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 										className: "p2p-badge-signal",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "p2p-dot" }),
-											estadoP2P === "conectado" ? `Conectado con ${parRemoto?.usuario || "par P2P"}` : "Sin servidores externos · E2E"
+											"Directo entre aparatos · Sin servidores centrales"
 										]
 									})
 								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn sm ghost",
+								style: { alignSelf: "flex-start" },
+								onClick: () => setEditandoPerfil(!editandoPerfil),
+								children: editandoPerfil ? "Listo" : "✏️ Editar"
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "p2p-tabs",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "p2p-tab" + (tab === "sincronizar" ? " active" : ""),
-								onClick: () => { setTab("sincronizar"); haptic$1.tap(); },
-								children: "🔄 Sincronizar"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "p2p-tab" + (tab === "vincular_qr" ? " active" : ""),
-								onClick: () => {
-									setTab("vincular_qr");
-									haptic$1.tap();
-									if (!qrOferta) generarOfertaQR();
-								},
-								children: "📲 Vincular QR"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "p2p-tab" + (tab === "escanear_qr" ? " active" : ""),
-								onClick: () => { setTab("escanear_qr"); haptic$1.tap(); },
-								children: "📥 Unirme"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "p2p-tab" + (tab === "perfil" ? " active" : ""),
-								onClick: () => { setTab("perfil"); haptic$1.tap(); },
-								children: "👤 Mi Cuenta"
-							})
-						]
-					}),
-					progresoSync != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "p2p-progress-box",
+					editandoPerfil && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "p2p-step-box",
+						style: { animation: "p2p-pop .2s ease" },
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "p2p-progress-bar",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: `${progresoSync}%` } })
+								className: "p2p-step-title",
+								children: "👤 Datos de este aparato:"
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--fg-muted)" },
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: progresoTexto }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [progresoSync, "%"] })
-								]
-							})
-						]
-					}),
-					tab === "sincronizar" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { display: "flex", flexDirection: "column", gap: 10 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn primary",
-										style: { padding: "13px 18px", fontSize: 16, fontWeight: 700 },
-										disabled: progresoSync != null,
-										onClick: ejecutarEnvioP2P,
-										children: "🚀 Sincronizar Todo Ahora (P2P)"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn ghost",
-										disabled: progresoSync != null,
-										onClick: () => {
-											if (dcRef.current?.readyState === "open") {
-												dcRef.current.send(JSON.stringify({ tipo: "LUMEN_P2P_REQUEST_SYNC" }));
-												toast?.("Petición enviada al dispositivo par");
-											} else {
-												ejecutarEnvioP2P();
-											}
-										},
-										children: "📥 Solicitar datos del otro dispositivo"
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { marginTop: 8 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "row-label",
-										style: { marginBottom: 6 },
-										children: "Datos respaldados y sincronizados directamente:"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "p2p-grid-synced",
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📚" }), "Libros y páginas"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📝" }), "Notas y audios"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📖" }), "Posición y marcas"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "💬" }), "Mensajes guardados"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📢" }), "Libros publicados"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🌟" }), "Nivel y XP"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🛋️" }), "Lumo y compras"] }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🔥" }), "Rachas y logros"] })
-										]
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								style: { marginTop: 6 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Auto-sincronización P2P" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Propaga cambios cuando tus dispositivos estén abiertos" })
-										]
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-										on: autoSync,
-										onChange: (v) => {
-											setAutoSync(v);
-											if (cuentaP2P) {
-												const upd = { ...cuentaP2P, autoSync: v };
-												setCuentaP2P(upd);
-												try { localStorage.setItem("lumen_cuenta_p2p", JSON.stringify(upd)); } catch {}
-											}
-										}
-									})
-								]
-							})
-						]
-					}),
-					tab === "vincular_qr" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "p2p-qr-container",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-sub",
-								children: "Escanea este código QR desde tu otro dispositivo para vincularlos directamente:"
-							}),
-							generandoQR ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { padding: 40 }, children: "Generando invitación WebRTC P2P…" }) : qrOferta ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "p2p-qr-img-wrapper",
-								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: qrOferta, alt: "Código QR P2P" })
-							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn primary",
-								onClick: generarOfertaQR,
-								children: "Generar Código QR"
-							}),
-							codigoOferta && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { width: "100%", display: "flex", flexDirection: "column", gap: 6 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn sm ghost",
-										onClick: () => {
-											navigator.clipboard?.writeText(codigoOferta);
-											toast?.("Código copiado al portapapeles");
-										},
-										children: "📋 Copiar código de vinculación"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "row-sub",
-										style: { marginTop: 6 },
-										children: "¿Tu otro dispositivo te dio un código de respuesta? Pégalo aquí:"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										style: { display: "flex", gap: 6 },
-										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-												className: "plain",
-												style: { flex: 1 },
-												placeholder: "Pegar respuesta...",
-												value: codigoEntrada,
-												onChange: (e) => setCodigoEntrada(e.target.value)
-											}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm primary",
-												onClick: () => aplicarRespuesta(codigoEntrada),
-												children: "Conectar"
-											})
-										]
-									})
-								]
-							})
-						]
-					}),
-					tab === "escanear_qr" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "p2p-qr-container",
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-sub",
-								children: "Pega el código de vinculación o sube una imagen con el código QR:"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { display: "flex", gap: 8, width: "100%", justifyContent: "center" },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn sm ghost",
-										onClick: () => {
-											const inp = document.createElement("input");
-											inp.type = "file";
-											inp.accept = "image/*";
-											inp.onchange = async () => {
-												const file = inp.files?.[0];
-												if (!file) return;
-												try {
-													const { decodificarQr } = await __vitePreload(() => import("./qrLumen-BDUGNJQb.js"), __vite__mapDeps([14,0,1,2,3,4,5,6,7]), import.meta.url);
-													const img = new Image();
-													const url = URL.createObjectURL(file);
-													img.onload = async () => {
-														const cv = document.createElement("canvas");
-														cv.width = img.width;
-														cv.height = img.height;
-														const ctx = cv.getContext("2d");
-														ctx.drawImage(img, 0, 0);
-														URL.revokeObjectURL(url);
-														const txt = await decodificarQr(cv);
-														if (txt) {
-															setCodigoEntrada(txt);
-															procesarOfertaEntrante(txt);
-														} else {
-															toast?.("No se detectó un código QR válido");
-														}
-													};
-													img.src = url;
-												} catch (err) {
-													toast?.("Error leyendo imagen: " + (err?.message || err));
-												}
-											};
-											inp.click();
-										},
-										children: "📁 Subir imagen QR"
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
-								className: "plain p2p-code-box",
-								rows: 3,
-								placeholder: "Pega aquí el código de oferta...",
-								value: codigoEntrada,
-								onChange: (e) => setCodigoEntrada(e.target.value)
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-								className: "btn primary",
-								style: { width: "100%" },
-								disabled: !codigoEntrada.trim(),
-								onClick: () => procesarOfertaEntrante(codigoEntrada),
-								children: "Generar Respuesta P2P"
-							}),
-							qrRespuesta && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								style: { marginTop: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 },
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Copia esta respuesta y aplícala en el primer dispositivo:" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "p2p-qr-img-wrapper",
-										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: qrRespuesta, alt: "Código QR Respuesta" })
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn sm ghost",
-										onClick: () => {
-											navigator.clipboard?.writeText(codigoRespuesta);
-											toast?.("Respuesta copiada al portapapeles");
-										},
-										children: "📋 Copiar respuesta"
-									})
-								]
-							})
-						]
-					}),
-					tab === "perfil" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						style: { display: "flex", flexDirection: "column", gap: 12 },
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Nombre de usuario o alias" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Tu nombre o alias:" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 										className: "plain",
 										style: { width: "100%", marginTop: 4 },
@@ -37733,7 +37616,7 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Número de teléfono (identificador P2P)" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Número de teléfono (identificador):" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 										className: "plain",
 										style: { width: "100%", marginTop: 4 },
@@ -37745,24 +37628,11 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Contraseña / Frase de cifrado E2E" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-										type: "password",
-										className: "plain",
-										style: { width: "100%", marginTop: 4 },
-										placeholder: "••••••••",
-										value: password,
-										onChange: (e) => setPassword(e.target.value)
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Nombre de este dispositivo" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Nombre de este aparato:" }),
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
 										className: "plain",
 										style: { width: "100%", marginTop: 4 },
-										placeholder: "Ej: Mi Móvil",
+										placeholder: "Ej: Mi Teléfono / Mi Computador",
 										value: dispositivo,
 										onChange: (e) => setDispositivo(e.target.value)
 									})
@@ -37770,24 +37640,206 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P 
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								className: "btn primary",
-								style: { marginTop: 6, padding: "12px 16px" },
 								onClick: guardarCuenta,
-								children: cuentaP2P?.usuario ? "Guardar cambios" : "✨ Crear / Activar mi Cuenta P2P"
+								children: "💾 Guardar mis datos"
+							})
+						]
+					}),
+					progresoSync != null && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "p2p-progress-box",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "p2p-progress-bar",
+								children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("i", { style: { width: progresoSync + "%" } })
 							}),
-							cuentaP2P?.usuario && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								style: { display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--fg-muted)" },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: progresoTexto }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("b", { children: [progresoSync, "%"] })
+								]
+							})
+						]
+					}),
+					detectado ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "p2p-confirm-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-badge",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📡" }),
+									"¡Aparato detectado!"
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "p2p-confirm-nombre",
+								children: detectado.usuario || "Lector Lumen"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-info",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										children: ["📱 Teléfono: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: detectado.telefono || "Sin registrar" })]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										children: ["💻 Aparato: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: detectado.dispositivo || "Dispositivo remoto" })]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+								className: "p2p-confirm-pregunta",
+								children: "¿Es el aparato que estás buscando para proceder con la conexión? Al confirmar se conectarán automáticamente, se descargará el respaldo .zip y se fusionarán tus libros, notas, rachas y Lumo."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-btns",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { flex: 1, padding: "13px 16px", fontSize: 15, fontWeight: 800 },
+										disabled: sincronizando,
+										onClick: confirmarYConectar,
+										children: sincronizando ? "Conectando…" : "✓ Sí, conectar y sincronizar"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn ghost",
+										style: { padding: "13px 16px" },
+										disabled: sincronizando,
+										onClick: () => { setDetectado(null); setCodigoEntrada(""); },
+										children: "✕ Cancelar"
+									})
+								]
+							})
+						]
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+						children: [
+							sincronizadoExitoso && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-success-banner",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { style: { fontSize: 32 }, children: "🎉" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { style: { fontSize: 17, color: "var(--fg)" }, children: "¡Conexión y Sincronización Completada!" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										style: { fontSize: 13.5, color: "var(--fg-muted)", textAlign: "center", lineHeight: 1.4 },
+										children: [
+											"• Se descargó automáticamente el archivo .zip de respaldo del otro aparato en tus descargas.",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+											"• Todos tus libros anteriores y los del otro aparato ya están disponibles en tu pantalla de inicio.",
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
+											"• Se fusionaron tus notas, mensajes, rachas, logros y Lumo."
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { marginTop: 6, padding: "10px 18px", fontWeight: 700 },
+										onClick: onClose,
+										children: "📖 Ir a mi biblioteca"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-step-box",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "p2p-step-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-num", children: "1" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-title", children: "Muestra este código QR" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-sub", children: "Apunta la cámara de tu otro aparato aquí" })
+												]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "p2p-qr-container",
+										style: { padding: 12 },
+										children: [
+											miQr && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "p2p-qr-img-wrapper",
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", { src: miQr, alt: "Código QR P2P" })
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm ghost",
+												onClick: copiarMiCodigo,
+												children: "📋 Copiar código de este aparato"
+											})
+										]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-step-box",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "p2p-step-head",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-num", children: "2" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-title", children: "O conéctate a tu otro aparato" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-step-sub", children: "Escanea su QR o pega el código que copiaste" })
+												]
+											})
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm ghost",
+										onClick: escanearImagenQR,
+										children: "📷 Escanear con cámara o subir foto del QR"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
+										className: "plain p2p-code-box",
+										rows: 2,
+										placeholder: "O pega aquí el código de tu otro aparato...",
+										value: codigoEntrada,
+										onChange: (e) => onCambioCodigo(e.target.value)
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { width: "100%", padding: "12px 16px", fontWeight: 700 },
+										disabled: !codigoEntrada.trim(),
+										onClick: ejecutarDeteccion,
+										children: "🔍 Detectar y Conectar Aparato"
+									})
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						style: { marginTop: 4 },
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "row-label",
+								style: { marginBottom: 6 },
+								children: "Se sincroniza y fusiona automáticamente:"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-grid-synced",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📚" }), "Libros y páginas"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📝" }), "Notas y audios"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "📖" }), "Posición y marcas"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "💬" }), "Mensajes guardados"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🌟" }), "Nivel y XP"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🛋️" }), "Lumo y compras"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "🔥" }), "Rachas y logros"] }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { className: "p2p-sync-chip", children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "ico", children: "⚙️" }), "Configuraciones"] })
+								]
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						style: { marginTop: 6, display: "flex", gap: 8, justifyContent: "center" },
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 								className: "btn sm ghost",
-								style: { color: "#ef4444" },
-								onClick: () => {
-									if (confirm("¿Desvincular esta cuenta de este dispositivo?")) {
-										setCuentaP2P(null);
-										try { localStorage.removeItem("lumen_cuenta_p2p"); } catch {}
-										toast?.("Cuenta desvinculada de este dispositivo");
-										setNombre("");
-										setTelefono("");
-										setPassword("");
-									}
-								},
-								children: "Cerrar sesión / Desvincular dispositivo"
+								onClick: exportarZipManual,
+								children: "📦 Descargar respaldo .zip"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+								className: "btn sm ghost",
+								onClick: importarZipManual,
+								children: "📥 Importar respaldo .zip"
 							})
 						]
 					})
@@ -37796,7 +37848,6 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P 
 		]
 	});
 }
-
 function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, progress, game, settings, setSettings, onOpen, toast, refreshKey, sheetReq, onSheetReqDone, onStatsChange, onPublicarLibro, onLibrosGratis }) {
 	const [books, setBooks] = (0, import_react.useState)([]);
 	const [imports, setImports] = (0, import_react.useState)([]);
@@ -41398,7 +41449,9 @@ const toquesDev = (0, import_react.useRef)(0);
 				toast,
 				reload,
 				cuentaP2P,
-				setCuentaP2P
+				setCuentaP2P,
+				cargarJSZip,
+				descargarBlob
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: ordenandoFiltros,
