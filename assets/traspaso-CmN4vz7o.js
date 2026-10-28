@@ -63,7 +63,7 @@ async function reunirTodo(avisar = () => {}) {
 		getMeta("premium_estado", null),
 		getMeta("streak", null)
 	]);
-	const [identidad, relays, ledgerAds, campanasAds, poavAds, votosAds, espacioAds, lnAds, validadorAds, autoInvAds, modoAds, moderacionIA, catalogoFiltros] = await Promise.all([
+	const [identidad, relays, ledgerAds, campanasAds, poavAds, votosAds, espacioAds, lnAds, validadorAds, autoInvAds, modoAds, moderacionIA, catalogoFiltros, metaPublicados] = await Promise.all([
 		getMeta("nostr_identidad", null),
 		getMeta("nostr_relays", null),
 		getMeta("ads_ledger", null),
@@ -76,8 +76,19 @@ async function reunirTodo(avisar = () => {}) {
 		getMeta("ads_autoinversion", null),
 		getMeta("ads_modo", null),
 		getMeta("nostr_moderacion", null),
-		getMeta("catalogo_filtros", null)
+		getMeta("catalogo_filtros", null),
+		getMeta("lumen_publicados", null)
 	]);
+	const publicados = metaPublicados?.lista || (() => {
+		try { return JSON.parse(localStorage.getItem("lumen_publicados") || "[]"); } catch { return []; }
+	})();
+	let lumoLocal = null;
+	try {
+		lumoLocal = typeof localStorage !== "undefined" ? {
+			offsets: localStorage.getItem("lumen_lumo_offsets_v2") || localStorage.getItem("lumen_lumo_layout_perm") || null,
+			anim: localStorage.getItem("lumen_lumo_anim_active") || null
+		} : null;
+	} catch {}
 	avisar(88, "Empaquetando…");
 	return {
 		formato: FORMATO,
@@ -99,6 +110,8 @@ async function reunirTodo(avisar = () => {}) {
 		racha,
 		identidad,
 		relays,
+		publicados,
+		lumoLocal,
 		wallet: {
 			ledger: ledgerAds,
 			campanas: campanasAds,
@@ -343,6 +356,22 @@ async function importarProgreso(datos, avisar = () => {}) {
 			id: "catalogo_filtros",
 			...datos.catalogoFiltros
 		});
+		if (datos.publicados) {
+			const listaPub = Array.isArray(datos.publicados) ? datos.publicados : (datos.publicados.lista || []);
+			await setMeta({ id: "lumen_publicados", lista: listaPub });
+			try { localStorage.setItem("lumen_publicados", JSON.stringify(listaPub)); } catch {}
+		}
+		if (datos.lumoLocal) {
+			try {
+				if (datos.lumoLocal.offsets) {
+					localStorage.setItem("lumen_lumo_offsets_v2", datos.lumoLocal.offsets);
+					localStorage.setItem("lumen_lumo_layout_perm", datos.lumoLocal.offsets);
+				}
+				if (datos.lumoLocal.anim != null) {
+					localStorage.setItem("lumen_lumo_anim_active", String(datos.lumoLocal.anim));
+				}
+			} catch {}
+		}
 		const w = datos.wallet || {};
 		if (w.ledger) await setMeta({
 			id: "ads_ledger",
