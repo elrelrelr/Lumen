@@ -257,6 +257,31 @@ async function importarProgreso(datos, avisar = () => {}) {
 		avisar(5 + Math.round(i / Math.max(1, libros.length) * 70), `Libro ${i}/${libros.length}`);
 		const clave = `${(b.title || "").toLowerCase()}|${(b.author || "").toLowerCase()}`;
 		if (yaEstan.has(b.id) || porTitulo.has(clave)) {
+			try {
+				const existente = actuales.find((x) => x.id === b.id || `${(x.title || "").toLowerCase()}|${(x.author || "").toLowerCase()}` === clave);
+				if (existente) {
+					const mActuales = Array.isArray(existente.marcadores) ? existente.marcadores : (existente.marcador ? [existente.marcador] : []);
+					const mRemotos = Array.isArray(b.marcadores) ? b.marcadores : (b.marcador ? [b.marcador] : []);
+					const mapaMarcas = new Map();
+					[...mActuales, ...mRemotos].forEach((m) => {
+						if (!m) return;
+						const k = `${m.page || 0}_${m.offset || 0}_${m.vista || ""}`;
+						if (!mapaMarcas.has(k) || (m.createdAt || 0) > (mapaMarcas.get(k)?.createdAt || 0)) mapaMarcas.set(k, m);
+					});
+					const marcadoresFusionados = Array.from(mapaMarcas.values()).sort((x, y) => (x.createdAt || x.page || 0) - (y.createdAt || y.page || 0));
+					const ultimoMarcador = marcadoresFusionados[marcadoresFusionados.length - 1] || existente.marcador || b.marcador || null;
+					await patchBook(existente.id, {
+						lastPage: Math.max(existente.lastPage || 0, b.lastPage || 0),
+						percentRead: Math.max(existente.percentRead || 0, b.percentRead || 0),
+						openedAt: Math.max(existente.openedAt || 0, b.openedAt || 0),
+						addedAt: Math.min(existente.addedAt || Date.now(), b.addedAt || Date.now()),
+						marcadores: marcadoresFusionados,
+						marcador: ultimoMarcador
+					});
+				}
+			} catch (eM) {
+				console.warn("[traspaso merge existente]", eM);
+			}
 			resumen.saltados++;
 			continue;
 		}
@@ -277,15 +302,21 @@ async function importarProgreso(datos, avisar = () => {}) {
 	}
 	avisar(80, "Frases y notas…");
 	for (const h of datos.frases || []) try {
-		if (!await withDb((d) => d.get("highlights", h.id)).catch(() => null)) {
-			await withDb((d) => d.put("highlights", h));
+		const ex = await withDb((d) => d.get("highlights", h.id)).catch(() => null);
+		if (!ex) {
+			await withDb((d) => d.put("highlights", { ...h, createdAt: h.createdAt || Date.now() }));
 			resumen.frases++;
+		} else if ((h.updatedAt || h.createdAt || 0) > (ex.updatedAt || ex.createdAt || 0)) {
+			await withDb((d) => d.put("highlights", { ...ex, ...h }));
 		}
 	} catch {}
 	for (const n of datos.notas || []) try {
-		if (!await withDb((d) => d.get("notes", n.id)).catch(() => null)) {
-			await withDb((d) => d.put("notes", n));
+		const ex = await withDb((d) => d.get("notes", n.id)).catch(() => null);
+		if (!ex) {
+			await withDb((d) => d.put("notes", { ...n, createdAt: n.createdAt || Date.now() }));
 			resumen.notas++;
+		} else if ((n.updatedAt || n.createdAt || 0) > (ex.updatedAt || ex.createdAt || 0)) {
+			await withDb((d) => d.put("notes", { ...ex, ...n }));
 		}
 	} catch {}
 	avisar(90, "Ajustes y progreso…");
@@ -296,15 +327,22 @@ async function importarProgreso(datos, avisar = () => {}) {
 		}
 		if (datos.stats) {
 			const actual = await getMeta("stats", null);
-			const dias = {
-				...datos.stats.days || {},
-				...actual?.days || {}
-			};
+			const dias = { ...actual?.days || {} };
+			const remotoDias = datos.stats.days || {};
+			for (const [dia, count] of Object.entries(remotoDias)) {
+				const cNum = typeof count === "object" ? (Number(count?.count || count?.pages) || 0) : (Number(count) || 0);
+				const prev = typeof dias[dia] === "object" ? (Number(dias[dia]?.count || dias[dia]?.pages) || 0) : (Number(dias[dia]) || 0);
+				dias[dia] = prev + cNum;
+			}
+			const totalPagesCalc = Object.values(dias).reduce((acc, v) => acc + (typeof v === "object" ? (Number(v?.count || v?.pages) || 0) : (Number(v) || 0)), 0);
+			const maxTotalPages = Math.max(totalPagesCalc, (actual?.totalPages || 0) + (datos.stats.totalPages || 0));
 			await setMeta({
 				id: "stats",
 				...datos.stats,
 				...actual || {},
-				days: dias
+				totalPages: maxTotalPages,
+				days: dias,
+				streak: Math.max(actual?.streak || 0, datos.stats.streak || 0)
 			});
 		}
 		if (datos.game) {

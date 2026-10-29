@@ -35,12 +35,21 @@ function QrPub({ pub }) {
 	(0, import_react.useEffect)(() => {
 		if (!ref.current) return;
 		try {
-			const data = JSON.stringify({
-				v: 1,
-				d: pub.d,
-				t: pub.titulo,
-				m: pub.magnet || ""
-			});
+			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
+			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
+			const params = new URLSearchParams();
+			params.set("b", pub.d || pub.id || "");
+			if (pub.titulo) params.set("t", pub.titulo);
+			if (pub.autor) params.set("a", pub.autor);
+			const cov = pub.portada || pub.cover || "";
+			if (cov) {
+				if (/^https?:\/\//i.test(cov) || (cov.startsWith("data:") && cov.length < 2500)) params.set("c", cov);
+			}
+			if (pub.fileUrl) params.set("f", pub.fileUrl);
+			if (pub.magnet) params.set("m", pub.magnet);
+			if (pub.categoria) params.set("cat", pub.categoria);
+			if (pub.descripcion) params.set("desc", String(pub.descripcion).slice(0, 300));
+			const data = `${origin}${pathname}?${params.toString()}`;
 			const img = new Image();
 			img.onload = () => {
 				const ctx = ref.current.getContext("2d");
@@ -63,11 +72,11 @@ function QrPub({ pub }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
 				style: {
 					color: "var(--fg-dim)",
-					fontSize: 12,
+					fontSize: 13,
 					textAlign: "center"
 				},
 				children: [
-					"Escanéalo con otra LumenReader para abrir el libro.",
+					"Escanéalo con cualquier teléfono o cámara para abrir el libro en Lumen.",
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("br", {}),
 					"Enlace: ",
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("code", {
@@ -77,7 +86,7 @@ function QrPub({ pub }) {
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-				className: "btn",
+				className: "btn primary sm mp-btn-copiar-enlace",
 				onClick: () => copiarTexto(enlaceDe(pub)),
 				children: "📋 Copiar enlace"
 			})
@@ -464,49 +473,47 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 										className: "mp-botones",
 										children: [
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn primary sm",
+												className: "btn primary sm mp-btn-leer",
 												onClick: () => leer(pub),
 												children: "👁 Leer"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
+												className: "btn sm mp-btn-qr",
 												onClick: () => setQrAbierto(pub),
 												children: "▦ QR"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
+												className: "btn sm mp-btn-compartir",
 												onClick: () => setCompartir(pub),
 												children: "📤 Compartir"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
+												className: "btn sm mp-btn-editar",
 												onClick: () => onEditar?.(pub),
 												children: "✏️ Editar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
-												style: { color: "#ff8080" },
+												className: "btn sm mp-btn-quitar",
 												disabled: trabajando === "despublicar",
 												title: "Retirar libro de internet manteniendo copia en tu dispositivo",
 												onClick: () => quitarDeInternet(pub),
 												children: trabajando === "despublicar" ? "⏳" : "📴 Quitar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
-												style: { color: "#7c5cff" },
+												className: "btn sm mp-btn-publicar",
 												disabled: trabajando === "publicar",
 												title: "Publicar o restablecer en la red descentralizada de Lumen Store",
 												onClick: () => ponerEnInternet(pub),
 												children: trabajando === "publicar" ? "⏳" : "🌐 Publicar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn sm",
+												className: "btn sm mp-btn-reenviar",
 												disabled: trabajando === "reenviar",
 												onClick: () => reenviar(pub),
 												children: trabajando === "reenviar" ? "⏳" : "↻ Reenviar"
 											}),
 											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-												className: "btn danger sm",
+												className: "btn danger sm mp-btn-borrar",
 												onClick: () => setConfirmarBorrar(pub),
 												children: "🗑 Borrar"
 											})
@@ -650,17 +657,17 @@ function MisPublicaciones({ onSalir, toast, onEditar, onLeer, onAbrirCatalogo })
 							style: { marginTop: 10 },
 							children: [
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn primary sm",
+									className: "btn primary sm mp-btn-descargar-vitrina",
 									onClick: descargarVitrina,
 									children: "⬇️ Descargar HTML"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn sm",
+									className: "btn sm mp-btn-compartir-vitrina",
 									onClick: compartirVitrina,
 									children: "📤 Compartir archivo"
 								}),
 								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-									className: "btn sm",
+									className: "btn sm mp-btn-copiar-json",
 									onClick: () => copiarTexto(exportarJson(pubs), toast),
 									children: "🧾 Copiar JSON"
 								})

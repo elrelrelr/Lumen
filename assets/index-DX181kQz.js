@@ -10259,6 +10259,38 @@ if (typeof window !== "undefined") window.__lumenNav = {
 	atrasPropioReciente,
 	pilaCapas
 };
+if (typeof window !== "undefined") window.__lumenDb = {
+	db,
+	allBooks,
+	getBook,
+	putBook,
+	patchBook,
+	deleteBook,
+	putPages,
+	getAllPages,
+	getPage,
+	getPagesRange,
+	putPage,
+	allHighlights,
+	addHighlight,
+	updateHighlight,
+	deleteHighlight,
+	highlightsByBook,
+	allNotes,
+	addNote,
+	updateNote,
+	deleteNote,
+	notesByBook,
+	getMeta,
+	setMeta,
+	getSettings,
+	saveSettings,
+	getBlob,
+	putBlob,
+	uid,
+	estimateUsage,
+	withDb: (fn) => db(fn)
+};
 //#endregion
 //#region src/components/Sheet.jsx
 function Sheet({ open, onClose, title, children, actions, full }) {
@@ -30937,7 +30969,7 @@ function pickScene(cfg, settings, step) {
 	const list = ELECTRO && ELECTRO.length ? ELECTRO : [base];
 	return list[Math.abs(step) % list.length];
 }
-function Stories({ books, open, onClose, toast, onOpenBook, settings, startBookId }) {
+function Stories({ books, open, onClose, toast, onOpenBook, settings, startBookId, repasoFiltros }) {
 	const [groups, setGroups] = (0, import_react.useState)([]);
 	const [gi, setGi] = (0, import_react.useState)(0);
 	const [ii, setIi] = (0, import_react.useState)(0);
@@ -31075,50 +31107,45 @@ function Stories({ books, open, onClose, toast, onOpenBook, settings, startBookI
 				// pulsar 'Empezar repaso' (antes cargaban con el filtro por defecto).
 				let g;
 				if (startBookId === "__lumo_repaso__") {
-					// v161: si no hay NADA marcado, la 2ª carta invita a empezar a marcar
-					let sinMarcas = false;
-					try {
-						const { allHighlights } = await __vitePreload(async () => {
-							const { allHighlights } = await import("./db-Ii3ipPL7.js").then((n) => n.s);
-							return { allHighlights };
-						}, __vite__mapDeps([2,1]), import.meta.url);
-						const hs = (await allHighlights().catch(() => [])) || [];
-						sinMarcas = !hs.some((h) => ["desconocida", "verde", "morado"].includes(h.color) && String(h.text || "").trim().length >= 2);
-					} catch {}
+					let flt = repasoFiltros;
+					if (!flt) {
+						try { flt = JSON.parse(localStorage.getItem("lumen_repaso_cfg") || "{}"); } catch {}
+					}
+					const { buildRepasoStory } = await __vitePreload(async () => {
+						const { buildRepasoStory } = await Promise.resolve().then(() => wordlab_exports);
+						return { buildRepasoStory };
+					}, void 0, import.meta.url);
+					const rs = await buildRepasoStory({
+						fuente: flt?.fuente || "todo",
+						orden: flt?.orden || "vencimiento"
+					});
+					let palabras = (rs && Array.isArray(rs.palabras) ? rs.palabras : []).filter((it) => !it.esVacio);
+					if (flt?.limite && flt.limite > 0 && palabras.length > flt.limite) {
+						palabras = palabras.slice(0, flt.limite);
+					}
+					if (!palabras.length) {
+						palabras = [{
+							kind: "repaso",
+							word: "—",
+							vacioHint: true,
+							esVacio: false,
+							hint: "Aún no hay cartas para este filtro. Marca palabras o frases seleccionándolas en tus libros para poder empezar tu sesión de repaso con repetición espaciada.",
+							sinonimos: [],
+							veces: 0,
+							total: 0,
+							level: 0,
+							nextReview: 0,
+							due: true,
+							intervalos: {}
+						}];
+					}
 					g = [{
 						book: {
 							id: "__lumo_repaso__",
 							title: "Repaso",
-							emoji: "🔔"
+							emoji: "🔤"
 						},
-						items: [
-							{
-								kind: "repaso",
-								word: "—",
-								hint: "Elige en el menú qué y cómo quieres repasar y pulsa «Empezar repaso»: las palabras cargan según el filtro que elijas.",
-								sinonimos: [],
-								veces: 0,
-								total: 0,
-								level: 0,
-								nextReview: 0,
-								due: true,
-								esVacio: true
-							},
-							...(sinMarcas ? [{
-								kind: "repaso",
-								word: "—",
-								vacioHint: true,
-								esVacio: false,
-								hint: "Aún no hay nada que repasar. Marca palabras o frases seleccionándolas en tus libros para poder empezar una repetición espaciada.",
-								sinonimos: [],
-								veces: 0,
-								total: 0,
-								level: 0,
-								nextReview: 0,
-								due: true,
-								intervalos: {}
-							}] : [])
-						]
+						items: palabras
 					}];
 				} else {
 					// v153: apertura normal: si hay estados previos se ven AL INSTANTE (caché)
@@ -32976,6 +33003,142 @@ function ItemHistoria({ libro, onAbrir, onMenu, children }) {
 		children
 	});
 }
+function MenuRepasoSheet({ open, onClose, onEmpezar, repasoCount }) {
+	const [fuente, setFuente] = (0, import_react.useState)(() => {
+		try { return JSON.parse(localStorage.getItem("lumen_repaso_cfg") || "{}").fuente || "todo"; } catch { return "todo"; }
+	});
+	const [orden, setOrden] = (0, import_react.useState)(() => {
+		try { return JSON.parse(localStorage.getItem("lumen_repaso_cfg") || "{}").orden || "vencimiento"; } catch { return "vencimiento"; }
+	});
+	const [limite, setLimite] = (0, import_react.useState)(() => {
+		try { return JSON.parse(localStorage.getItem("lumen_repaso_cfg") || "{}").limite || 20; } catch { return 20; }
+	});
+
+	const empezar = () => {
+		const cfg = { fuente, orden, limite };
+		try { localStorage.setItem("lumen_repaso_cfg", JSON.stringify(cfg)); } catch {}
+		haptic$1.tap?.();
+		onEmpezar(cfg);
+	};
+
+	if (!open) return null;
+
+	const FUENTES = [
+		{ id: "todo", ic: "🌟", tit: "Todo lo marcado", sub: "Desconocidas, vocabulario y citas" },
+		{ id: "desconocidas", ic: "🔴", tit: "Palabras desconocidas", sub: "Marcadas durante la lectura" },
+		{ id: "meGusta", ic: "🟢", tit: "Vocabulario nuevo", sub: "Marcadas con «Me gusta»" },
+		{ id: "inspiradoras", ic: "🟣", tit: "Citas e inspiradoras", sub: "Frases y fragmentos clave" }
+	];
+
+	const ORDENES = [
+		{ id: "vencimiento", ic: "⏳", tit: "Prioridad SRS", sub: "Más urgentes y vencidas primero" },
+		{ id: "fecha", ic: "📅", tit: "Más recientes", sub: "En orden cronológico inverso" },
+		{ id: "azar", ic: "🎲", tit: "Al azar", sub: "Barajadas aleatoriamente" },
+		{ id: "alfabetico", ic: "🔤", tit: "Alfabético", sub: "De la A a la Z" }
+	];
+
+	const LIMITES = [10, 20, 30, 0];
+
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
+		open,
+		onClose,
+		title: "🔤 Sesión de Repaso",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "repaso-menu-wrap",
+				children: [
+					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+						className: "repaso-menu-desc",
+						children: repasoCount > 0 
+							? `Tienes ${repasoCount} cartas listas para repasar. Configura tus filtros y pulsa Empezar para crear tus estados de estudio.`
+							: "Configura qué tipo de cartas y orden deseas estudiar hoy. Al pulsar Empezar se crearán tus estados de repaso."
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "repaso-sec-tit",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🏷️" }), " Cartas a repasar"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "repaso-grid-opciones",
+								children: FUENTES.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									key: f.id,
+									type: "button",
+									className: "repaso-opcion-card" + (fuente === f.id ? " activa" : ""),
+									onClick: () => { setFuente(f.id); haptic$1.tap?.(); },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "repaso-opcion-ic", children: f.ic }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "repaso-opcion-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: f.tit }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: f.sub })
+											]
+										})
+									]
+								}, f.id))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "repaso-sec-tit",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "⇅" }), " Orden de las cartas"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "repaso-grid-opciones",
+								children: ORDENES.map((o) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+									key: o.id,
+									type: "button",
+									className: "repaso-opcion-card" + (orden === o.id ? " activa" : ""),
+									onClick: () => { setOrden(o.id); haptic$1.tap?.(); },
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "repaso-opcion-ic", children: o.ic }),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "repaso-opcion-txt",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: o.tit }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: o.sub })
+											]
+										})
+									]
+								}, o.id))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "repaso-sec-tit",
+								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🔢" }), " Cantidad de cartas"]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "repaso-pills-row",
+								children: LIMITES.map((lim) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									key: lim,
+									type: "button",
+									className: "repaso-pill-btn" + (limite === lim ? " activa" : ""),
+									onClick: () => { setLimite(lim); haptic$1.tap?.(); },
+									children: lim === 0 ? "Todas" : `${lim} cartas`
+								}, lim))
+							})
+						]
+					}),
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+						type: "button",
+						className: "btn primary repaso-btn-empezar",
+						onClick: empezar,
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "🚀" }),
+							" Empezar Repaso"
+						]
+					})
+				]
+			})
+		]
+	});
+}
 function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, onRandom, onOpenBook, onOcultar, onAyuda, onApoyar, settings }) {
 	const accionesRef = (0, import_react.useRef)({});
 	accionesRef.current = {
@@ -32988,6 +33151,7 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 	});
 	const [cfg, setCfg] = (0, import_react.useState)(null);
 	const [menuLibro, setMenuLibro] = (0, import_react.useState)(null);
+	const [menuRepaso, setMenuRepaso] = (0, import_react.useState)(false);
 	(0, import_react.useEffect)(() => {
 		getStoryConfig().then(setCfg);
 	}, [
@@ -33099,8 +33263,8 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 					if (idx === insertAt) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						className: "story-item no-libro",
 						type: "button",
-						title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — sin palabras aún",
-						onClick: () => onOpen("__lumo_repaso__"),
+						title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — configurar sesión",
+						onClick: () => setMenuRepaso(true),
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "story-ring",
 							style: { background: repasoCount > 0 ? "conic-gradient(from 160deg, #f59e0b, #ef4444, #ec4899, #f59e0b)" : "linear-gradient(135deg, #94a3b8, #64748b)" },
@@ -33139,8 +33303,8 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 				if (active.length > 0 && insertAt === active.length) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "story-item no-libro",
 					type: "button",
-					title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — sin palabras aún",
-					onClick: () => onOpen("__lumo_repaso__"),
+					title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — configurar sesión",
+					onClick: () => setMenuRepaso(true),
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "story-ring",
 						style: { background: repasoCount > 0 ? "conic-gradient(from 160deg, #f59e0b, #ef4444, #ec4899, #f59e0b)" : "linear-gradient(135deg, #94a3b8, #64748b)" },
@@ -33157,8 +33321,8 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 				if (active.length === 0) out.push(/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "story-item no-libro",
 					type: "button",
-					title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — sin palabras aún",
-					onClick: () => onOpen("__lumo_repaso__"),
+					title: repasoCount > 0 ? `Repasar ${repasoCount} palabras` : "Repaso — configurar sesión",
+					onClick: () => setMenuRepaso(true),
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "story-ring",
 						style: { background: repasoCount > 0 ? "conic-gradient(from 160deg, #f59e0b, #ef4444, #ec4899, #f59e0b)" : "linear-gradient(135deg, #94a3b8, #64748b)" },
@@ -33220,7 +33384,16 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 						children: "Cancelar"
 					})
 				]
-			})] })
+			})] }),
+			menuRepaso && /* @__PURE__ */ (0, import_jsx_runtime.jsx)(MenuRepasoSheet, {
+				open: menuRepaso,
+				onClose: () => setMenuRepaso(false),
+				repasoCount,
+				onEmpezar: (flt) => {
+					setMenuRepaso(false);
+					onOpen?.("__lumo_repaso__", flt);
+				}
+			})
 		]
 	});
 }
@@ -38317,7 +38490,14 @@ function CompartirLibroSheet({ open, book, onClose, toast }) {
 		const aut = (book.author || book.autor || "").trim();
 		if (aut && aut !== "Anon" && aut !== "Autor anónimo" && aut !== "Autor Anónimo") params.set("a", aut);
 		if (book.fileUrl) params.set("f", book.fileUrl);
-		if (book.portada && /^https?:\/\//i.test(book.portada)) params.set("c", book.portada);
+		const cov = book.cover || book.portada || "";
+		if (cov) {
+			if (/^https?:\/\//i.test(cov)) {
+				params.set("c", cov);
+			} else if (cov.startsWith("data:") && cov.length < 2500) {
+				params.set("c", cov);
+			}
+		}
 		if (book.magnet) params.set("m", book.magnet);
 		return `${baseUrl}?${params.toString()}`;
 	}, [book]);
@@ -38546,6 +38726,7 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [collections, setCollections] = (0, import_react.useState)(false);
 	const [wrapped, setWrapped] = (0, import_react.useState)(false);
 	const [storiesOpen, setStoriesOpen] = (0, import_react.useState)(false);
+	const [storyRepasoFiltros, setStoryRepasoFiltros] = (0, import_react.useState)(null);
 	const [libroParaCompartir, setLibroParaCompartir] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		const verificarP2PEnlace = () => {
@@ -40033,7 +40214,8 @@ const toquesDev = (0, import_react.useRef)(0);
 				onRandom: lecturaAleatoria,
 				refreshKey: String(storyCfg?.books?.length) + "-" + storiesKey,
 				enabledKey: String(storyCfg?.enabled) + String(vaultOpen),
-				onOpen: (id) => {
+				onOpen: (id, flt) => {
+					setStoryRepasoFiltros(flt || null);
 					setStoryBook(id);
 					setStoriesOpen(true);
 				},
@@ -44560,11 +44742,13 @@ setBusyId(null);
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Stories, {
 				open: storiesOpen,
 				startBookId: storyBook,
+				repasoFiltros: storyRepasoFiltros,
 				books,
 				settings,
 				onClose: () => {
 					setStoriesOpen(false);
 					setStoryBook(null);
+					setStoryRepasoFiltros(null);
 					try {
 						stop();
 					} catch {}
@@ -57991,12 +58175,14 @@ function App() {
 				const p = new URLSearchParams(search);
 				const bId = p.get("b") || p.get("libro") || p.get("id");
 				if (bId) {
+					const cov = p.get("c") || p.get("cov") || p.get("portada") || p.get("cover") || "";
 					const libroLink = {
 						id: bId,
 						d: bId,
 						titulo: p.get("t") || p.get("tit") || p.get("titulo") || "Libro",
 						autor: p.get("a") || p.get("aut") || p.get("autor") || "",
-						portada: p.get("c") || p.get("cov") || p.get("portada") || "",
+						portada: cov,
+						cover: cov,
 						fileUrl: p.get("f") || p.get("file") || p.get("epub") || "",
 						epub: p.get("f") || p.get("file") || p.get("epub") || "",
 						magnet: p.get("m") || p.get("mag") || p.get("magnet") || "",
@@ -58010,6 +58196,7 @@ function App() {
 						window.history.replaceState({}, document.title, urlLimpia);
 					} catch {}
 					setQrPendiente(libroLink);
+					setCatalogoAbierto(true);
 				}
 			}
 		} catch (errDeep) {
@@ -58264,6 +58451,7 @@ function App() {
 			bookId
 		});
 	}, []);
+	window.__lumenAbrirLibro = openBook;
 	// Pipeline resiliente de obtención de texto y apertura en visor nativo de Lumen
 function limpiarHtmlWiki(html) {
 	if (!html) return "";
@@ -58723,8 +58911,11 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				else paginasEsperadas = 220;
 			}
 
-			// Validador estricto: rechaza muestras cortas, índices o fragmentos
+			const esPropioOCompartido = !!(libro.own || libro.esMio || libro.esCompartido || libro.kind === "propio" || (libro.fileName && libro.fileName.endsWith(".lumen")) || (libro.fileUrl && libro.fileUrl.endsWith(".lumen")) || (libro.d && String(libro.d).startsWith("lumen_")) || (!paginasEsperadas && libro.titulo));
+
+			// Validador estricto: rechaza muestras cortas, índices o fragmentos salvo libros propios o compartidos
 			const verificarPaginas = (paginasObtenidas) => {
+				if (esPropioOCompartido) return paginasObtenidas > 0;
 				if (!paginasEsperadas || paginasEsperadas <= 0) return true;
 				const umbralMin = paginasEsperadas <= 60 
 					? Math.max(15, Math.floor(paginasEsperadas * 0.45))
@@ -58759,6 +58950,7 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 					await patchBook(nuevo.id, {
 						title: titOriginal || nuevo.title,
 						author: autOriginal || nuevo.author || "Autor",
+						cover: libro.portada || libro.cover || libro.coverUrl || "",
 						coverUrl: libro.portada || libro.cover || libro.coverUrl || "",
 						category: libro.categoria || libro.category || nuevo.category || "General",
 						d: libro.d || libro.id || nuevo.id,
@@ -59096,6 +59288,45 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 				}
 			}
 
+			// Si es un libro propio/compartido o contiene sinopsis/descripción sustancial, empaquetarlo y abrirlo de inmediato
+			if (esPropioOCompartido || (libro.descripcion && libro.descripcion.length > 50)) {
+				try {
+					const { construirLumenPersonal } = await __vitePreload(() => import("./lumenbook-D1rmZfn6.js"), __vite__mapDeps([13,14,10]), import.meta.url);
+					const caps = [libro.descripcion || libro.synopsis || `Capítulo 1: ${titOriginal}`];
+					const meta = {
+						titulo: titOriginal,
+						autor: autOriginal || "Autor Lumen",
+						categoria: libro.categoria || "general",
+						descripcion: libro.descripcion || "",
+						idioma: libro.idioma || "es",
+						audioUrl: libro.audioUrl || "",
+						paginas: 1
+					};
+					const personal = {
+						titulo: titOriginal,
+						autor: autOriginal,
+						audioUrl: libro.audioUrl || null,
+						videoUrl: libro.videoUrl || null,
+						createdAt: Date.now()
+					};
+					const lb = await construirLumenPersonal(meta, caps, libro.portada || libro.cover || null, personal);
+					const nomF = lb.nombre || ((titOriginal || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() + ".lumen");
+					const f = new File([lb.blob], nomF, { type: "application/octet-stream" });
+					const nuevo = await importFile(f, () => {});
+					if (nuevo && nuevo.id) {
+						setCatalogoAbierto(false);
+						setMisPubsAbierto(false);
+						setQrPendiente(null);
+						setLectorGlobal(null);
+						openBook(nuevo.id);
+						toast?.("✓ «" + titOriginal + "» importado y abierto en Lumen Reader");
+						return;
+					}
+				} catch (eCrear) {
+					console.warn("[construirLumenPersonal fallback]", eCrear);
+				}
+			}
+
 			// Si no se encontró un magnet directo, abrir automáticamente el buscador universal
 			// de descargas y torrents (Anna's Archive, The Pirate Bay, Sci-Hub, etc.)
 			setCatalogoAbierto(false);
@@ -59124,9 +59355,12 @@ APOCALIPSIS — CAPÍTULO 21: CIELO NUEVO Y TIERRA NUEVA
 		};
 		const onPedirCatalogo = () => { setCatalogoAbierto(true); };
 		const onPedirGuardados = () => { setSheetReq({ id: "chat", nonce: Date.now() }); };
+		const onPedirMisPubs = () => { setMisPubsAbierto(true); };
 		window.__lumenAbrirCatalogo = onPedirCatalogo;
+		window.__lumenAbrirMisPubs = onPedirMisPubs;
 		window.__lumenAbrirGuardados = onPedirGuardados;
 		window.addEventListener("lumen:abrir-catalogo", onPedirCatalogo);
+		window.addEventListener("lumen:abrir-mis-pubs", onPedirMisPubs);
 		window.addEventListener("lumen:abrir-guardados", onPedirGuardados);
 		window.addEventListener("lumen:importar-y-abrir", onPedirImportar);
 		window.addEventListener("lumen:abrir-publicar", onPedirPublicar);

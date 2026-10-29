@@ -422,7 +422,7 @@ function Portada({ libro, titulo, grande = false, prioritaria = false }) {
 	const cls = "cg-portada" + (grande ? " cg-portada-lg" : "");
 	const aut = libro?.autor || (Array.isArray(libro?.authors) ? libro.authors[0] : libro?.authors) || "";
 	const pal = paletaDe(titulo, aut);
-	let portadaEfectiva = libro?.portada;
+	let portadaEfectiva = libro?.portada || libro?.cover || libro?.cov || null;
 	if (portadaEfectiva && typeof portadaEfectiva === "string" && portadaEfectiva.includes("uploads.mangadex.org")) {
 		const tKey = libro?.titulo || libro?.title || titulo || "";
 		portadaEfectiva = (typeof MANGA_COVERS_MAP !== "undefined" && MANGA_COVERS_MAP[tKey]) || null;
@@ -1644,10 +1644,13 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 		const target = libroInicial || qrPendiente;
 		if (target) {
 			if (typeof target === "object" && (target.id || target.d)) {
-				setLibroSugerido(target);
+				const cov = target.portada || target.cover || target.cov || "";
+				const norm = { ...target, portada: cov, cover: cov };
+				setDetalle(norm);
+				setLibroSugerido(norm);
 				setBusqVisible(true);
 			} else if (typeof target === "string") {
-				resolverYMostrarLibro(target, null, false);
+				resolverYMostrarLibro(target, null, true);
 			}
 		}
 	}, [libroInicial, qrPendiente]);
@@ -1659,12 +1662,14 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				const p = new URLSearchParams(s);
 				const bId = p.get("b") || p.get("libro") || p.get("id");
 				if (bId) {
+					const cov = p.get("c") || p.get("cov") || p.get("portada") || p.get("cover") || "";
 					const lObj = {
 						id: bId,
 						d: bId,
 						titulo: p.get("t") || p.get("tit") || p.get("titulo") || "Libro",
 						autor: p.get("a") || p.get("aut") || p.get("autor") || "",
-						portada: p.get("c") || p.get("cov") || p.get("portada") || "",
+						portada: cov,
+						cover: cov,
 						fileUrl: p.get("f") || p.get("file") || p.get("epub") || "",
 						epub: p.get("f") || p.get("file") || p.get("epub") || "",
 						magnet: p.get("m") || p.get("mag") || p.get("magnet") || "",
@@ -1673,6 +1678,9 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 						categoria: p.get("cat") || p.get("categoria") || "",
 						descripcion: p.get("desc") || p.get("descripcion") || ""
 					};
+					setDetalle(lObj);
+					setLibroSugerido(lObj);
+					setBusqVisible(true);
 					// Limpiar la URL para que no persista indefinidamente en cada recarga
 					try {
 						const urlLimpia = window.location.pathname + (window.location.hash ? window.location.hash.split("?")[0] : "");
@@ -1851,7 +1859,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			tit = u.searchParams.get("t") || u.searchParams.get("tit") || "";
 			aut = u.searchParams.get("a") || u.searchParams.get("aut") || "";
 			file = u.searchParams.get("f") || u.searchParams.get("file") || "";
-			cov = u.searchParams.get("c") || u.searchParams.get("cov") || "";
+			cov = u.searchParams.get("c") || u.searchParams.get("cov") || u.searchParams.get("portada") || u.searchParams.get("cover") || "";
 			mag = u.searchParams.get("m") || u.searchParams.get("mag") || "";
 			aud = u.searchParams.get("aud") || u.searchParams.get("audio") || "";
 			vid = u.searchParams.get("vid") || u.searchParams.get("video") || "";
@@ -1868,7 +1876,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 			if (mAut) aut = decodeURIComponent(mAut[1]);
 			const mFile = str.match(/[?&](?:f|file)=([^&\s#]+)/i);
 			if (mFile) file = decodeURIComponent(mFile[1]);
-			const mCov = str.match(/[?&](?:c|cov)=([^&\s#]+)/i);
+			const mCov = str.match(/[?&](?:c|cov|portada|cover)=([^&\s#]+)/i);
 			if (mCov) cov = decodeURIComponent(mCov[1]);
 			const mMag = str.match(/[?&](?:m|mag)=([^&\s#]+)/i);
 			if (mMag) mag = decodeURIComponent(mMag[1]);
@@ -1886,6 +1894,7 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 					tit = obj.t || obj.titulo || "";
 					aut = obj.a || obj.autor || "";
 					file = obj.f || obj.fileUrl || "";
+					cov = obj.c || obj.cov || obj.portada || obj.cover || "";
 					mag = obj.m || obj.magnet || "";
 					aud = obj.aud || obj.audioUrl || "";
 					vid = obj.vid || obj.videoUrl || "";
@@ -1951,7 +1960,8 @@ function Catalogo({ onSalir, onPublicar, onAbrirLibro, onAbrirLibroLocal, onAbri
 				titulo: metaDatos.tit || metaDatos.titulo || (metaDatos.mag ? "Libro Torrent" : "Libro compartido"),
 				autor: metaDatos.aut || metaDatos.autor || (metaDatos.mag ? "Red Torrent P2P" : "Autor Lumen"),
 				fileUrl: metaDatos.file || metaDatos.fileUrl || "",
-				portada: metaDatos.cov || metaDatos.portada || "",
+				portada: metaDatos.cov || metaDatos.portada || metaDatos.cover || "",
+				cover: metaDatos.cov || metaDatos.portada || metaDatos.cover || "",
 				magnet: metaDatos.mag || metaDatos.magnet || "",
 				audioUrl: metaDatos.aud || metaDatos.audioUrl || "",
 				videoUrl: metaDatos.vid || metaDatos.videoUrl || "",
@@ -4218,18 +4228,31 @@ const cargar = (0, import_react.useCallback)(async () => {
 										if (detalle.fileUrl) {
 											const nombreLumen = ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "libro") + ".lumen";
 											try {
-												const r = await fetch(detalle.fileUrl, { signal: AbortSignal.timeout(8e3) });
+												const r = await fetch(detalle.fileUrl, { signal: AbortSignal.timeout(12e3) });
 												const ct = r.headers.get("content-type") || "";
 												if (r.ok && !ct.includes("text/html")) {
 													const blob = await r.blob();
-													if (blob.size > 2000) {
+													if (blob.size > 200) {
 														const url = URL.createObjectURL(blob);
 														const a = document.createElement("a");
 														a.href = url;
 														a.download = nombreLumen;
 														a.click();
 														setTimeout(() => URL.revokeObjectURL(url), 4e3);
-														toast("Descargado desde Lumen Storage. Impórtalo con el botón + de la biblioteca.");
+
+														const fObj = new File([blob], nombreLumen, { type: "application/octet-stream" });
+														if (typeof window.__lumenImportarArchivos === "function") {
+															await window.__lumenImportarArchivos([fObj]);
+														}
+														setDescargando(false);
+														setDetalle(null);
+														onSalir?.();
+														setTimeout(async () => {
+															const bks = await allBooks().catch(() => []);
+															const match = bks.find((b) => b.fileName === nombreLumen || b.title === detalle.titulo || b.d === (detalle.d || detalle.id)) || bks[bks.length - 1];
+															if (match) onAbrirLibroLocal?.(match.id);
+														}, 500);
+														toast("✓ «" + (detalle.titulo || "Libro") + "» descargado, importado y abierto en Lumen");
 														return;
 													}
 												}
@@ -4249,13 +4272,27 @@ const cargar = (0, import_react.useCallback)(async () => {
 												const r = await fetch(detalle.download, { signal: AbortSignal.timeout(6e4) });
 												if (r.ok) {
 													const blob = await r.blob();
+													const nombreLumen = ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "libro") + ".lumen";
 													const url = URL.createObjectURL(blob);
 													const a = document.createElement("a");
 													a.href = url;
-													a.download = ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() || "libro") + ".lumen";
+													a.download = nombreLumen;
 													a.click();
 													setTimeout(() => URL.revokeObjectURL(url), 4e3);
-													toast("Descargado. Impórtalo con el botón + de la biblioteca.");
+
+													const fObj = new File([blob], nombreLumen, { type: "application/octet-stream" });
+													if (typeof window.__lumenImportarArchivos === "function") {
+														await window.__lumenImportarArchivos([fObj]);
+													}
+													setDescargando(false);
+													setDetalle(null);
+													onSalir?.();
+													setTimeout(async () => {
+														const bks = await allBooks().catch(() => []);
+														const match = bks.find((b) => b.fileName === nombreLumen || b.title === detalle.titulo || b.d === (detalle.d || detalle.id)) || bks[bks.length - 1];
+														if (match) onAbrirLibroLocal?.(match.id);
+													}, 500);
+													toast("✓ «" + (detalle.titulo || "Libro") + "» importado y abierto en tu lector");
 													return;
 												}
 											} catch (e) {
@@ -4285,14 +4322,28 @@ const cargar = (0, import_react.useCallback)(async () => {
 												videoUrl: detalle.videoUrl || null,
 												createdAt: Date.now()
 											};
-											const lb = await construirLumenPersonal(meta, caps, detalle.portada || null, personal);
+											const lb = await construirLumenPersonal(meta, caps, detalle.portada || detalle.cover || null, personal);
 											const url = URL.createObjectURL(lb.blob);
+											const nomLumen = lb.nombre || ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() + ".lumen");
 											const a = document.createElement("a");
 											a.href = url;
-											a.download = lb.nombre || ((detalle.titulo || "libro").replace(/[^\wáéíóúñÁÉÍÓÚÑ\s-]/gi, "").trim().replace(/\s+/g, "-").toLowerCase() + ".lumen");
+											a.download = nomLumen;
 											a.click();
 											setTimeout(() => URL.revokeObjectURL(url), 4e3);
-											toast("📦 Paquete .lumen descargado al vuelo con portada y personalizaciones. ¡Impórtalo con el botón +!");
+
+											const fObj = new File([lb.blob], nomLumen, { type: "application/octet-stream" });
+											if (typeof window.__lumenImportarArchivos === "function") {
+												await window.__lumenImportarArchivos([fObj]);
+											}
+											setDescargando(false);
+											setDetalle(null);
+											onSalir?.();
+											setTimeout(async () => {
+												const bks = await allBooks().catch(() => []);
+												const match = bks.find((b) => b.fileName === nomLumen || b.title === detalle.titulo || b.d === (detalle.d || detalle.id)) || bks[bks.length - 1];
+												if (match) onAbrirLibroLocal?.(match.id);
+											}, 500);
+											toast("📦 «" + (detalle.titulo || "Libro") + "» descargado, importado y abierto en Lumen Reader");
 										} catch (eBuild) {
 											toast("No se pudo generar la descarga: " + (eBuild?.message || eBuild));
 										} finally {
@@ -4445,7 +4496,7 @@ detalle.esMio && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				onCodigoDetectado: (codigo) => {
 					const parsed = extraerDatosLibroEnlace(codigo);
 					const tid = parsed?.id || extraerIdLibro(codigo) || codigo;
-					resolverYMostrarLibro(tid, parsed);
+					resolverYMostrarLibro(tid, parsed, true);
 				},
 				toast
 			})
@@ -5310,7 +5361,17 @@ function QrLibro({ libro }) {
 			const idLibro = libro.d || libro.id;
 			const origin = (typeof window !== "undefined" && window.location?.origin && !window.location.origin.includes("null")) ? window.location.origin : "https://lumenreader.app";
 			const pathname = (typeof window !== "undefined" && window.location?.pathname) ? window.location.pathname.replace(/\/+$/, "") : "";
-			const shareUrl = typeof window !== "undefined" && window.location?.href ? `${window.location.href.split("?")[0].split("#")[0]}?b=${encodeURIComponent(idLibro)}&t=${encodeURIComponent(libro.titulo || libro.title || "")}&a=${encodeURIComponent(libro.autor || "")}` : `https://lumenreader.app/?b=${encodeURIComponent(idLibro)}`;
+			const params = new URLSearchParams();
+			params.set("b", idLibro);
+			if (libro.titulo || libro.title) params.set("t", libro.titulo || libro.title);
+			if (libro.autor || libro.author) params.set("a", libro.autor || libro.author);
+			const cov = libro.portada || libro.cover || "";
+			if (cov) {
+				if (/^https?:\/\//i.test(cov) || (cov.startsWith("data:") && cov.length < 2500)) params.set("c", cov);
+			}
+			if (libro.fileUrl) params.set("f", libro.fileUrl);
+			if (libro.magnet) params.set("m", libro.magnet);
+			const shareUrl = `${origin}${pathname}?${params.toString()}`;
 			const data = shareUrl;
 			const img = new Image();
 			img.onload = () => {
