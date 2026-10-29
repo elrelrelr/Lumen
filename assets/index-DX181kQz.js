@@ -37063,6 +37063,21 @@ function parsearCodigoP2P(str) {
 		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
 	} catch {}
 	try {
+		const url = new URL(raw);
+		const hashData = url.hash?.replace(/^#/, "");
+		if (hashData) {
+			const param = new URLSearchParams(hashData);
+			const p = param.get("p2p") || hashData.replace(/^p2p=/, "");
+			const parsed = parsearCodigoP2P(decodeURIComponent(p));
+			if (parsed) return parsed;
+		}
+		const p = url.searchParams.get("p2p") || url.searchParams.get("c");
+		if (p) {
+			const parsed = parsearCodigoP2P(decodeURIComponent(p));
+			if (parsed) return parsed;
+		}
+	} catch {}
+	try {
 		const decoded = decodeURIComponent(escape(atob(raw)));
 		const obj = JSON.parse(decoded);
 		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
@@ -37072,21 +37087,26 @@ function parsearCodigoP2P(str) {
 		const obj = JSON.parse(decoded);
 		if (obj && (obj.tipo?.startsWith("LUMEN_") || obj.usuario || obj.roomId)) return obj;
 	} catch {}
-	try {
-		const url = new URL(raw);
-		const hashData = url.hash?.replace(/^#/, "");
-		if (hashData) {
-			const parsed = parsearCodigoP2P(decodeURIComponent(hashData));
-			if (parsed) return parsed;
-		}
-		const param = url.searchParams.get("p2p") || url.searchParams.get("c");
-		if (param) {
-			const parsed = parsearCodigoP2P(decodeURIComponent(param));
-			if (parsed) return parsed;
-		}
-	} catch {}
 	return null;
 }
+
+const extraerMensajeP2P = async (raw) => {
+	try {
+		let data = raw;
+		if (typeof raw === "string") data = JSON.parse(raw);
+		if (data.attachment?.url) {
+			const res = await fetch(data.attachment.url);
+			return JSON.parse(await res.text());
+		}
+		if (data.message) {
+			return JSON.parse(data.message);
+		}
+		if (data.tipo) return data;
+	} catch (e) {
+		console.warn("[p2p-extraer-err]", e);
+	}
+	return null;
+};
 
 function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P, cargarJSZip, descargarBlob }) {
 	const [nombre, setNombre] = (0, import_react.useState)(() => cuentaP2P?.usuario || "");
@@ -37095,6 +37115,9 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 	const [editandoPerfil, setEditandoPerfil] = (0, import_react.useState)(() => !cuentaP2P?.usuario);
 	
 	const [detectado, setDetectado] = (0, import_react.useState)(null);
+	const [peticionEntrante, setPeticionEntrante] = (0, import_react.useState)(null);
+	const [esperandoRespuesta, setEsperandoRespuesta] = (0, import_react.useState)(false);
+	
 	const [codigoEntrada, setCodigoEntrada] = (0, import_react.useState)("");
 	const [miQr, setMiQr] = (0, import_react.useState)("");
 	const [miCodigo, setMiCodigo] = (0, import_react.useState)("");
@@ -37106,6 +37129,7 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 	const [sincronizadoExitoso, setSincronizadoExitoso] = (0, import_react.useState)(false);
 
 	const broadcastRef = (0, import_react.useRef)(null);
+	const wsRef = (0, import_react.useRef)(null);
 
 	// Actualizar datos locales al cambiar cuentaP2P
 	(0, import_react.useEffect)(() => {
@@ -37116,7 +37140,27 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		}
 	}, [cuentaP2P]);
 
-	// Generar automáticamente el código de este aparato y su QR
+	// Auto-detectar si se abrió desde enlace web con #p2p=...
+	(0, import_react.useEffect)(() => {
+		if (!open) return;
+		if (!detectado && typeof window !== "undefined" && window.location.hash.includes("p2p=")) {
+			const parsed = parsearCodigoP2P(window.location.href);
+			if (parsed) {
+				setDetectado(parsed);
+			}
+		}
+	}, [open, detectado]);
+
+	(0, import_react.useEffect)(() => {
+		if (open) {
+			setSincronizando(false);
+			setProgresoSync(null);
+			setSincronizadoExitoso(false);
+			setPeticionEntrante(null);
+		}
+	}, [open]);
+
+	// Generar automáticamente el código de este aparato y su QR con URL web real
 	(0, import_react.useEffect)(() => {
 		if (!open) return;
 		const idLimpio = cuentaP2P?.id || ("p2p_" + Math.random().toString(36).slice(2, 9));
@@ -37140,9 +37184,14 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 			} catch {
 				b64 = jsonStr;
 			}
-			const cod = "LUMEN-P2P:" + b64;
-			setMiCodigo(cod);
-			const qr = generarQrDataUrl(cod, 240);
+			
+			// Generar URL web completa para que cualquier app de cámara en el móvil lo abra en el navegador
+			let baseUrl = typeof window !== "undefined" && window.location.href ? window.location.href.split("#")[0] : "https://lumenreader.app/";
+			if (!baseUrl.startsWith("http")) baseUrl = "https://lumenreader.app/";
+			const urlCompleta = baseUrl + (baseUrl.endsWith("/") ? "" : "/") + "#p2p=" + b64;
+			
+			setMiCodigo(urlCompleta);
+			const qr = generarQrDataUrl(urlCompleta, 240);
 			setMiQr(qr);
 		} catch (e) {
 			console.warn("[p2p-gen-code]", e);
@@ -37206,65 +37255,120 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		try { localStorage.setItem("lumen_cuenta_p2p", JSON.stringify(actualizada)); } catch {}
 	};
 
-	// Escuchar confirmaciones automáticas de otros aparatos
+	const enviarMensajeP2P = async (roomId, payload) => {
+		const jsonStr = JSON.stringify(payload);
+		try { broadcastRef.current?.postMessage(payload); } catch {}
+		try { localStorage.setItem("lumen_p2p_channel", jsonStr); } catch {}
+		try {
+			await fetch("https://ntfy.sh/" + roomId, {
+				method: "POST",
+				headers: { "Filename": "p2p_data.json" },
+				body: jsonStr
+			});
+		} catch (e) {
+			console.warn("[p2p-send-err]", e);
+		}
+	};
+
+	// Escuchar señalización bilateral (WebSockets ntfy + Polling + BroadcastChannel + localStorage)
 	(0, import_react.useEffect)(() => {
-		if (!open || !miRoomId) return;
-		
+		if (!open) return;
+		const roomIdAUsar = detectado?.roomId || miRoomId;
+		if (!roomIdAUsar) return;
+
+		let cancelado = false;
+		let ws = null;
+		let pollIv = null;
+
 		const procesarMensajeEntrante = async (msg) => {
 			if (!msg || typeof msg !== "object") return;
-			// Confirmación de conexión y envío de datos
-			if (msg.tipo === "LUMEN_P2P_CONFIRM" && msg.roomId === miRoomId) {
-				if (msg.de && msg.de.id !== cuentaP2P?.id) {
-					toast?.("📡 ¡Conexión confirmada por " + (msg.de.usuario || "el otro aparato") + "!");
-					setSincronizando(true);
-					setProgresoSync(30);
-					setProgresoTexto("Descargando respaldo .zip de " + (msg.de.usuario || "otro aparato") + "…");
-					try {
-						// Descargar respaldo .zip automáticamente
-						if (msg.datos) {
-							await fnDescargarZip(msg.datos, msg.de.dispositivo || msg.de.usuario);
-							setProgresoSync(60);
-							setProgresoTexto("Fusionando libros, notas, rachas y Lumo…");
-							const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-							await t.importarProgreso(msg.datos, (p, tx) => {
-								setProgresoSync(60 + Math.round(p * 0.25));
-								setProgresoTexto(tx || "Fusionando biblioteca…");
-							});
-							await reload?.();
-						}
-						// Responder con ACK y enviar los datos locales al par
-						setProgresoSync(88);
-						setProgresoTexto("Enviando libros y respaldo al otro aparato…");
-						const t2 = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-						const misDatos = await t2.reunirTodo();
-						const ack = {
-							tipo: "LUMEN_P2P_ACK",
-							de: cuentaP2P || { id: "local", usuario: nombre, telefono, dispositivo },
-							para: msg.de,
-							roomId: miRoomId,
-							datos: misDatos,
-							ts: Date.now()
-						};
-						try { broadcastRef.current?.postMessage(ack); } catch {}
-						try { localStorage.setItem("lumen_p2p_channel", JSON.stringify(ack)); } catch {}
-
-						actualizarDispositivoVinculado(msg.de);
-						setProgresoSync(100);
-						setProgresoTexto("¡Sincronización bilateral completada con éxito!");
-						setSincronizadoExitoso(true);
-						haptic$1.success?.();
-						toast?.("🎉 ¡Aparatos sincronizados y respaldo descargado!");
-					} catch (e) {
-						console.warn("[p2p-rx-confirm-err]", e);
-					} finally {
-						setTimeout(() => {
-							setSincronizando(false);
-							setProgresoSync(null);
-						}, 2500);
+			// 1. Petición de conexión entrante de otro aparato
+			if (msg.tipo === "LUMEN_P2P_PETICION" && msg.de && msg.de.id !== cuentaP2P?.id) {
+				toast?.("📡 ¡Petición de conexión recibida de " + (msg.de.usuario || "otro aparato") + "!");
+				setPeticionEntrante(msg);
+				haptic$1.success?.();
+			}
+			// 2. Aceptación recibida desde el computador u otro aparato
+			else if (msg.tipo === "LUMEN_P2P_ACEPTADO" && msg.de && msg.de.id !== cuentaP2P?.id) {
+				toast?.("🎉 ¡Conexión aceptada por " + (msg.de.usuario || "el otro aparato") + "!");
+				setEsperandoRespuesta(false);
+				setSincronizando(true);
+				setProgresoSync(40);
+				setProgresoTexto("Descargando respaldo .zip de " + (msg.de.dispositivo || msg.de.usuario) + "…");
+				try {
+					if (msg.datos) {
+						await fnDescargarZip(msg.datos, msg.de.dispositivo || msg.de.usuario);
+						setProgresoSync(70);
+						setProgresoTexto("Fusionando libros, notas y Lumo en tu biblioteca…");
+						const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+						await t.importarProgreso(msg.datos, (p, tx) => {
+							setProgresoSync(70 + Math.round(p * 0.2));
+							setProgresoTexto(tx || "Fusionando biblioteca…");
+						});
+						await reload?.();
 					}
+					actualizarDispositivoVinculado(msg.de);
+					setProgresoSync(100);
+					setProgresoTexto("¡Sincronización completada con éxito!");
+					setSincronizadoExitoso(true);
+					haptic$1.success?.();
+				} catch (err) {
+					console.warn("[p2p-rx-accept-err]", err);
+					toast?.("Error al aplicar sincronización: " + (err?.message || err));
+				} finally {
+					setTimeout(() => {
+						setSincronizando(false);
+						setProgresoSync(null);
+					}, 2000);
 				}
 			}
 		};
+
+		const manejarMensajeRaw = async (data) => {
+			if (cancelado) return;
+			const parsed = await extraerMensajeP2P(data);
+			if (parsed && parsed.tipo) {
+				procesarMensajeEntrante(parsed);
+			}
+		};
+
+		// WebSocket a ntfy.sh
+		try {
+			if (typeof WebSocket !== "undefined") {
+				ws = new WebSocket("wss://ntfy.sh/" + roomIdAUsar + "/ws");
+				wsRef.current = ws;
+				ws.onmessage = (e) => {
+					try {
+						const ev = JSON.parse(e.data);
+						if (ev.event === "message") {
+							manejarMensajeRaw(ev);
+						}
+					} catch {}
+				};
+			}
+		} catch (e) {
+			console.warn("[p2p-ws-err]", e);
+		}
+
+		// Polling de respaldo cada 2.5 segundos
+		pollIv = setInterval(async () => {
+			if (cancelado) return;
+			try {
+				const res = await fetch("https://ntfy.sh/" + roomIdAUsar + "/json?poll=1");
+				if (!res.ok) return;
+				const text = await res.text();
+				const lines = text.trim().split("\n");
+				for (const l of lines) {
+					if (!l.trim()) continue;
+					try {
+						const obj = JSON.parse(l);
+						if (obj.event === "message") {
+							manejarMensajeRaw(obj);
+						}
+					} catch {}
+				}
+			} catch {}
+		}, 2500);
 
 		// BroadcastChannel
 		try {
@@ -37286,10 +37390,15 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		window.addEventListener("storage", onStorage);
 
 		return () => {
+			cancelado = true;
+			if (ws) {
+				try { ws.close(); } catch {}
+			}
+			if (pollIv) clearInterval(pollIv);
 			try { broadcastRef.current?.close(); } catch {}
 			window.removeEventListener("storage", onStorage);
 		};
-	}, [open, miRoomId, cuentaP2P, nombre, telefono, dispositivo, reload, toast]);
+	}, [open, miRoomId, detectado?.roomId, cuentaP2P]);
 
 	// Guardar perfil de este aparato
 	const guardarCuenta = () => {
@@ -37383,26 +37492,83 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		try {
 			navigator.clipboard?.writeText(miCodigo);
 			haptic$1.tap?.();
-			toast?.("✓ Código copiado. Pégalo en tu otro aparato.");
+			toast?.("✓ Enlace copiado. Ábrelo en tu otro aparato para sincronizar.");
 		} catch {
-			toast?.("Copia el código manualmente");
+			toast?.("Copia el enlace manualmente");
 		}
 	};
 
-	// Confirmar conexión bilateral y sincronizar todo
+	// Aceptar petición entrante en el PC y enviar respaldo al teléfono
+	const aceptarPeticionEntrante = async () => {
+		if (!peticionEntrante) return;
+		setSincronizando(true);
+		setProgresoSync(20);
+		setProgresoTexto("Descargando respaldo .zip de " + (peticionEntrante.de?.dispositivo || peticionEntrante.de?.usuario) + "…");
+		try {
+			// 1. Descargar respaldo .zip del teléfono en el PC
+			if (peticionEntrante.datos) {
+				await fnDescargarZip(peticionEntrante.datos, peticionEntrante.de?.dispositivo || peticionEntrante.de?.usuario);
+				setProgresoSync(50);
+				setProgresoTexto("Fusionando libros, notas y Lumo en tu biblioteca…");
+				const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+				await t.importarProgreso(peticionEntrante.datos, (p, tx) => {
+					setProgresoSync(50 + Math.round(p * 0.25));
+					setProgresoTexto(tx || "Fusionando biblioteca…");
+				});
+				await reload?.();
+			}
+
+			// 2. Enviar datos de este computador al teléfono
+			setProgresoSync(80);
+			setProgresoTexto("Enviando libros y respaldo de este computador al teléfono…");
+			const t2 = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
+			const misDatos = await t2.reunirTodo();
+			const miCuenta = cuentaP2P || {
+				id: "p2p_" + Math.random().toString(36).slice(2, 9),
+				usuario: nombre.trim() || "Lector Lumen",
+				telefono: telefono.trim(),
+				dispositivo: dispositivo.trim() || "Computador Lumen",
+				creadoEn: Date.now()
+			};
+			const ack = {
+				tipo: "LUMEN_P2P_ACEPTADO",
+				de: miCuenta,
+				roomId: miRoomId,
+				datos: misDatos,
+				ts: Date.now()
+			};
+
+			await enviarMensajeP2P(miRoomId, ack);
+
+			actualizarDispositivoVinculado(peticionEntrante.de);
+			setProgresoSync(100);
+			setProgresoTexto("¡Sincronización bilateral completada con éxito!");
+			setPeticionEntrante(null);
+			setSincronizadoExitoso(true);
+			haptic$1.success?.();
+			toast?.("🎉 ¡Aparatos sincronizados y respaldo descargado!");
+		} catch (e) {
+			console.warn("[p2p-aceptar-err]", e);
+			toast?.("Error aceptando conexión: " + (e?.message || e));
+		} finally {
+			setTimeout(() => {
+				setSincronizando(false);
+				setProgresoSync(null);
+			}, 2000);
+		}
+	};
+
+	// Confirmar y enviar petición desde el teléfono hacia el PC
 	const confirmarYConectar = async () => {
 		if (!detectado) return;
 		setSincronizando(true);
-		setProgresoSync(10);
-		setProgresoTexto("Conectando con " + (detectado.usuario || "el otro aparato") + "…");
+		setProgresoSync(15);
+		setProgresoTexto("Preparando libros de este aparato para enviar a tu computador…");
 		haptic$1.tap?.();
 		try {
-			// 1. Reúne los datos locales
 			const t = await __vitePreload(() => import("./traspaso-CmN4vz7o.js"), __vite__mapDeps([15,2,1,7]), import.meta.url);
-			setProgresoSync(25);
-			setProgresoTexto("Preparando tus libros, notas y Lumo…");
 			const datosLocales = await t.reunirTodo((pct, msg) => {
-				setProgresoSync(25 + Math.round(pct * 0.25));
+				setProgresoSync(15 + Math.round(pct * 0.2));
 				setProgresoTexto(msg || "Empaquetando datos…");
 			});
 
@@ -37410,91 +37576,52 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 				id: "p2p_" + Math.random().toString(36).slice(2, 9),
 				usuario: nombre.trim() || "Lector Lumen",
 				telefono: telefono.trim(),
-				dispositivo: dispositivo.trim() || "Dispositivo Lumen",
+				dispositivo: dispositivo.trim() || "Teléfono Lumen",
 				creadoEn: Date.now()
 			};
 
 			const paquete = {
-				tipo: "LUMEN_P2P_CONFIRM",
+				tipo: "LUMEN_P2P_PETICION",
 				de: miCuenta,
-				para: detectado,
 				roomId: detectado.roomId || miRoomId,
 				datos: datosLocales,
 				ts: Date.now()
 			};
 
-			// Transmitir confirmación a canales locales y bus
-			try { broadcastRef.current?.postMessage(paquete); } catch {}
-			try { localStorage.setItem("lumen_p2p_channel", JSON.stringify(paquete)); } catch {}
+			setProgresoSync(40);
+			setProgresoTexto("Enviando petición a tu computador…");
+			await enviarMensajeP2P(detectado.roomId || miRoomId, paquete);
 
-			// Esperar datos del otro aparato o usar los incluidos
-			let datosRemotos = detectado.datos || null;
-			if (!datosRemotos) {
-				setProgresoSync(55);
-				setProgresoTexto("Esperando libros y respaldo del otro aparato…");
-				datosRemotos = await new Promise((resolve) => {
-					let terminado = false;
-					const timer = setTimeout(() => {
-						if (!terminado) {
-							terminado = true;
-							resolve(null);
-						}
-					}, 12000);
-
-					const onMsg = (m) => {
-						if (!m || terminado) return;
-						if ((m.tipo === "LUMEN_P2P_ACK" || m.tipo === "LUMEN_P2P_CONFIRM") && m.datos) {
-							terminado = true;
-							clearTimeout(timer);
-							resolve(m.datos);
-						}
-					};
-
-					const hBC = (ev) => onMsg(ev.data);
-					const hST = (e) => {
-						if (e.key === "lumen_p2p_channel" && e.newValue) {
-							try { onMsg(JSON.parse(e.newValue)); } catch {}
-						}
-					};
-
-					broadcastRef.current?.addEventListener?.("message", hBC);
-					window.addEventListener("storage", hST);
-				});
-			}
-
-			if (datosRemotos) {
-				setProgresoSync(70);
-				setProgresoTexto("Descargando archivo de respaldo .zip del otro aparato…");
-				await fnDescargarZip(datosRemotos, detectado.dispositivo || detectado.usuario);
-
+			if (detectado.datos) {
+				setProgresoSync(65);
+				setProgresoTexto("Descargando respaldo .zip del otro aparato…");
+				await fnDescargarZip(detectado.datos, detectado.dispositivo || detectado.usuario);
 				setProgresoSync(85);
-				setProgresoTexto("Fusionando libros, notas, rachas y Lumo en tu biblioteca…");
-				await t.importarProgreso(datosRemotos, (p, tx) => {
-					setProgresoSync(85 + Math.round(p * 0.12));
-					setProgresoTexto(tx || "Fusionando biblioteca…");
-				});
-
+				setProgresoTexto("Fusionando libros y notas en tu biblioteca…");
+				await t.importarProgreso(detectado.datos);
+				await reload?.();
+				actualizarDispositivoVinculado(detectado);
 				setProgresoSync(100);
 				setProgresoTexto("¡Sincronización completada con éxito!");
-				await reload?.();
-
-				actualizarDispositivoVinculado(detectado);
 				setSincronizadoExitoso(true);
 				haptic$1.success?.();
 				toast?.("🎉 ¡Conexión y sincronización completada!");
 			} else {
-				setProgresoSync(100);
-				setProgresoTexto("Señal enviada al otro aparato. Confirma la conexión en ambos.");
-				toast?.("Enlace enviado al otro aparato");
+				setEsperandoRespuesta(true);
+				setProgresoSync(50);
+				setProgresoTexto("Petición enviada. Pulsa '✓ Sí, aceptar y sincronizar todo' en la pantalla de tu computador…");
+				toast?.("📡 Petición enviada. Acepta la conexión en tu PC");
 			}
 		} catch (err) {
 			console.warn("[p2p-confirmar-err]", err);
-			toast?.("Error en la conexión: " + (err?.message || err));
+			toast?.("Error enviando petición: " + (err?.message || err));
+			setSincronizando(false);
+			setProgresoSync(null);
 		} finally {
 			setTimeout(() => {
 				setSincronizando(false);
 				setProgresoSync(null);
-			}, 2200);
+			}, 800);
 		}
 	};
 
@@ -37547,9 +37674,18 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		inp.click();
 	};
 
+	const cerrarModalP2P = () => {
+		if (typeof window !== "undefined" && window.location.hash.includes("p2p=")) {
+			try {
+				history.replaceState(null, document.title, window.location.pathname + window.location.search);
+			} catch {}
+		}
+		onClose();
+	};
+
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 		open,
-		onClose,
+		onClose: cerrarModalP2P,
 		title: "🛡️ Mi Cuenta P2P (Sincronización Directa)",
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -37661,7 +37797,61 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 							})
 						]
 					}),
-					detectado ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					peticionEntrante ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "p2p-confirm-card",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-badge",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📡" }),
+									"¡Petición de conexión entrante!"
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "p2p-confirm-nombre",
+								children: peticionEntrante.de?.usuario || "Lector Lumen"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-info",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										children: ["📱 Teléfono: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: peticionEntrante.de?.telefono || "Sin registrar" })]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										children: ["💻 Aparato: ", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: peticionEntrante.de?.dispositivo || "Teléfono móvil" })]
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+								className: "p2p-confirm-pregunta",
+								children: [
+									peticionEntrante.de?.usuario || "El otro aparato",
+									" quiere conectar su ",
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: peticionEntrante.de?.dispositivo || "aparato" }),
+									" a este computador. Al aceptar, se descargará el respaldo .zip y se sincronizarán todos tus libros, notas, rachas y Lumo."
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "p2p-confirm-btns",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { flex: 1, padding: "13px 16px", fontSize: 15, fontWeight: 800 },
+										disabled: sincronizando,
+										onClick: aceptarPeticionEntrante,
+										children: sincronizando ? "Sincronizando…" : "✓ Sí, aceptar y sincronizar todo"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn ghost",
+										style: { padding: "13px 16px" },
+										disabled: sincronizando,
+										onClick: () => setPeticionEntrante(null),
+										children: "✕ Cancelar"
+									})
+								]
+							})
+						]
+					}) : detectado ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "p2p-confirm-card",
 						children: [
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -37688,9 +37878,22 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 								className: "p2p-confirm-pregunta",
-								children: "¿Es el aparato que estás buscando para proceder con la conexión? Al confirmar se conectarán automáticamente, se descargará el respaldo .zip y se fusionarán tus libros, notas, rachas y Lumo."
+								children: "¿Es el aparato que estás buscando para proceder con la conexión? Al confirmar se enviará la petición a tu computador, se descargará el respaldo .zip y se fusionarán tus libros, notas, rachas y Lumo."
 							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							esperandoRespuesta ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								style: { textAlign: "center", padding: "10px 4px", display: "flex", flexDirection: "column", gap: 8, alignItems: "center" },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "p2p-dot", style: { width: 14, height: 14 } }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { style: { fontSize: 15 }, children: "📡 Petición enviada a tu computador" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "En la pantalla de tu computador apareció la tarjeta de confirmación. Pulsa «✓ Sí, aceptar y sincronizar todo» en tu PC." }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn sm ghost",
+										style: { marginTop: 4 },
+										onClick: () => { setEsperandoRespuesta(false); setSincronizando(false); setProgresoSync(null); setDetectado(null); },
+										children: "✕ Cancelar espera"
+									})
+								]
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 								className: "p2p-confirm-btns",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
@@ -37730,7 +37933,7 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 										className: "btn primary",
 										style: { marginTop: 6, padding: "10px 18px", fontWeight: 700 },
-										onClick: onClose,
+										onClick: cerrarModalP2P,
 										children: "📖 Ir a mi biblioteca"
 									})
 								]
@@ -37868,6 +38071,16 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [collections, setCollections] = (0, import_react.useState)(false);
 	const [wrapped, setWrapped] = (0, import_react.useState)(false);
 	const [storiesOpen, setStoriesOpen] = (0, import_react.useState)(false);
+	(0, import_react.useEffect)(() => {
+		const verificarP2PEnlace = () => {
+			if (typeof window !== "undefined" && window.location.hash.includes("p2p=")) {
+				setSheet("cuenta_p2p");
+			}
+		};
+		verificarP2PEnlace();
+		window.addEventListener("hashchange", verificarP2PEnlace);
+		return () => window.removeEventListener("hashchange", verificarP2PEnlace);
+	}, []);
 	(0, import_react.useEffect)(() => {
 		if (typeof document !== "undefined") {
 			if (storiesOpen) document.body.classList.add("en-historias");
