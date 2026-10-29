@@ -26999,21 +26999,67 @@ var MOTIVACION = [
 	"🔭 Abre un libro y abre tu mente a nuevas explicaciones.",
 	"💎 Un libro bien leído vale más que cien mirados por encima."
 ];
+var BANCO_FRASES_LECTURA_50 = [
+	"«El que lee mucho y anda mucho, ve mucho y sabe mucho.» — Miguel de Cervantes",
+	"«De los diversos instrumentos inventados por el hombre, el más asombroso es el libro.» — Jorge Luis Borges",
+	"«Un lector vive mil vidas antes de morir. El que no lee solo vive una.» — George R.R. Martin",
+	"«Los libros son espejos: solo se ve en ellos lo que uno ya lleva dentro.» — Carlos Ruiz Zafón",
+	"«No hay mejor nave que un libro para llevarnos a tierras lejanas.» — Emily Dickinson",
+	"«Leer es viajar sin pagar pasaje, soñar despierto y conversar con los mejores pensadores.»",
+	"«Siempre imaginé que el Paraíso sería algún tipo de biblioteca.» — Jorge Luis Borges",
+	"«La lectura es a la mente lo que el ejercicio al cuerpo.» — Joseph Addison",
+	"«Un hogar sin libros es como un cuerpo sin alma.» — Cicerón",
+	"«Leer te da un refugio indestructible contra las tormentas del mundo cotidiano.»",
+	"«Los libros son abejas que llevan el polen de una mente a otra.» — James Russell Lowell",
+	"«Para viajar lejos no hay mejor nave que un buen libro en tus manos.»",
+	"«Cada página que lees hoy es una semilla para tus mejores ideas de mañana.»",
+	"«Aprender a leer es encender un fuego; cada sílaba es una chispa de luz.» — Victor Hugo",
+	"«Leer un buen libro es dialogar con los espíritus más nobles de los siglos pasados.» — René Descartes",
+	"«La lectura hace al hombre completo; la conversación ágil; la escritura preciso.» — Francis Bacon",
+	"«Un libro abierto es un cerebro que habla; cerrado, un amigo que espera pacientemente.»",
+	"«Nunca estás solo cuando un buen libro te acompaña en el silencio.»",
+	"«Quien lee no solo acumula conocimientos: despierta su propia voz interior.»",
+	"«Los libros no cambian el mundo; cambian a quienes van a cambiar el mundo.»",
+	"«Leer diez páginas al día suma más de tres mil páginas de sabiduría al año.»",
+	"«El verbo leer no soporta el modo imperativo: es un acto de puro placer.» — Jorge Luis Borges",
+	"«No leas para contradecir, sino para reflexionar, comprender y discernir.» — Francis Bacon",
+	"«La lectura abre horizontes que la rutina cotidiana a menudo intenta cerrar.»",
+	"«Una hora dedicada a un libro es una hora ganada a la serenidad interior.»",
+	"«Un libro debe ser el hacha que rompa el mar helado dentro de nosotros.» — Franz Kafka",
+	"«El arte de leer consiste en saber qué atesorar y qué dejar volar con gratitud.»",
+	"«Hay peores crímenes que quemar libros. Uno de ellos es no leerlos.» — Ray Bradbury",
+	"«La pasión por la lectura es el pasaporte más seguro a infinitos universos.»",
+	"«Cuanto más lees, más sabes; cuanto más sabes, más lejos llegarás en la vida.» — Dr. Seuss",
+	"«Los libros custodian la memoria del mundo y el eco de sus mayores aspiraciones.»",
+	"«Leer es el puente luminoso entre quien eres hoy y todo lo que puedes llegar a ser.»",
+	"«Un libro compartido es un lazo invisible de complicidad y conocimiento mutuo.»",
+	"«Adquirir el hábito de leer es construir un refugio contra las desdichas.» — W. Somerset Maugham",
+	"«La mente que se abre a un nuevo libro jamás regresa a su tamaño original.»",
+	"«Cada libro concluido es una cumbre alcanzada en tu propio crecimiento personal.»",
+	"«Lee lo que amas con intensidad hasta que la lectura se vuelva tu segunda naturaleza.»",
+	"«La lectura es la llave maestra que abre las puertas del entendimiento profundo.»",
+	"«Un día sin lectura es un día en el que tu curiosidad se quedó esperando.»",
+	"«Encuentra en tus lecturas no solo respuestas, sino preguntas más lúcidas.»",
+	"«Leer en calma es uno de los actos de libertad personal más bellos y transformadores.»",
+	"«La tinta en la página perdura mucho más que la memoria fugaz del tiempo.»",
+	"«No leas para pasar las horas; lee para darle profundidad y sentido a cada hora.»",
+	"«Un buen libro es un consejero fiel que jamás juzga y siempre aporta claridad.»",
+	"«El hábito de la lectura regala una paz que el ruido digital no puede ofrecer.»",
+	"«Las palabras guardan la chispa capaz de encender la vocación más dormida.»",
+	"«Cada párrafo leído con atención es un triunfo constructivo sobre la distracción.»",
+	"«Quien encuentra refugio en las páginas de un libro jamás conocerá el tedio.»",
+	"«En la quietud de la lectura se revelan las verdades más lúcidas del alma.»",
+	"«Abre tu libro hoy y permite que la sabiduría de las palabras ilumine tu camino.»"
+];
+function pickDosMotivacionesDistintas() {
+	const n = BANCO_FRASES_LECTURA_50.length;
+	const i1 = Math.floor(Math.random() * n);
+	let i2 = Math.floor(Math.random() * (n - 1));
+	if (i2 >= i1) i2++;
+	return [BANCO_FRASES_LECTURA_50[i1], BANCO_FRASES_LECTURA_50[i2]];
+}
 function pickMotivacionNoRepetida() {
-	try {
-		const raw = localStorage.getItem("lumen_mot_seen_v1");
-		let vistos = raw ? JSON.parse(raw) : [];
-		if (!Array.isArray(vistos)) vistos = [];
-		const disponibles = MOTIVACION.filter((m) => !vistos.includes(m));
-		const pool = disponibles.length > 0 ? disponibles : MOTIVACION;
-		const elegido = pool[Math.floor(Math.random() * pool.length)];
-		vistos.push(elegido);
-		if (vistos.length > 25) vistos = vistos.slice(-25);
-		localStorage.setItem("lumen_mot_seen_v1", JSON.stringify(vistos));
-		return elegido;
-	} catch {
-		return MOTIVACION[Math.floor(Math.random() * MOTIVACION.length)];
-	}
+	return BANCO_FRASES_LECTURA_50[Math.floor(Math.random() * BANCO_FRASES_LECTURA_50.length)];
 }
 var NOVEDADES = [
 	{
@@ -27040,145 +27086,130 @@ var NOVEDADES = [
 async function buildStories(book, opts = {}) {
 	const { limit = 6 } = opts;
 	const items = [];
-	const cfg = await getStoryConfig();
-	const kinds = cfg.kinds || {};
-	const enabled = (k) => kinds[k] !== false;
-	const pct = book.percentRead || 0;
-	const readPages = Math.floor((book.pageCount || 1) * pct / 100);
-	const insights = await bookInsights(book).catch(() => null);
-	let pendingVocab = 0;
+	if (!book || !book.id) return items;
+
+	// Consultar diferenciales del libro: resaltados/citas, palabras desconocidas, marcadores y notas
+	let bookHighs = [];
 	try {
-		const { getDueWords } = await __vitePreload(async () => {
-			const { getDueWords } = await Promise.resolve().then(() => wordlab_exports);
-			return { getDueWords };
-		}, void 0, import.meta.url);
-		pendingVocab = (await getDueWords(book.id, 10)).length;
-	} catch {}
-	let ultimos = [];
-	try {
-		const raw = localStorage.getItem(`lumen_story_hist_${book.id}`);
-		if (raw) ultimos = JSON.parse(raw);
-		if (!Array.isArray(ultimos)) ultimos = [];
-	} catch {
-		ultimos = [];
-	}
-	const candidatos = [
-		"recuerdo",
-		"pregunta",
-		"stat",
-		"vocab",
-		"adelanto",
-		"frase",
-		"motivacion"
-	].filter((k) => enabled(k));
-	candidatos.sort((a, b) => {
-		return ultimos.lastIndexOf(a) - ultimos.lastIndexOf(b) || .5 - Math.random();
-	});
-	const tiposFinal = [];
-	const usados = /* @__PURE__ */ new Set();
-	for (const t of candidatos) if (!usados.has(t) && tiposFinal.length < limit) {
-		tiposFinal.push(t);
-		usados.add(t);
-	}
-	while (tiposFinal.length < limit && candidatos.length > 0) {
-		const ad = smartKind(book, insights, pendingVocab, cfg);
-		tiposFinal.push(ad);
-	}
-	try {
-		const nuevaHist = [...ultimos, ...tiposFinal].slice(-20);
-		localStorage.setItem(`lumen_story_hist_${book.id}`, JSON.stringify(nuevaHist));
-	} catch {}
-	for (const tipo of tiposFinal) try {
-		if (tipo === "recuerdo" && enabled("recuerdo") && readPages > 0) {
-			const pg = Math.floor(Math.random() * Math.max(1, readPages));
-			const p = await getPage(book.id, pg);
-			if (p?.text?.trim().length > 80) {
-				const frags = p.text.split(/\n+/).filter((x) => x.trim().length > 60);
-				const frag = frags[Math.floor(Math.random() * frags.length)] || p.text.slice(0, 300);
-				items.push({
-					kind: "recuerdo",
-					text: frag.slice(0, 400),
-					page: pg + 1,
-					hasPdf: book.kind === "pdf" || book.kind === "image"
-				});
-			}
-		} else if (tipo === "adelanto" && enabled("adelanto") && pct < 95) {
-			const nextPg = Math.min(readPages, (book.pageCount || 1) - 1);
-			const p = await getPage(book.id, nextPg);
-			if (p?.text?.trim().length > 60) items.push({
-				kind: "adelanto",
-				text: p.text.slice(0, 350),
-				page: nextPg + 1
-			});
-		} else if (tipo === "frase" && enabled("frase")) {
-			const bookHighs = (await allHighlights()).filter((h) => h.bookId === book.id && h.text?.trim().length > 20);
-			if (bookHighs.length) {
-				const h = bookHighs[Math.floor(Math.random() * bookHighs.length)];
-				items.push({
-					kind: "frase",
-					text: h.text,
-					page: h.page + 1,
-					color: h.color
-				});
-			}
-		} else if (tipo === "pregunta" && enabled("pregunta") && readPages > 2) {
-			const pg = Math.floor(Math.random() * Math.max(1, readPages - 1));
-			const p = await getPage(book.id, pg);
-			if (p?.text?.trim().length > 120) {
-				const frases = p.text.split(/[.!?]+/).filter((s) => s.trim().length > 40 && s.trim().length < 200);
-				if (frases.length >= 2) {
-					const src = frases.slice(0, 3).join(". ");
-					const frase = frases[Math.floor(Math.random() * Math.min(3, frases.length))].trim();
-					const palabras = frase.split(" ");
-					const ocultar = palabras[Math.floor(Math.random() * palabras.length)];
-					items.push({
-						kind: "pregunta",
-						question: `¿Qué palabra falta? "${frase.replace(ocultar, "____")}"`,
-						answer: ocultar,
-						source: src,
-						excerpt: src,
-						page: pg + 1
-					});
-				}
-			}
-		} else if (tipo === "stat" && enabled("stat") && insights) {
-			const msg = bookMessage(insights, book.title || book.nombre || "tu libro");
-			if (msg) items.push({
-				kind: "stat",
-				insights,
-				text: msg,
-				appText: true
-			});
-		} else if (tipo === "motivacion" && enabled("motivacion")) {
-			const txt = pickMotivacionNoRepetida();
-			items.push({
-				kind: "motivacion",
-				text: txt,
-				appText: true
-			});
-		} else if (tipo === "vocab" && enabled("vocab") && pendingVocab > 0) try {
-			const { buildVocabStory } = await __vitePreload(async () => {
-				const { buildVocabStory } = await Promise.resolve().then(() => wordlab_exports);
-				return { buildVocabStory };
-			}, void 0, import.meta.url);
-			const vs = await buildVocabStory(book);
-			if (vs) items.push(vs);
-		} catch {}
+		const { allHighlights } = await __vitePreload(async () => {
+			const { allHighlights } = await import("./db-Ii3ipPL7.js").then((n) => n.s);
+			return { allHighlights };
+		}, __vite__mapDeps([2, 1]), import.meta.url);
+		bookHighs = (await allHighlights().catch(() => []))
+			.filter((h) => h && h.bookId === book.id && h.text && h.text.trim().length > 0);
 	} catch (e) {
-		console.warn("[stories] error generando tipo", tipo, e?.message || e);
+		console.warn("[stories] error obteniendo resaltados", e);
 	}
-	if (!items.length) {
-		items.push({
-			kind: "motivacion",
-			text: pickMotivacionNoRepetida(),
-			appText: true
-		});
-		items.push({
-			kind: "motivacion",
-			text: "💡 Consejo: Lee algunas páginas y resalta tus frases favoritas para generar recuerdos, cuestionarios y estadísticas sobre este libro.",
-			appText: true
-		});
+
+	let bookNotes = [];
+	try {
+		const { allNotes } = await __vitePreload(async () => {
+			const { allNotes } = await import("./db-Ii3ipPL7.js").then((n) => n.s);
+			return { allNotes };
+		}, __vite__mapDeps([2, 1]), import.meta.url);
+		bookNotes = (await allNotes().catch(() => []))
+			.filter((n) => n && n.bookId === book.id && (n.text || n.body || n.content));
+	} catch (e) {
+		console.warn("[stories] error obteniendo notas", e);
 	}
+
+	const bookmarks = Array.isArray(book.marcadores) ? book.marcadores.filter(Boolean) : (book.marcador ? [book.marcador] : []);
+	const vocabWords = bookHighs.filter((h) => h.color === "desconocida");
+	const standardHighs = bookHighs.filter((h) => h.color !== "desconocida");
+
+	const tieneDiferenciales = standardHighs.length > 0 || vocabWords.length > 0 || bookmarks.length > 0 || bookNotes.length > 0;
+
+	if (tieneDiferenciales) {
+		// Mostrar ÚNICAMENTE los elementos diferenciales marcados por el usuario
+		for (const h of standardHighs) {
+			items.push({
+				kind: h.color === "morado" || h.cita ? "cita" : "frase",
+				text: h.text,
+				page: (h.page ?? 0) + 1,
+				color: h.color || "amarillo",
+				nota: h.note || h.nota || "",
+				appText: false
+			});
+		}
+		for (const v of vocabWords) {
+			const def = v.note || v.nota || "";
+			items.push({
+				kind: "vocab",
+				word: v.text,
+				palabra: v.text,
+				text: `«${v.text}»${def ? ` — ${def}` : ""}`,
+				page: (v.page ?? 0) + 1,
+				color: "desconocida",
+				appText: true
+			});
+		}
+		for (const n of bookNotes) {
+			items.push({
+				kind: "nota",
+				text: n.text || n.body || n.content,
+				page: (n.page ?? 0) + 1,
+				appText: true
+			});
+		}
+		for (const m of bookmarks) {
+			const pg = (m.page ?? 0) + 1;
+			items.push({
+				kind: "marcador",
+				text: m.muestra ? `🔖 Marcador: «${m.muestra}»` : `🔖 Marcador guardado en la página ${pg}`,
+				page: pg,
+				appText: true
+			});
+		}
+		return items.slice(0, limit);
+	}
+
+	// Si no tiene nada marcado: EXACTAMENTE 4 diapositivas
+	// Estado 1: Solo estadísticas del libro
+	const pct = Math.min(100, Math.max(0, book.percentRead || 0));
+	const readPages = Math.floor((book.pageCount || 1) * pct / 100);
+	let insights = null;
+	try {
+		insights = await bookInsights(book).catch(() => null);
+	} catch {}
+	if (!insights) {
+		insights = {
+			read: readPages,
+			remaining: Math.max(0, (book.pageCount || 1) - readPages),
+			pct,
+			timeSpent: book.timeSpent || 0,
+			avgPerDay: book.avgPerDay || "—",
+			daysLeft: book.daysLeft ?? "—"
+		};
+	}
+	items.push({
+		kind: "stat",
+		insights,
+		text: `Progreso: ${pct}% completado (${readPages} de ${book.pageCount || 1} páginas leídas).`,
+		appText: true
+	});
+
+	// Estados 2 y 3: Dos frases motivacionales distintas de lectura del banco de 50 frases
+	const [mot1, mot2] = pickDosMotivacionesDistintas();
+	items.push({
+		kind: "motivacion",
+		text: mot1,
+		appText: true
+	});
+	items.push({
+		kind: "motivacion",
+		text: mot2,
+		appText: true
+	});
+
+	// Estado 4: Publicidad con texto explicativo que dice «Área publicitaria»
+	items.push({
+		kind: "ad",
+		isAd: true,
+		appText: true,
+		titulo: "Área publicitaria",
+		descripcion: "Espacio reservado para promociones y patrocinadores de lectura."
+	});
+
 	return items;
 }
 async function buildNovedadStory() {
@@ -27211,7 +27242,10 @@ function normalizarGrupos(groups) {
 			book: {
 				id: g.book?.id || "__x__",
 				title: nombre || "Tu lectura",
-				...g.book?.emoji ? { emoji: g.book.emoji } : {}
+				...g.book?.emoji ? { emoji: g.book.emoji } : {},
+				...g.book?.cover ? { cover: g.book.cover } : {},
+				...g.book?.icon ? { icon: g.book.icon } : {},
+				...g.book?.color ? { color: g.book.color } : {}
 			}
 		};
 	}).filter(Boolean).filter((g) => Array.isArray(g.items) && g.items.length > 0);
@@ -27234,7 +27268,7 @@ async function firmaHistorias(books) {
 		} catch {}
 		const enabled = cfg?.enabled ? "1" : "0";
 		const repasoEnabled = cfg?.kinds?.repaso !== false ? "1" : "0";
-		return `${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}|${enabled}|${repasoEnabled}|${bookIds}|${pages}|${hsN}|${repasoN}`;
+		return `v264|${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}|${enabled}|${repasoEnabled}|${bookIds}|${pages}|${hsN}|${repasoN}`;
 	} catch {
 		return "";
 	}
@@ -31758,19 +31792,26 @@ onPointerDownCapture: empezarPausa,
 				className: "st-head",
 				children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 					className: "st-book",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-						className: "st-emoji",
-						children: kindIcon(item.kind)
-					}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						style: { minWidth: 0 },
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "st-title",
-							children: group.book?.title || group.book?.nombre || "Tu lectura"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "st-kind",
-							children: [kindName(item.kind), item.page ? ` · pág. ${item.page}` : ""]
-						})]
-					})]
+					children: [
+						group.book?.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: group.book.cover,
+							className: "st-head-cover",
+							alt: ""
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+							className: "st-head-cover-default cover-style-" + (settings?.defaultCoverStyle || "cosmos"),
+							children: group.book?.emoji || group.book?.icon || kindIcon(item.kind)
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							style: { minWidth: 0 },
+							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "st-title",
+								children: group.book?.title || group.book?.nombre || "Tu lectura"
+							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "st-kind",
+								children: [(item.isAd || item.kind === "ad") ? "Área publicitaria" : kindName(item.kind), item.page ? ` · pág. ${item.page}` : ""]
+							})]
+						})
+					]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 					className: "icon-btn",
 					onClick: onClose,
@@ -31791,17 +31832,30 @@ onPointerDownCapture: empezarPausa,
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "st-body",
-				children: item.isAd ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "st-content",
+				children: (item.isAd || item.kind === "ad") ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+					className: "st-content st-ad-container",
 					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "ad-story-space",
 						ref: adStoryRef,
 						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "ad-badge",
-							children: "Anuncio"
-						}), item.pendiente && !adListo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "ad-cargando",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }), "Cargando anuncio…"]
+							children: "📢 Publicidad"
+						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							className: "ad-area-prominente",
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "ad-area-tit",
+									children: "Área publicitaria"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "ad-area-desc",
+									children: "Espacio reservado para promociones, recomendaciones de lectura y patrocinadores."
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "ad-area-icono",
+									children: "✨"
+								})
+							]
 						})]
 					}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "st-ad-xp-bar",
@@ -32792,11 +32846,15 @@ var kindIcon = (k) => ({
 	recuerdo: "🧠",
 	adelanto: "👀",
 	frase: "💛",
+	cita: "💜",
+	nota: "📝",
+	marcador: "🔖",
 	pregunta: "❓",
 	stat: "📊",
 	motivacion: "✨",
 	repaso: "🔤",
 	vocab: "📖",
+	ad: "📢",
 	novedad: "🆕",
 	wrapped: "📅"
 })[k] || "📖";
@@ -32804,11 +32862,15 @@ var kindName = (k) => ({
 	recuerdo: "Recuerdo",
 	adelanto: "Lo que viene",
 	frase: "Frase guardada",
+	cita: "Cita destacada",
+	nota: "Nota personal",
+	marcador: "Marcador",
 	pregunta: "Pregunta de repaso",
-	stat: "Tu progreso",
+	stat: "Estadísticas del libro",
 	motivacion: "Motivación",
 	repaso: "Repaso",
 	vocab: "Vocabulario",
+	ad: "Área publicitaria",
 	novedad: "Novedad",
 	wrapped: "Resumen"
 })[k] || "Estado";
@@ -32914,7 +32976,7 @@ function ItemHistoria({ libro, onAbrir, onMenu, children }) {
 		children
 	});
 }
-function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, onRandom, onOpenBook, onOcultar, onAyuda, onApoyar }) {
+function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, onRandom, onOpenBook, onOcultar, onAyuda, onApoyar, settings }) {
 	const accionesRef = (0, import_react.useRef)({});
 	accionesRef.current = {
 		onRandom,
@@ -33062,7 +33124,14 @@ function StoryRow({ books, onOpen, onManage, refreshKey, enabledKey, vaultOpen, 
 							children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 								className: "story-face",
 								style: b.color ? { background: b.color } : void 0,
-								children: b.icon || ICONS$1[b.kind] || "📖"
+								children: b.cover ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+									src: b.cover,
+									className: "story-cover-img",
+									alt: ""
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "story-cover-default cover-style-" + (settings?.defaultCoverStyle || "cosmos"),
+									children: b.icon || ICONS$1[b.kind] || "📖"
+								})
 							})
 						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: b.title || b.nombre || "Libro" })]
 					}, b.id));
@@ -33937,6 +34006,76 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 	const [wordWrap, setWordWrap] = (0, import_react.useState)(true);
 	const [fontSize, setFontSize] = (0, import_react.useState)(14);
 	const [undoStack, setUndoStack] = (0, import_react.useState)([]);
+	const [adjuntos, setAdjuntos] = (0, import_react.useState)([]);
+	const [adjuntoModal, setAdjuntoModal] = (0, import_react.useState)(null);
+	const adjuntarArchivoRef = (0, import_react.useRef)(null);
+	(0, import_react.useEffect)(() => {
+		window.__abrirAdjuntoModal = (id) => {
+			const a = adjuntos.find((x) => x.id === id);
+			if (a) setAdjuntoModal(a);
+		};
+		return () => {
+			delete window.__abrirAdjuntoModal;
+		};
+	}, [adjuntos]);
+
+	const adjuntarEnCursor = async (file) => {
+		if (!file) return;
+		try {
+			const esImg = file.type.startsWith("image/");
+			let dataUrl = "";
+			if (esImg) {
+				dataUrl = await new Promise((res, rej) => {
+					const fr = new FileReader();
+					fr.onload = () => res(fr.result);
+					fr.onerror = rej;
+					fr.readAsDataURL(file);
+				});
+			} else {
+				dataUrl = URL.createObjectURL(file);
+			}
+
+			const adjId = "adj_" + Math.random().toString(36).slice(2, 9);
+			const tamStr = file.size > 1048576 ? (file.size / 1048576).toFixed(1) + " MB" : (file.size / 1024).toFixed(1) + " KB";
+			const nuevoAdj = {
+				id: adjId,
+				nombre: file.name || "adjunto",
+				tipo: file.type || "application/octet-stream",
+				esImagen: esImg,
+				url: dataUrl,
+				tamano: tamStr
+			};
+
+			setAdjuntos((prev) => [...prev, nuevoAdj]);
+
+			const el = textRef.current;
+			const pos = el ? el.selectionStart : text.length;
+			const antes = text.slice(0, pos);
+			const despues = text.slice(pos);
+
+			const etiqueta = esImg
+				? `\n\n[📷 Imagen: ${nuevoAdj.nombre}]\n\n`
+				: `\n\n[📎 Archivo: ${nuevoAdj.nombre} (${tamStr})]\n\n`;
+
+			pushUndo(text);
+			const nuevoTexto = antes + etiqueta + despues;
+			setText(nuevoTexto);
+
+			setTimeout(() => {
+				if (el) {
+					el.focus();
+					const nuevoCursor = (antes + etiqueta).length;
+					el.setSelectionRange(nuevoCursor, nuevoCursor);
+				}
+			}, 50);
+
+			haptic$1.success?.();
+			toast?.(`📎 "${nuevoAdj.nombre}" adjuntado debajo del texto`);
+		} catch (err) {
+			console.warn("[adjuntar-err]", err);
+			toast?.("No se pudo adjuntar: " + (err?.message || err));
+		}
+	};
 	const [convFile, setConvFile] = (0, import_react.useState)(null);
 	const [convText, setConvText] = (0, import_react.useState)("");
 	const [convOut, setConvOut] = (0, import_react.useState)("txt");
@@ -33972,6 +34111,8 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 		setTitle("");
 		setText("");
 		setShots([]);
+		setAdjuntos([]);
+		setAdjuntoModal(null);
 		setPct(0);
 		setBusy(false);
 		setListening(false);
@@ -34484,12 +34625,33 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 						children: [
 							(0, import_jsx_runtime.jsx)("p", {
 								className: "bc-archivo-info",
-								children: "Adjunta un archivo y Lumen lo convierte en un libro completo: portada, capítulos y texto ya importados. Formatos: PDF, EPUB, DOCX, TXT, MD, RTF, FB2, HTML, SRT, MOBI, AZW, CBZ e imágenes."
+								children: "Adjunta elementos debajo del texto donde estás redactando. La escritura siguiente continuará debajo del adjunto con miniaturas compactas y visor en pantalla completa."
 							}),
-							(0, import_jsx_runtime.jsx)("button", {
-								className: "btn primary bc-action-btn",
-								onClick: () => archivoRef.current?.click(),
-								children: "📎 Adjuntar archivo"
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								style: { display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "center" },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary bc-action-btn",
+										onClick: () => adjuntarArchivoRef.current?.click(),
+										children: "📎 Adjuntar debajo del texto"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn bc-action-btn",
+										onClick: () => archivoRef.current?.click(),
+										children: "📚 Importar como libro nuevo"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+								ref: adjuntarArchivoRef,
+								type: "file",
+								accept: "image/*,.pdf,.docx,.doc,.txt,.md,.epub",
+								onChange: async (e) => {
+									const f = e.target.files?.[0];
+									e.target.value = "";
+									if (f) await adjuntarEnCursor(f);
+								},
+								hidden: true
 							}),
 							(0, import_jsx_runtime.jsx)("input", {
 								ref: archivoRef,
@@ -34559,7 +34721,22 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 					showPreview ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "bc-preview",
 						style: { fontSize },
-						dangerouslySetInnerHTML: { __html: text.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\*(.+?)\*/g, "<i>$1</i>").replace(/^# (.+)$/gm, "<h2>$1</h2>").replace(/^- (.+)$/gm, "<li>$1</li>").replace(/\n/g, "<br>") }
+						dangerouslySetInnerHTML: {
+							__html: text
+								.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+								.replace(/\*(.+?)\*/g, "<i>$1</i>")
+								.replace(/^# (.+)$/gm, "<h2>$1</h2>")
+								.replace(/^- (.+)$/gm, "<li>$1</li>")
+								.replace(/\[📷 Imagen: (.+?)\]/g, (match, nom) => {
+									const found = adjuntos.find((a) => a.nombre === nom);
+									if (found && found.url) {
+										return `<div class="doc-adjunto-mini" style="margin:12px 0;" onclick="window.__abrirAdjuntoModal?.('${found.id}')"><img class="doc-adjunto-mini-img" src="${found.url}" alt="${nom}"><div class="doc-adjunto-mini-txt"><span class="doc-adjunto-mini-nom">${nom}</span><span class="doc-adjunto-mini-tag">🔍 Ver a pantalla completa</span></div></div>`;
+									}
+									return `<div class="doc-adjunto-mini" style="margin:12px 0;"><span style="font-size:22px">📷</span><div class="doc-adjunto-mini-txt"><span class="doc-adjunto-mini-nom">${nom}</span></div></div>`;
+								})
+								.replace(/\[📎 Archivo: (.+?) \((.+?)\)\]/g, `<div class="doc-adjunto-mini" style="margin:12px 0;"><span style="font-size:22px">📎</span><div class="doc-adjunto-mini-txt"><span class="doc-adjunto-mini-nom">$1</span><span class="doc-adjunto-mini-tag">$2</span></div></div>`)
+								.replace(/\n/g, "<br>")
+						}
 					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("textarea", {
 						ref: textRef,
 						className: "bc-textarea",
@@ -34575,6 +34752,76 @@ function BookCreator({ open, onClose, toast, onCreated, settings, editBook }) {
 							setText(e.target.value);
 						},
 						spellCheck: true
+					}),
+					adjuntos.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+						className: "doc-adjuntos-panel",
+						children: adjuntos.map((adj) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+							key: adj.id,
+							className: "doc-adjunto-mini",
+							onClick: () => {
+								if (adj.esImagen) setAdjuntoModal(adj);
+							},
+							children: [
+								adj.esImagen ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+									className: "doc-adjunto-mini-img",
+									src: adj.url,
+									alt: adj.nombre
+								}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									style: { fontSize: 24 },
+									children: "📎"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "doc-adjunto-mini-txt",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "doc-adjunto-mini-nom",
+											children: adj.nombre
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+											className: "doc-adjunto-mini-tag",
+											children: adj.esImagen ? "🔍 Ver pantalla completa" : adj.tamano
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+									className: "doc-adjunto-del",
+									title: "Quitar adjunto",
+									onClick: (e) => {
+										e.stopPropagation();
+										setAdjuntos((prev) => prev.filter((a) => a.id !== adj.id));
+										setText((t) => t.replace(`\n\n[📷 Imagen: ${adj.nombre}]\n\n`, "").replace(`[📷 Imagen: ${adj.nombre}]`, "").replace(`\n\n[📎 Archivo: ${adj.nombre} (${adj.tamano})]\n\n`, "").replace(`[📎 Archivo: ${adj.nombre} (${adj.tamano})]`, ""));
+									},
+									children: "✕"
+								})
+							]
+						}))
+					}),
+					adjuntoModal && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "doc-adjunto-modal-backdrop",
+						onClick: () => setAdjuntoModal(null),
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "doc-adjunto-modal-bar",
+								onClick: (e) => e.stopPropagation(),
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+										className: "doc-adjunto-modal-nom",
+										children: ["🖼️ ", adjuntoModal.nombre, " (", adjuntoModal.tamano, ")"]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "doc-adjunto-modal-close",
+										onClick: () => setAdjuntoModal(null),
+										children: "✕"
+									})
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								className: "doc-adjunto-modal-img",
+								src: adjuntoModal.url,
+								alt: adjuntoModal.nombre,
+								onClick: (e) => e.stopPropagation()
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 						className: "bc-footer",
@@ -38051,7 +38298,235 @@ function CuentaP2PModal({ open, onClose, toast, reload, cuentaP2P, setCuentaP2P,
 		]
 	});
 }
+
+function CompartirLibroSheet({ open, book, onClose, toast }) {
+	const [modo, setModo] = (0, import_react.useState)("menu");
+	const [qrUrl, setQrUrl] = (0, import_react.useState)("");
+	const [lumenBusy, setLumenBusy] = (0, import_react.useState)(false);
+
+	const enlaceCorto = (0, import_react.useMemo)(() => {
+		if (!book) return "";
+		const baseUrl = (typeof window !== "undefined" && window.location)
+			? `${window.location.origin}${window.location.pathname}`
+			: "https://lumenreader.app/";
+		const params = new URLSearchParams();
+		const id = book.id || book.d || "";
+		if (id) params.set("b", id);
+		const tit = (book.title || book.titulo || "").trim();
+		if (tit) params.set("t", tit);
+		const aut = (book.author || book.autor || "").trim();
+		if (aut && aut !== "Anon" && aut !== "Autor anónimo" && aut !== "Autor Anónimo") params.set("a", aut);
+		if (book.fileUrl) params.set("f", book.fileUrl);
+		if (book.portada && /^https?:\/\//i.test(book.portada)) params.set("c", book.portada);
+		if (book.magnet) params.set("m", book.magnet);
+		return `${baseUrl}?${params.toString()}`;
+	}, [book]);
+
+	(0, import_react.useEffect)(() => {
+		if (open) {
+			setModo("menu");
+			setQrUrl("");
+			setLumenBusy(false);
+		}
+	}, [open, book]);
+
+	const verQr = () => {
+		if (!enlaceCorto) return;
+		const qr = generarQrDataUrl(enlaceCorto, 260);
+		setQrUrl(qr);
+		setModo("qr");
+		haptic$1.tap?.();
+	};
+
+	const copiarOCompartirEnlace = async () => {
+		if (!enlaceCorto) return;
+		try {
+			if (navigator.clipboard?.writeText) {
+				await navigator.clipboard.writeText(enlaceCorto);
+			}
+			if (navigator.share) {
+				try {
+					await navigator.share({
+						title: book?.title || book?.titulo || "Libro en Lumen",
+						url: enlaceCorto
+					});
+					return;
+				} catch (err) {
+					if (err?.name === "AbortError") return;
+				}
+			}
+			haptic$1.success?.();
+			toast?.("🔗 Enlace copiado. ¡Pégalo en el buscador de Lumen Store para abrir el libro!");
+		} catch (e) {
+			toast?.("Error al copiar enlace: " + (e?.message || e));
+		}
+	};
+
+	const exportarLumen = async () => {
+		if (!book) return;
+		setLumenBusy(true);
+		toast?.("Preparando el archivo .lumen con todo tu contenido…");
+		try {
+			const r = await exportarLumenPersonal(book);
+			const compartido = await compartirArchivoLumen(r.blob, r.nombre);
+			haptic$1.success?.();
+			toast?.((compartido ? "Compartido: " : "Descargado: ") + r.nombre);
+		} catch (e) {
+			toast?.("Error al exportar .lumen: " + (e?.message || e));
+		} finally {
+			setLumenBusy(false);
+		}
+	};
+
+	if (!open || !book) return null;
+
+	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
+		open,
+		onClose,
+		title: "📤 Compartir libro",
+		children: [
+			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+				className: "pb-compartir-wrap",
+				children: [
+					/* Tarjeta del libro */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "pb-compartir-libro-card",
+						children: [
+							book.cover || book.portada ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								className: "pb-compartir-cov",
+								src: book.cover || book.portada,
+								alt: ""
+							}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+								className: "pb-compartir-cov",
+								children: "📖"
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "pb-compartir-txt",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: book.title || book.titulo || "Libro" }),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: book.author || book.autor || "Autor" })
+								]
+							})
+						]
+					}),
+
+					modo === "qr" ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "pb-compartir-qr-box",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								src: qrUrl,
+								alt: "Código QR del libro",
+								width: 240,
+								height: 240
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+								style: { color: "var(--fg-dim)", textAlign: "center", maxWidth: 280 },
+								children: "Escanea con la cámara de cualquier teléfono para abrir el libro en Lumen."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								style: { display: "flex", gap: 10, width: "100%", marginTop: 8 },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { flex: 1, padding: "12px 14px", fontWeight: 700 },
+										onClick: copiarOCompartirEnlace,
+										children: "📋 Copiar enlace del QR"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn ghost",
+										style: { padding: "12px 14px" },
+										onClick: () => setModo("menu"),
+										children: "‹ Volver"
+									})
+								]
+							})
+						]
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "pb-compartir-opciones",
+						children: [
+							/* 1. Mostrar QR */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn",
+								onClick: verQr,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "📱"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Mostrar código QR" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Abre el QR en pantalla para escanear cara a cara con la cámara" })
+										]
+									})
+								]
+							}),
+
+							/* 2. Compartir enlace */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn destacado",
+								onClick: copiarOCompartirEnlace,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "🔗"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Compartir enlace" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Enlace web corto y limpio. Si lo pegas en el buscador de Lumen Store, aparece de inmediato" })
+										]
+									})
+								]
+							}),
+
+							/* 3. Enviar archivo .lumen */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn",
+								disabled: lumenBusy,
+								onClick: exportarLumen,
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "📦"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: lumenBusy ? "Empaquetando…" : "Enviar archivo .lumen" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Paquete completo con tus notas, páginas, marcador y personalizaciones listo para leer" })
+										]
+									})
+								]
+							})
+						]
+					})
+				]
+			})
+		]
+	});
+}
+
+var ESTILOS_PORTADAS_DEF = [
+	{ id: "cosmos", nombre: "Cosmos", icon: "🌌", desc: "Nebulosa estelar violeta animada" },
+	{ id: "pergamino", nombre: "Pergamino", icon: "📜", desc: "Cuero y oro cálido tradicional" },
+	{ id: "neon", nombre: "Neón", icon: "⚡", desc: "Pulso ciberpunk cian y magenta" },
+	{ id: "esmeralda", nombre: "Esmeralda", icon: "💎", desc: "Brillo jade y esmeralda místico" },
+	{ id: "aurora", nombre: "Aurora", icon: "🌈", desc: "Ondas boreales etéreas en movimiento" },
+	{ id: "obsidiana", nombre: "Obsidiana", icon: "🖤", desc: "Carbono oscuro con destello metálico" }
+];
+
 function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrirBuscador, onAbrirTorrent, onAbrirCatalogo, progress, game, settings, setSettings, onOpen, toast, refreshKey, sheetReq, onSheetReqDone, onStatsChange, onPublicarLibro, onLibrosGratis }) {
+	(0, import_react.useEffect)(() => {
+		const cSize = settings?.storyCircleSize || 60;
+		const bSize = settings?.bookCoverSize || 68;
+		try {
+			document.documentElement.style.setProperty("--story-circle-size", `${cSize}px`);
+			document.documentElement.style.setProperty("--book-cover-size", `${bSize}px`);
+		} catch {}
+	}, [settings?.storyCircleSize, settings?.bookCoverSize]);
 	const [books, setBooks] = (0, import_react.useState)([]);
 	const [imports, setImports] = (0, import_react.useState)([]);
 	const [over, setOver] = (0, import_react.useState)(false);
@@ -38071,6 +38546,7 @@ function Library({ onAbrirArchivos, onApoyar, onAbrirPremium, onVerTips, onAbrir
 	const [collections, setCollections] = (0, import_react.useState)(false);
 	const [wrapped, setWrapped] = (0, import_react.useState)(false);
 	const [storiesOpen, setStoriesOpen] = (0, import_react.useState)(false);
+	const [libroParaCompartir, setLibroParaCompartir] = (0, import_react.useState)(null);
 	(0, import_react.useEffect)(() => {
 		const verificarP2PEnlace = () => {
 			if (typeof window !== "undefined" && window.location.hash.includes("p2p=")) {
@@ -39487,7 +39963,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "📖"
 					}), "Lumen", /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "brand-ver",
-							children: "v262"
+							children: "v264"
 						})]
 				}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 					className: "streak-pill",
@@ -39552,6 +40028,7 @@ const toquesDev = (0, import_react.useRef)(0);
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(StoryRow, {
 				books,
+				settings,
 				vaultOpen,
 				onRandom: lecturaAleatoria,
 				refreshKey: String(storyCfg?.books?.length) + "-" + storiesKey,
@@ -39908,7 +40385,9 @@ const toquesDev = (0, import_react.useRef)(0);
 					})
 				]
 			}),
-			visibleBooks.map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+				className: "books-wrapper " + (settings?.libraryViewMode === "cuadricula" ? "view-grid" : "view-list"),
+				children: visibleBooks.map((b) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 				className: "book" + (b.pinned ? " pinned" : ""),
 				"data-id": b.id,
 				onClick: () => {
@@ -39948,7 +40427,7 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: "⠿"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "book-cover",
+						className: "book-cover" + (!b.cover && !b.color ? (" default-cover cover-style-" + (settings?.defaultCoverStyle || "cosmos")) : ""),
 						style: b.color ? { background: b.color } : (b.cover ? void 0 : (() => {
 							const s = `${String(b.title || b.name || "").trim()} ${String(b.author || "").trim()}`.toLowerCase();
 							let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
@@ -40019,7 +40498,8 @@ const toquesDev = (0, import_react.useRef)(0);
 						children: busyId === b.id ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "spinner" }) : "⋮"
 					})
 				]
-			}, b.id)),
+			}, b.id))
+			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: sheet === "settings",
 				onClose: () => setSheet(null),
@@ -40073,6 +40553,148 @@ const toquesDev = (0, import_react.useRef)(0);
 								onApoyar?.();
 								haptic$1.tap();
 							}
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
+							icono: "🏠",
+							titulo: "Inicio",
+							resumen: "Tamaño de estados, portadas, lista o cuadrícula y portadas por defecto",
+							abierta: seccionAbierta === "inicio",
+							onToggle: () => alternarSeccion("inicio"),
+							children: [
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "row-label",
+													children: "Tamaño de estados"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "row-sub",
+													children: [settings?.storyCircleSize || 60, " px · círculos de historias"]
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 46,
+											max: 86,
+											step: 2,
+											value: settings?.storyCircleSize || 60,
+											onChange: (e) => {
+												const v = Number(e.target.value);
+												setSettings({ storyCircleSize: v });
+												try { document.documentElement.style.setProperty("--story-circle-size", v + "px"); } catch {}
+											}
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "row-label",
+													children: "Tamaño de portadas"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+													className: "row-sub",
+													children: [settings?.bookCoverSize || 68, " px · tamaño en biblioteca"]
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 52,
+											max: 120,
+											step: 2,
+											value: settings?.bookCoverSize || 68,
+											onChange: (e) => {
+												const v = Number(e.target.value);
+												setSettings({ bookCoverSize: v });
+												try { document.documentElement.style.setProperty("--book-cover-size", v + "px"); } catch {}
+											}
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+									className: "row",
+									children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "row-label",
+													children: "Vista de libros"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+													className: "row-sub",
+													children: "Disposición en el catálogo"
+												})
+											]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "seg-control",
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													className: "btn sm " + ((settings?.libraryViewMode || "lista") === "lista" ? "on" : "ghost"),
+													onClick: () => {
+														setSettings({ libraryViewMode: "lista" });
+														haptic$1.tap();
+													},
+													children: "☰ Lista"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+													type: "button",
+													className: "btn sm " + (settings?.libraryViewMode === "cuadricula" ? "on" : "ghost"),
+													onClick: () => {
+														setSettings({ libraryViewMode: "cuadricula" });
+														haptic$1.tap();
+													},
+													children: "▦ Cuadrícula"
+												})
+											]
+										})
+									]
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-label",
+									style: { marginTop: 12, marginBottom: 4 },
+									children: "Portadas por defecto"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "row-sub",
+									style: { marginBottom: 10 },
+									children: "Estilo animado para los libros que no cuentan con portada propia"
+								}),
+								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+									className: "cover-styles-grid",
+									children: ESTILOS_PORTADAS_DEF.map((st) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+										type: "button",
+										key: st.id,
+										className: "cover-style-btn" + ((settings?.defaultCoverStyle || "cosmos") === st.id ? " on" : ""),
+										onClick: () => {
+											setSettings({ defaultCoverStyle: st.id });
+											haptic$1.tap();
+										},
+										title: st.desc,
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "cover-style-preview cover-style-" + st.id,
+												children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: st.icon })
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+												className: "cover-style-name",
+												children: st.nombre
+											})
+										]
+									}, st.id))
+								})
+							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Seccion, {
 							icono: "🎨",
@@ -41653,7 +42275,7 @@ const toquesDev = (0, import_react.useRef)(0);
 							if (v) setSeccionAbierta("avanzado");
 						} else if (toquesDev.current >= 4) toast?.(`${7 - toquesDev.current} toques más…`);
 					},
-					children: "Lumen Reader · v262 · escritorio y móvil"
+					children: "Lumen Reader · v264 · escritorio y móvil"
 				})]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CuentaP2PModal, {
@@ -41665,6 +42287,12 @@ const toquesDev = (0, import_react.useRef)(0);
 				setCuentaP2P,
 				cargarJSZip,
 				descargarBlob
+			}),
+			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(CompartirLibroSheet, {
+				open: !!libroParaCompartir,
+				book: libroParaCompartir,
+				onClose: () => setLibroParaCompartir(null),
+				toast
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: ordenandoFiltros,
@@ -43436,16 +44064,15 @@ const toquesDev = (0, import_react.useRef)(0);
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 								className: "lm-fila",
 								onClick: () => {
-									const viejo = document.querySelector("[data-lumen=\"compartir\"]");
-									if (viejo) viejo.click();
-									else toast?.("No se pudo compartir");
+									setLibroParaCompartir(longPress);
+									setLongPress(null);
 								},
 								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 									className: "lm-ic",
 									children: "📤"
 								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 									className: "lm-txt",
-									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Compartir" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Enviar el archivo a otra aplicación" })]
+									children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Compartir" }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "QR, enlace web corto o archivo .lumen" })]
 								})]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
@@ -47010,6 +47637,7 @@ function Reader({ bookId, settings, setSettings, onExit, toast, onPageRead, onFa
 	const notaAreaRef = (0, import_react.useRef)(null);
 	const fondoLibroRef = (0, import_react.useRef)(null);
 	const [fondoTema, setFondoTema] = (0, import_react.useState)(null);
+	const [qrCompartirOpen, setQrCompartirOpen] = (0, import_react.useState)(false);
 	const olvidarPreferenciaFondo = (0, import_react.useCallback)(async () => {
 		try {
 			if (!book) return;
@@ -54189,77 +54817,167 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 						className: "section-title",
 						style: { margin: "18px 4px 8px" },
-						children: "Exportar"
+						children: "📤 Compartir libro"
 					}),
 					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "chips",
-						children: FORMATS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "chip",
-							onClick: async () => {
-								toast?.(`Generando ${f.name}…`);
-								try {
-									const r = await downloadExport(book, f.id);
-									toast?.(r.shared ? "Compartido" : `✓ ${r.name}`);
-									haptic$1.success();
-								} catch (e) {
-									toast?.("Error al exportar: " + (e.message || e));
-								}
-							},
-							children: f.name
-						}, f.id))
+						className: "row-sub",
+						style: { marginBottom: 12 },
+						children: "Elige una de las 3 opciones para compartir este libro con tus amigos o entre tus dispositivos:"
 					}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "section-title",
-					style: { margin: "18px 4px 8px" },
-					children: "Compartir en Lumen"
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-					className: "row-sub",
-					style: { marginBottom: 10 },
-					children: "Envía este libro en .lumen con TODO lo que configuraste solo para este libro (marcador, resaltados, notas, fondo, música al abrir…). Quien lo importe lo recibe listo para leer. No incluye los ajustes generales de la app."
-				}),
-				/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-					className: "chips",
-					children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "chip",
-						disabled: lumenBusy,
-						onClick: async () => {
-							try {
-								setLumenBusy(true);
-								toast?.("Preparando el .lumen con tus personalizaciones…");
-								const r = await exportarLumenPersonal(book);
-								const compartido = await compartirArchivoLumen(r.blob, r.nombre);
-								haptic$1.success();
-								toast?.((compartido ? "Compartido: " : "Descargado: ") + r.nombre + " · " + r.resumo);
-								} catch (e) {
-								toast?.("Error al preparar el .lumen: " + (e.message || e));
-								} finally {
-								setLumenBusy(false);
-								}
-							},
-							children: lumenBusy ? "Preparando…" : "📖 .lumen (con mis personalizaciones)"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-						className: "chip",
-						disabled: lumenBusy,
-						onClick: async () => {
-							try {
-								setLumenBusy(true);
-								toast?.("Subiendo a Lumen Storage (puede tardar un momento)…");
-								const r = await exportarLumenPersonal(book);
-								const file = new File([r.blob], r.nombre, { type: "application/octet-stream" });
-								const g = await subirAGoFile(file, r.nombre);
-								await copyText(g.url);
-								toast?.("☁️ Publicado en Lumen Storage 24/7 · enlace copiado");
-								setTimeout(() => toast?.(g.url), 300);
-								} catch (e) {
-								toast?.("No se pudo subir a Lumen Storage: " + (e.message || e));
-								} finally {
-								setLumenBusy(false);
-								}
-							},
-							children: "☁️ Lumen Storage (enlace 24/7)"
-						})]
-				})
+					qrCompartirOpen ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "pb-compartir-qr-box",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+								src: generarQrDataUrl((() => {
+									const baseUrl = (typeof window !== "undefined" && window.location)
+										? `${window.location.origin}${window.location.pathname}`
+										: "https://lumenreader.app/";
+									const params = new URLSearchParams();
+									params.set("b", book.id || "");
+									if (book.title) params.set("t", book.title);
+									if (book.author) params.set("a", book.author);
+									if (book.fileUrl) params.set("f", book.fileUrl);
+									if (book.portada && /^https?:\/\//i.test(book.portada)) params.set("c", book.portada);
+									return `${baseUrl}?${params.toString()}`;
+								})(), 240),
+								alt: "Código QR",
+								width: 240,
+								height: 240
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", {
+								style: { color: "var(--fg-dim)", textAlign: "center", maxWidth: 280 },
+								children: "Escanea con la cámara de cualquier teléfono para abrir el libro en Lumen."
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								style: { display: "flex", gap: 10, width: "100%", marginTop: 8 },
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn primary",
+										style: { flex: 1, padding: "12px 14px", fontWeight: 700 },
+										onClick: async () => {
+											const baseUrl = (typeof window !== "undefined" && window.location)
+												? `${window.location.origin}${window.location.pathname}`
+												: "https://lumenreader.app/";
+											const params = new URLSearchParams();
+											params.set("b", book.id || "");
+											if (book.title) params.set("t", book.title);
+											if (book.author) params.set("a", book.author);
+											if (book.fileUrl) params.set("f", book.fileUrl);
+											if (book.portada && /^https?:\/\//i.test(book.portada)) params.set("c", book.portada);
+											const u = `${baseUrl}?${params.toString()}`;
+											if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(u);
+											haptic$1.success?.();
+											toast?.("🔗 Enlace copiado al portapapeles");
+										},
+										children: "📋 Copiar enlace del QR"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+										className: "btn ghost",
+										style: { padding: "12px 14px" },
+										onClick: () => setQrCompartirOpen(false),
+										children: "‹ Volver"
+									})
+								]
+							})
+						]
+					}) : /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+						className: "pb-compartir-opciones",
+						children: [
+							/* 1. Mostrar QR */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn",
+								onClick: () => {
+									setQrCompartirOpen(true);
+									haptic$1.tap?.();
+								},
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "📱"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Mostrar código QR" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Abre el QR en pantalla para escanear cara a cara con la cámara" })
+										]
+									})
+								]
+							}),
+							/* 2. Compartir enlace */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn destacado",
+								onClick: async () => {
+									const baseUrl = (typeof window !== "undefined" && window.location)
+										? `${window.location.origin}${window.location.pathname}`
+										: "https://lumenreader.app/";
+									const params = new URLSearchParams();
+									params.set("b", book.id || "");
+									if (book.title) params.set("t", book.title);
+									if (book.author) params.set("a", book.author);
+									if (book.fileUrl) params.set("f", book.fileUrl);
+									if (book.portada && /^https?:\/\//i.test(book.portada)) params.set("c", book.portada);
+									const shortUrl = `${baseUrl}?${params.toString()}`;
+									if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(shortUrl);
+									if (navigator.share) {
+										try {
+											await navigator.share({ title: book.title || "Libro en Lumen", url: shortUrl });
+											return;
+										} catch (err) {
+											if (err?.name === "AbortError") return;
+										}
+									}
+									haptic$1.success?.();
+									toast?.("🔗 Enlace copiado. ¡Pégalo en el buscador de Lumen Store para abrir el libro!");
+								},
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "🔗"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: "Compartir enlace" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Enlace web directo. Pégalo en el buscador de Lumen Store para abrirlo de inmediato" })
+										]
+									})
+								]
+							}),
+							/* 3. Enviar archivo .lumen */
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+								className: "pb-compartir-btn",
+								disabled: lumenBusy,
+								onClick: async () => {
+									try {
+										setLumenBusy(true);
+										toast?.("Preparando el archivo .lumen con todo tu contenido…");
+										const r = await exportarLumenPersonal(book);
+										const compartido = await compartirArchivoLumen(r.blob, r.nombre);
+										haptic$1.success?.();
+										toast?.((compartido ? "Compartido: " : "Descargado: ") + r.nombre);
+									} catch (e) {
+										toast?.("Error al preparar el .lumen: " + (e.message || e));
+									} finally {
+										setLumenBusy(false);
+									}
+								},
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+										className: "pb-compartir-ico",
+										children: "📦"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "pb-compartir-info",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: lumenBusy ? "Empaquetando…" : "Enviar archivo .lumen" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: "Paquete completo con notas, páginas, marcador y música listo para leer" })
+										]
+									})
+								]
+							})
+						]
+					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
@@ -54820,673 +55538,712 @@ filtroImg === "sinfondo" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", 
 			/* @__PURE__ */ (0, import_jsx_runtime.jsxs)(Sheet, {
 				open: sheet === "settings",
 				onClose: closeSheet,
-				title: "Lectura",
+				title: "📖 Apariencia y Lectura",
 				children: [
-					// v174 (P3): auto-scroll movido del cluster flotante a este panel (arriba).
-					//   Solo Texto y Original: en Imágenes el efecto no hace nada, así que se oculta.
-					mode !== "imagenes" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+					/* ACORDEÓN 1: Tipografía y Texto (Abierto por defecto) */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "rd-aj-acordeon",
+						open: true,
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "section-title",
-								style: { margin: "2px 4px 8px" },
-								children: "Auto-scroll"
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Leer automáticamente" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "La página avanza sola · Texto y Original" })
-									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-										className: "btn sm" + (autoScrollOn ? " on" : ""),
-										"aria-label": autoScrollOn ? "Pausar el auto-scroll" : "Iniciar el auto-scroll",
-										onClick: () => {
-											const activar = !autoScrollOn;
-											setAutoScrollOn(activar);
-											if (activar) closeSheet();
-											else detenerCargaPg();
-											haptic$1.success?.();
-										},
-										children: autoScrollOn ? "⏸ Pausar" : "▶ Iniciar"
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Velocidad" }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										className: "as-vel",
-										children: [0.5, 1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-											key: v,
-											className: "as-vel-b" + (autoVel === v ? " on" : ""),
-											onClick: () => { setAutoVel(v); haptic$1.tap?.(); },
-											children: v === 0.5 ? "0.5" : v
-										}, v))
-									})
-								]
-							}),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "as-preview-wrap",
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+								className: "rd-aj-summary",
 								children: [
 									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-										className: "as-preview-header",
+										className: "rd-aj-sum-left",
 										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📜 Vista previa de velocidad" }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
-												className: "as-preview-tag",
-												children: [autoVel === 0.5 ? "0.5" : autoVel, "x · ", { 0.5: 6, 1: 12, 2: 26, 3: 48, 4: 90, 5: 150 }[autoVel] || 26, " px/s"]
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-icon", children: "🔤" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-title", children: "Tipografía y Texto" })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-arrow", children: "▼" })
+								]
+							}),
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+								className: "rd-aj-cuerpo",
+								children: [
+									/* Vista previa en tiempo real */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rd-live-preview",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "rd-live-preview-head",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "👁️ Vista previa en tiempo real" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", { children: [settings.fontSize || 18, "px · ", settings.fontFamily || "sans"] })
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "rd-live-preview-box",
+												style: {
+													fontSize: (settings.fontSize || 18) + "px",
+													lineHeight: settings.lineHeight || 1.6,
+													color: settings.textColor || "inherit",
+													fontFamily: settings.fontFamily === "serif" ? "serif" : settings.fontFamily === "mono" ? "monospace" : settings.fontFamily === "dyslexic" ? "OpenDyslexic, sans-serif" : "inherit"
+												},
+												children: "En un lugar de la Mancha, de cuyo nombre no quiero acordarme, no ha mucho tiempo que vivía un hidalgo de los de lanza en astillero, adarga antigua, rocín flaco y galgo corredor."
 											})
 										]
 									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-										ref: asPreviewRef,
-										className: "as-preview-box",
-										children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-											className: "as-preview-text",
-											children: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat."
-										})
+									/* Tamaño de letra */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Tamaño de letra"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row-sub",
+											children: [settings.fontSize, "px"]
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 14,
+											max: 48,
+											value: settings.fontSize,
+											onChange: (e) => setSettings({ fontSize: Number(e.target.value) })
+										})]
+									}),
+									/* Tipografía */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Tipografía"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+											className: "plain",
+											value: settings.fontFamily,
+											onChange: (e) => setSettings({ fontFamily: e.target.value }),
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "serif",
+													children: "Serif"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "sans",
+													children: "Sans"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "dyslexic",
+													children: "Alta legibilidad"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "mono",
+													children: "Monoespaciada"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "lectura",
+													disabled: !conPremio,
+													children: conPremio ? "🎁 Lectura" : "🔒 Lectura"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "humanista",
+													disabled: !conPremio,
+													children: conPremio ? "🎁 Humanista" : "🔒 Humanista"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "maquina",
+													disabled: !conPremio,
+													children: conPremio ? "🎁 Máquina" : "🔒 Máquina"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("optgroup", {
+													label: esPremium ? "👑 Premium" : "🔒 Con Lumen Premium",
+													children: FUENTES_PREMIUM_EXTRA.map(([id, nombre, desc]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+														value: id,
+														disabled: !esPremium,
+														title: desc,
+														children: esPremium ? nombre : `🔒 ${nombre}`
+													}, id))
+												})
+											]
+										})]
+									}),
+									/* Color de la letra */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Color de la letra"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "letra-colores",
+											children: [["", "Automático", "linear-gradient(135deg, #9aa0aa, #565b66)"], ["#ffffff", "Blanco", "#ffffff"], ["#f1e3c3", "Crema", "#f1e3c3"], ["#e8b96b", "Ámbar", "#e8b96b"], ["#9fe6a0", "Verde", "#9fe6a0"], ["#9ec9ff", "Azul", "#9ec9ff"], ["#ffb3d9", "Rosa", "#ffb3d9"], ["#14161b", "Negro", "#14161b"]].map(([val, nom, col]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+												className: "letra-swatch" + ((settings.textColor || "") === val ? " on" : ""),
+												title: nom,
+												"aria-label": nom,
+												style: { background: col },
+												onClick: () => setSettings({ textColor: val })
+											}, val))
+										})]
+									}),
+									/* Interlineado */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Interlineado"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 1.2,
+											max: 2.6,
+											step: .05,
+											value: settings.lineHeight,
+											onChange: (e) => setSettings({ lineHeight: Number(e.target.value) })
+										})]
+									}),
+									/* Márgenes */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Márgenes"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 8,
+											max: 54,
+											value: settings.margin,
+											onChange: (e) => setSettings({ margin: Number(e.target.value) })
+										})]
+									}),
+									/* Letra de menús */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Letra de menús y controles"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row-sub",
+											children: ["Ajustes y barra rd-tools (", settings.letraAjustesMenu || 14, " px)"]
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 11,
+											max: 22,
+											step: 1,
+											value: settings.letraAjustesMenu || 14,
+											onChange: (e) => {
+												const val = Number(e.target.value);
+												setSettings({ letraAjustesMenu: val });
+												document.documentElement.style.setProperty("--font-size-ajustes", val + "px");
+												document.documentElement.style.setProperty("--font-size-tools", Math.round(val * 0.78 * 10) / 10 + "px");
+											}
+										})]
 									})
 								]
 							})
 						]
 					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "section-title",
-						style: { margin: "16px 4px 8px" },
-						children: "Texto"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tamaño de letra"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: [settings.fontSize, "px"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 14,
-							max: 40,
-							value: settings.fontSize,
-							max: 48,
-							onChange: (e) => setSettings({ fontSize: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Letra de menús y barra de lectura"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: ["Ajustes y barra rd-tools (", settings.letraAjustesMenu || 14, " px)"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 11,
-							max: 22,
-							step: 1,
-							value: settings.letraAjustesMenu || 14,
-							onChange: (e) => {
-								const val = Number(e.target.value);
-								setSettings({ letraAjustesMenu: val });
-								document.documentElement.style.setProperty("--font-size-ajustes", val + "px");
-								document.documentElement.style.setProperty("--font-size-tools", Math.round(val * 0.78 * 10) / 10 + "px");
-							}
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Interlineado"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 1.2,
-							max: 2.6,
-							step: .05,
-							value: settings.lineHeight,
-							onChange: (e) => setSettings({ lineHeight: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Márgenes"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 8,
-							max: 54,
-							value: settings.margin,
-							onChange: (e) => setSettings({ margin: Number(e.target.value) })
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Tipografía"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							className: "plain",
-							value: settings.fontFamily,
-							onChange: (e) => setSettings({ fontFamily: e.target.value }),
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "serif",
-									children: "Serif"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "sans",
-									children: "Sans"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "dyslexic",
-									children: "Alta legibilidad"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "mono",
-									children: "Monoespaciada"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "lectura",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Lectura" : "🔒 Lectura"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "humanista",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Humanista" : "🔒 Humanista"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "maquina",
-									disabled: !conPremio,
-									children: conPremio ? "🎁 Máquina" : "🔒 Máquina"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("optgroup", {
-									label: esPremium ? "👑 Premium" : "🔒 Con Lumen Premium",
-									children: FUENTES_PREMIUM_EXTRA.map(([id, nombre, desc]) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: id,
-										disabled: !esPremium,
-										title: desc,
-										children: esPremium ? nombre : `🔒 ${nombre}`
-									}, id))
-								})
-							]
-						})]
-					}),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-label",
-								children: "Color de la letra"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "letra-colores",
-								children: [["", "Automático", "linear-gradient(135deg, #9aa0aa, #565b66)"], ["#ffffff", "Blanco", "#ffffff"], ["#f1e3c3", "Crema", "#f1e3c3"], ["#e8b96b", "Ámbar", "#e8b96b"], ["#9fe6a0", "Verde", "#9fe6a0"], ["#9ec9ff", "Azul", "#9ec9ff"], ["#ffb3d9", "Rosa", "#ffb3d9"], ["#14161b", "Negro", "#14161b"]].map(([val, nom, col]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-									className: "letra-swatch" + ((settings.textColor || "") === val ? " on" : ""),
-									title: nom,
-									"aria-label": nom,
-									style: { background: col },
-									onClick: () => setSettings({ textColor: val })
-								}, val))
-							})]
-						}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Contar página tras"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Segundos en pantalla para sumar a la racha"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-							className: "plain",
-							value: settings.countSeconds,
-							onChange: (e) => setSettings({ countSeconds: Number(e.target.value) }),
-							children: [
-								2,
-								4,
-								8,
-								15,
-								30
-							].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
-								value: s,
-								children: [s, "s"]
-							}, s))
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "section-title",
-						style: { margin: "2px 4px 8px" },
-						children: "Apariencia de la lectura"
-					}),
-					/* v175 (#8): «Colores de la página» movido aquí (antes era rb-fx en la
-					   barra superior). Abre la hoja compacta de filtros y recorte. */
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Colores de la página"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Brillo, contraste y área de impresión"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm",
-							style: { whiteSpace: "nowrap" },
-							onClick: () => { closeSheet(); setHojaImg(true); haptic$1.tap(); }, // v218 (#5): abrir colores cierra el menú
-							children: "Abrir"
-						})]
-					}),
-					/* v218 (#4): botones flotantes «Ver texto / Ver imagen» activables */
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Botones flotantes Texto / Imagen"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "«📄 Ver texto» y «Ver la imagen original» sobre la barra inferior"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm" + (settings.fabsLectura !== false ? " primary" : ""),
-							style: { whiteSpace: "nowrap" },
-							"aria-pressed": settings.fabsLectura !== false,
-							onClick: () => { setSettings({ fabsLectura: settings.fabsLectura === false }); haptic$1.tap(); },
-							children: settings.fabsLectura !== false ? "Activados" : "Desactivados"
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Fondo de este libro"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Foto o GIF · se guarda sólo en este libro"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm",
-							onClick: () => fondoLibroRef.current?.click(),
-							children: fFondo ? "Cambiar" : "Elegir"
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-						ref: fondoLibroRef,
-						type: "file",
-						accept: "image/*,image/gif",
-						hidden: true,
-						onChange: async (e) => {
-							olvidarPreferenciaFondo();
-							const f = e.target.files?.[0];
-							e.target.value = "";
-							if (!f) return;
-							try {
-								const datos = await leerFondo(f);
-								await patchBook(bookId, { fondo: datos, fondoAnimado: null });
-								setBook((b) => b ? { ...b, fondo: datos, fondoAnimado: null } : b);
-								haptic$1.success();
-								toast?.("Fondo guardado · sólo para este libro");
-							} catch {
-								toast?.("No se pudo leer la imagen");
-							}
-						}
-					}),
-					fFondo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-label",
-								children: "Cómo se ajusta"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-								className: "plain",
-								value: fAjuste || "cover",
-								onChange: async (e) => {
-									const vAjuste = e.target.value;
-									await patchBook(bookId, { fondoAjuste: vAjuste });
-									setBook((b) => b ? { ...b, fondoAjuste: vAjuste } : b);
-								},
+
+					/* ACORDEÓN 2: Tema y Fondo */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "rd-aj-acordeon",
+						children: [
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+								className: "rd-aj-summary",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: "cover",
-										children: "Recortar para llenar"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: "contain",
-										children: "Entera, sin recortar"
-									}),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: "tile",
-										children: "Mosaico"
-									})
-								]
-							})]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "row-label",
-								children: "Oscurecido"
-							}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row-sub",
-								children: [fVelo, "%"]
-							})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-								className: "plain",
-								type: "range",
-								min: 0,
-								max: 90,
-								step: 5,
-								value: fVelo,
-								onChange: async (e) => {
-									const vVelo = Number(e.target.value);
-									await patchBook(bookId, { fondoVelo: vVelo });
-									setBook((b) => b ? { ...b, fondoVelo: vVelo } : b);
-							
-								}
-							})]
-						}),
-						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
-							className: "btn sm ghost",
-							style: {
-								width: "100%",
-								marginBottom: 10,
-								color: "var(--danger)"
-							},
-							onClick: async () => {
-								await patchBook(bookId, { fondo: null, fondoAnimado: null });
-								setBook((b) => b ? { ...b, fondo: null, fondoAnimado: null } : b);
-								toast?.("Fondo quitado · vuelve el del tema");
-							},
-							children: "Quitar el fondo"
-						})
-					] }),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Fondo animado"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							className: "plain",
-							value: (book?.fondoAnimado ?? aspecto?.fondoAnimado) || "",
-						onChange: async (e) => {
-							const vFondo = e.target.value || null;
-							await patchBook(bookId, { fondoAnimado: vFondo, fondo: null });
-							setBook((b) => b ? { ...b, fondoAnimado: vFondo, fondo: null } : b);
-							haptic$1.tap();
-							toast?.(vFondo ? "Fondo animado para este libro ✨" : "Fondo animado quitado");
-						},
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-								value: "",
-								children: "Ninguno"
-							}), FONDOS_ANIMADOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-								value: f.id,
-								children: f.nombre
-							}, f.id))]
-						})]
-					}),
-					// v146: «Oscurecido» también con FONDO ANIMADO (antes solo con foto)
-					fAnim && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Oscurecido"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "row-sub",
-							children: [fVelo, "%"]
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-							className: "plain",
-							type: "range",
-							min: 0,
-							max: 90,
-							step: 5,
-							value: fVelo,
-							onChange: async (e) => {
-								const vVelo = Number(e.target.value);
-								await patchBook(bookId, { fondoVelo: vVelo });
-								setBook((b) => b ? { ...b, fondoVelo: vVelo } : b);
-							}
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Filtro de luz azul"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Tono cálido para leer de noche"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							on: !!aspecto?.luzAzul,
-							onChange: async (v) => {
-								const { saveAspecto, aplicarLuzAzul } = await __vitePreload(async () => {
-									const { saveAspecto, aplicarLuzAzul } = await Promise.resolve().then(() => aspecto_exports);
-									return {
-										saveAspecto,
-										aplicarLuzAzul
-									};
-								}, void 0, import.meta.url);
-								const a = await saveAspecto({ luzAzul: v });
-								setAspecto(a);
-								aplicarLuzAzul(a.luzAzul, a.luzAzulNivel);
-							}
-						})]
-					}),
-						/* v174 (P2): el tema ya no es un <select> simple: rejilla de muestras de color
-						   (mismo estilo «bonito» que el panel Ajustes: .temas-grid / .tema-card). */
-						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-							className: "tema-bloque",
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", style: { marginBottom: 8 }, children: "Tema" }),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "temas-grid",
-									children: TEMAS.filter((t) => t.gratis || esPremium).map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										key: t.id,
-										className: "tema-card" + (settings.theme === t.id ? " on" : ""),
-										title: t.nombre,
-										"aria-label": "Tema " + t.nombre,
-										onClick: () => { setSettings({ theme: t.id }); haptic$1.tap?.(); },
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rd-aj-sum-left",
 										children: [
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "tema-muestra", style: { background: `linear-gradient(135deg, ${t.muestra[0]} 52%, ${t.muestra[1]} 52%)` } }),
-											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.nombre })
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-icon", children: "🎨" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-title", children: "Tema y Fondo" })
 										]
-									}, t.id))
-								})
-							]
-						}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Mantener pantalla encendida" }),
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Evita que la pantalla se apague mientras lees" })
-						] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							on: settings.mantenerPantallaEncendida !== false,
-							onChange: async (v) => {
-								await setSettings({ mantenerPantallaEncendida: v });
-								haptic$1.tap?.();
-								toast?.(v ? "🔆 Pantalla siempre encendida al leer" : "Suspensión de pantalla normal");
-							}
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Sacudir para pausar la voz"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Sólo con movimientos bruscos"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-							on: settings.shakeTts !== false,
-							onChange: (v) => setSettings({ shakeTts: v })
-						})]
-					}),
-					settings.shakeTts !== false && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Aviso del gesto"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: settings.avisoGesto === "siempre" ? "Se ve mientras suene algo" : settings.avisoGesto === "nunca" ? "Oculto dentro de la app; al salir, Android obliga a mostrarlo" : "Sólo cuando sales de la app"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
-							className: "plain",
-							value: settings.avisoGesto || "fuera",
-							onChange: (e) => {
-								setSettings({ avisoGesto: e.target.value });
-								__vitePreload(() => import("./audioGesto-CI5uL79N.js").then((m) => m.fijarModoAviso(e.target.value)), __vite__mapDeps([9,2,1,7]), import.meta.url).catch(() => {});
-							},
-							children: [
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "siempre",
-									children: "Siempre"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "fuera",
-									children: "Fuera de la app"
-								}),
-								/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-									value: "nunca",
-									children: "Nunca"
-								})
-							]
-						})]
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-						className: "section-title",
-						style: { margin: "16px 4px 8px" },
-						children: "🎵 Música"
-					}),
-					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-						className: "row",
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-label",
-							children: "Música de lectura"
-						}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-							className: "row-sub",
-							children: "Enciende o para la música mientras lees este libro · independiente de la de inicio"
-						})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
-						on: !!book?.musicOnOpen,
-						onChange: async (v) => {
-							await patchBook(bookId, { musicOnOpen: v });
-							setBook((b) => b ? { ...b, musicOnOpen: v } : b);
-							haptic$1.tap();
-								// v158: enciende / para la música YA (antes solo afectaba al reabrir el libro)
-								try {
-									if (v) {
-										const sL = book.musicScene || settings.musicScene || "lluvia";
-										const vL = book.musicVolume ?? settings.musicVolume ?? .35;
-										const rM = play(sL, vL);
-										if (rM && typeof rM.then === "function") rM.catch(() => {});
-										musicUserTriggered.current = true;
-										window.__lumenMusicaLectura = bookId;
-									} else {
-										window.__lumenMusicaLectura = null;
-										stop();
-									}
-								} catch {}
-						}
-						})]
-					}),
-							!!book?.musicOnOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "row-label",
-									children: "Canción"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "row-sub",
-									children: "La que suena mientras lees este libro"
-									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
-									className: "plain",
-									value: book.musicScene || settings.musicScene || "lluvia",
-									onChange: async (e) => {
-										const id = e.target.value;
-										await patchBook(bookId, { musicScene: id });
-										setBook((b) => b ? { ...b, musicScene: id } : b);
-										haptic$1.tap();
-										try {
-										const vL = book.musicVolume ?? settings.musicVolume ?? .35;
-										const rM = play(id, vL);
-										if (rM && typeof rM.then === "function") rM.catch(() => {});
-										} catch {}
-										},
-									children: [SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
-										value: sc.id,
-										children: sc.icon + " " + sc.name
-										}, sc.id)), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "select" })]
-									})]
-								}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
-								children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "row-label",
-									children: "Volumen"
-									}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-									className: "row-sub",
-									children: "Suena junto a la voz si lees en voz alta"
-									})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
-									className: "plain",
-									type: "range",
-									min: 0,
-									max: 1.5,
-									step: .05,
-									value: book.musicVolume ?? settings.musicVolume ?? .35,
-									onChange: async (e) => {
-										const vL = Number(e.target.value);
-										await patchBook(bookId, { musicVolume: vL });
-										setBook((b) => b ? { ...b, musicVolume: vL } : b);
-										try {
-										setVolume(vL);
-										} catch {}
-										}
-									})]
-								})]
-							}),
-					// v177 (#3): "Desplazamiento" vive en Lectura (antes estaba en Herramientas).
-					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
-						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "section-title",
-								style: { margin: "2px 4px 8px" },
-								children: "Desplazamiento"
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-arrow", children: "▼" })
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
+								className: "rd-aj-cuerpo",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Cómo te mueves" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Scroll, lateral, libro o fijo" })
+									/* Rejilla de temas */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "tema-bloque",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", style: { marginBottom: 8 }, children: "Tema de lectura" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "temas-grid",
+												children: TEMAS.filter((t) => t.gratis || esPremium).map((t) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
+													key: t.id,
+													className: "tema-card" + (settings.theme === t.id ? " on" : ""),
+													title: t.nombre,
+													"aria-label": "Tema " + t.nombre,
+													onClick: () => { setSettings({ theme: t.id }); haptic$1.tap?.(); },
+													children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "tema-muestra", style: { background: `linear-gradient(135deg, ${t.muestra[0]} 52%, ${t.muestra[1]} 52%)` } }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("b", { children: t.nombre })
+													]
+												}))
+											})
+										]
+									}),
+									/* Colores de página */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Colores de la página"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Brillo, contraste y área de impresión"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn sm",
+											style: { whiteSpace: "nowrap" },
+											onClick: () => { closeSheet(); setHojaImg(true); haptic$1.tap(); },
+											children: "🎨 Ajustar"
+										})]
+									}),
+									/* Filtro de luz azul */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Filtro de luz azul"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Tono cálido para leer de noche"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+											on: !!aspecto?.luzAzul,
+											onChange: async (v) => {
+												const { saveAspecto, aplicarLuzAzul } = await __vitePreload(async () => {
+													const { saveAspecto, aplicarLuzAzul } = await Promise.resolve().then(() => aspecto_exports);
+													return {
+														saveAspecto,
+														aplicarLuzAzul
+													};
+												}, void 0, import.meta.url);
+												const a = await saveAspecto({ luzAzul: v });
+												setAspecto(a);
+												aplicarLuzAzul(a.luzAzul, a.luzAzulNivel);
+											}
+										})]
+									}),
+									/* Fondo de este libro */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Fondo de este libro"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Foto o GIF · se guarda sólo en este libro"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn sm",
+											onClick: () => fondoLibroRef.current?.click(),
+											children: fFondo ? "Cambiar" : "Elegir foto"
+										})]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+										ref: fondoLibroRef,
+										type: "file",
+										accept: "image/*,image/gif",
+										hidden: true,
+										onChange: async (e) => {
+											olvidarPreferenciaFondo();
+											const f = e.target.files?.[0];
+											e.target.value = "";
+											if (!f) return;
+											try {
+												const datos = await leerFondo(f);
+												await patchBook(bookId, { fondo: datos, fondoAnimado: null });
+												setBook((b) => b ? { ...b, fondo: datos, fondoAnimado: null } : b);
+												haptic$1.success();
+												toast?.("Fondo guardado · sólo para este libro");
+											} catch {
+												toast?.("No se pudo leer la imagen");
+											}
+										}
+									}),
+									fFondo && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-label",
+												children: "Cómo se ajusta"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+												className: "plain",
+												value: fAjuste || "cover",
+												onChange: async (e) => {
+													const vAjuste = e.target.value;
+													await patchBook(bookId, { fondoAjuste: vAjuste });
+													setBook((b) => b ? { ...b, fondoAjuste: vAjuste } : b);
+												},
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+														value: "cover",
+														children: "Recortar para llenar"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+														value: "contain",
+														children: "Entera, sin recortar"
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+														value: "tile",
+														children: "Mosaico"
+													})
+												]
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-label",
+												children: "Oscurecido"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "row-sub",
+												children: [fVelo, "%"]
+											})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												className: "plain",
+												type: "range",
+												min: 0,
+												max: 90,
+												step: 5,
+												value: fVelo,
+												onChange: async (e) => {
+													const vVelo = Number(e.target.value);
+													await patchBook(bookId, { fondoVelo: vVelo });
+													setBook((b) => b ? { ...b, fondoVelo: vVelo } : b);
+												}
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn sm ghost",
+											style: {
+												width: "100%",
+												marginBottom: 10,
+												color: "var(--danger)"
+											},
+											onClick: async () => {
+												await patchBook(bookId, { fondo: null, fondoAnimado: null });
+												setBook((b) => b ? { ...b, fondo: null, fondoAnimado: null } : b);
+												toast?.("Fondo quitado · vuelve el del tema");
+											},
+											children: "Quitar el fondo"
+										})
 									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
-										className: "btn sm",
-										onClick: () => { haptic$1.tap(); setSheet("desp"); },
-										children: DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "Scroll"
+									/* Fondo animado */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Fondo animado"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+											className: "plain",
+											value: (book?.fondoAnimado ?? aspecto?.fondoAnimado) || "",
+											onChange: async (e) => {
+												const vFondo = e.target.value || null;
+												await patchBook(bookId, { fondoAnimado: vFondo, fondo: null });
+												setBook((b) => b ? { ...b, fondoAnimado: vFondo, fondo: null } : b);
+												haptic$1.tap();
+												toast?.(vFondo ? "Fondo animado para este libro ✨" : "Fondo animado quitado");
+											},
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+												value: "",
+												children: "Ninguno"
+											}), FONDOS_ANIMADOS.map((f) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+												value: f.id,
+												children: f.nombre
+											}, f.id))]
+										})]
+									}),
+									fAnim && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Oscurecido fondo animado"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row-sub",
+											children: [fVelo, "%"]
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+											className: "plain",
+											type: "range",
+											min: 0,
+											max: 90,
+											step: 5,
+											value: fVelo,
+											onChange: async (e) => {
+												const vVelo = Number(e.target.value);
+												await patchBook(bookId, { fondoVelo: vVelo });
+												setBook((b) => b ? { ...b, fondoVelo: vVelo } : b);
+											}
+										})]
 									})
 								]
 							})
 						]
 					}),
-					/* v177 (#8): el texto seleccionable de Original es OPCIONAL (default OFF = más rápido). */
-					(0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+
+					/* ACORDEÓN 3: Lectura y Navegación */
+					/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("details", {
+						className: "rd-aj-acordeon",
 						children: [
-							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
-								className: "section-title",
-								style: { margin: "2px 4px 8px" },
-								children: "Velocidad"
+							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("summary", {
+								className: "rd-aj-summary",
+								children: [
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "rd-aj-sum-left",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-icon", children: "⚙️" }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-title", children: "Lectura y Navegación" })
+										]
+									}),
+									/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { className: "rd-aj-sum-arrow", children: "▼" })
+								]
 							}),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
-								className: "row",
+								className: "rd-aj-cuerpo",
 								children: [
-									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Texto en Original" }),
-										/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Apagado: Original no monta el texto y carga mucho más rápido en PDFs largos. Encendido: puedes seleccionar y copiar texto." })
+									/* Auto-scroll */
+									mode !== "imagenes" && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, {
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "row",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Auto-scroll (Lectura continua)" }),
+														/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Avanza suavemente solo · Texto y Original" })
+													] }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+														className: "btn sm" + (autoScrollOn ? " on" : ""),
+														"aria-label": autoScrollOn ? "Pausar el auto-scroll" : "Iniciar el auto-scroll",
+														onClick: () => {
+															const activar = !autoScrollOn;
+															setAutoScrollOn(activar);
+															if (activar) closeSheet();
+															else detenerCargaPg();
+															haptic$1.success?.();
+														},
+														children: autoScrollOn ? "⏸ Pausar" : "▶ Iniciar"
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "row",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Velocidad auto-scroll" }),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+														className: "as-vel",
+														children: [0.5, 1, 2, 3, 4, 5].map((v) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+															key: v,
+															className: "as-vel-b" + (autoVel === v ? " on" : ""),
+															onClick: () => { setAutoVel(v); haptic$1.tap?.(); },
+															children: v === 0.5 ? "0.5" : v
+														}, v))
+													})
+												]
+											}),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+												className: "as-preview-wrap",
+												children: [
+													/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+														className: "as-preview-header",
+														children: [
+															/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { children: "📜 Vista previa de velocidad" }),
+															/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+																className: "as-preview-tag",
+																children: [autoVel === 0.5 ? "0.5" : autoVel, "x · ", { 0.5: 6, 1: 12, 2: 26, 3: 48, 4: 90, 5: 150 }[autoVel] || 26, " px/s"]
+															})
+														]
+													}),
+													/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+														ref: asPreviewRef,
+														className: "as-preview-box",
+														children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+															className: "as-preview-text",
+															children: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
+														})
+													})
+												]
+											})
+										]
+									}),
+									/* Desplazamiento */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Modo de desplazamiento" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Scroll vertical, horizontal, libro o fijo" })
+											] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+												className: "btn sm",
+												onClick: () => { haptic$1.tap(); setSheet("desp"); },
+												children: DESP_OPCIONES.find((o) => o[0] === desp)?.[1] || "Scroll"
+											})
+										]
+									}),
+									/* Botones flotantes Texto / Imagen */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Botones flotantes Texto / Imagen"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Acceso rápido sobre la barra inferior"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+											className: "btn sm" + (settings.fabsLectura !== false ? " primary" : ""),
+											style: { whiteSpace: "nowrap" },
+											"aria-pressed": settings.fabsLectura !== false,
+											onClick: () => { setSettings({ fabsLectura: settings.fabsLectura === false }); haptic$1.tap(); },
+											children: settings.fabsLectura !== false ? "Activados" : "Desactivados"
+										})]
+									}),
+									/* Contar página tras */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Contar página tras"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Segundos en pantalla para sumar a la racha"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("select", {
+											className: "plain",
+											value: settings.countSeconds,
+											onChange: (e) => setSettings({ countSeconds: Number(e.target.value) }),
+											children: [
+												2,
+												4,
+												8,
+												15,
+												30
+											].map((s) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("option", {
+												value: s,
+												children: [s, "s"]
+											}, s))
+										})]
+									}),
+									/* Aviso de audio */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Aviso de audio"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: settings.avisoGesto === "siempre" ? "Se ve mientras suene algo" : settings.avisoGesto === "nunca" ? "Oculto dentro de la app" : "Sólo al salir de la app"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+											className: "plain",
+											value: settings.avisoGesto || "fuera",
+											onChange: (e) => {
+												setSettings({ avisoGesto: e.target.value });
+												__vitePreload(() => import("./audioGesto-CI5uL79N.js").then((m) => m.fijarModoAviso(e.target.value)), __vite__mapDeps([9,2,1,7]), import.meta.url).catch(() => {});
+											},
+											children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "siempre",
+													children: "Siempre"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "fuera",
+													children: "Fuera de la app"
+												}),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: "nunca",
+													children: "Nunca"
+												})
+											]
+										})]
+									}),
+									/* Música de lectura */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-label",
+											children: "Música de lectura"
+										}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+											className: "row-sub",
+											children: "Música ambiental relajante para este libro"
+										})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, {
+											on: !!book?.musicOnOpen,
+											onChange: async (v) => {
+												await patchBook(bookId, { musicOnOpen: v });
+												setBook((b) => b ? { ...b, musicOnOpen: v } : b);
+												haptic$1.tap();
+												try {
+													if (v) {
+														const sL = book.musicScene || settings.musicScene || "lluvia";
+														const vL = book.musicVolume ?? settings.musicVolume ?? .35;
+														const rM = play(sL, vL);
+														if (rM && typeof rM.then === "function") rM.catch(() => {});
+														musicUserTriggered.current = true;
+														window.__lumenMusicaLectura = bookId;
+													} else {
+														window.__lumenMusicaLectura = null;
+														stop();
+													}
+												} catch {}
+											}
+										})]
+									}),
+									!!book?.musicOnOpen && /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-label",
+												children: "Canción"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-sub",
+												children: "Ambiente seleccionado"
+											})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("select", {
+												className: "plain",
+												value: book.musicScene || settings.musicScene || "lluvia",
+												onChange: async (e) => {
+													const id = e.target.value;
+													await patchBook(bookId, { musicScene: id });
+													setBook((b) => b ? { ...b, musicScene: id } : b);
+													haptic$1.tap();
+													try {
+														const vL = book.musicVolume ?? settings.musicVolume ?? .35;
+														const rM = play(id, vL);
+														if (rM && typeof rM.then === "function") rM.catch(() => {});
+													} catch {}
+												},
+												children: [SCENES.map((sc) => /* @__PURE__ */ (0, import_jsx_runtime.jsx)("option", {
+													value: sc.id,
+													children: sc.icon + " " + sc.name
+												}, sc.id)), (0, import_jsx_runtime.jsx)(MusuOpciones, { tipo: "select" })]
+											})]
+										}),
+										/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+											className: "row",
+											children: [/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-label",
+												children: "Volumen de música"
+											}), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
+												className: "row-sub",
+												children: "Nivel de audio de fondo"
+											})] }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("input", {
+												className: "plain",
+												type: "range",
+												min: 0,
+												max: 1.5,
+												step: .05,
+												value: book.musicVolume ?? settings.musicVolume ?? .35,
+												onChange: async (e) => {
+													const vL = Number(e.target.value);
+													await patchBook(bookId, { musicVolume: vL });
+													setBook((b) => b ? { ...b, musicVolume: vL } : b);
+													try {
+														setVolume(vL);
+													} catch {}
+												}
+											})]
+										})
 									] }),
-									/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, { on: !!settings.origTexto, onChange: (v) => setSettings({ origTexto: v }) })
+									/* Texto seleccionable en Original */
+									/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
+										className: "row",
+										children: [
+											/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", { children: [
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-label", children: "Texto seleccionable en Original" }),
+												/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "row-sub", children: "Permite seleccionar y copiar texto en PDFs" })
+											] }),
+											/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Switch, { on: !!settings.origTexto, onChange: (v) => setSettings({ origTexto: v }) })
+										]
+									})
 								]
 							})
 						]
-					}),
+					})
 				]
 			}),
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Sheet, {
@@ -57126,7 +57883,11 @@ function App() {
 				letraAjustesMenu: 14,
 				mantenerPantallaEncendida: true,
 				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || "left",
-				fabPos: localStorage.getItem("lumen_fab_pos") || "right"
+				fabPos: localStorage.getItem("lumen_fab_pos") || "right",
+				storyCircleSize: 60,
+				bookCoverSize: 68,
+				libraryViewMode: "lista",
+				defaultCoverStyle: "cosmos"
 			};
 			setSettingsState(s ? {
 				sidebarPos: localStorage.getItem("lumen_sidebar_pos") || s.sidebarPos || "left",

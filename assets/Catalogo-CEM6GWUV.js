@@ -2896,7 +2896,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 														if (parsed?.id || parsed?.mag) {
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(parsed.id || parsed.mag, parsed);
+															resolverYMostrarLibro(parsed.id || parsed.mag, parsed, true);
 															return;
 														}
 														setLgQ(val);
@@ -2914,7 +2914,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 															e.preventDefault();
 															setLgQ("");
 															setSugVisible(false);
-															resolverYMostrarLibro(parsed.id || parsed.mag, parsed);
+															resolverYMostrarLibro(parsed.id || parsed.mag, parsed, true);
 															return;
 														}
 													}
@@ -2958,7 +2958,7 @@ const cargar = (0, import_react.useCallback)(async () => {
 														if (parsed?.id) {
 															e.preventDefault();
 															setLgQ("");
-															resolverYMostrarLibro(parsed.id, parsed);
+															resolverYMostrarLibro(parsed.id, parsed, true);
 															return;
 														}
 														if (lgUrlAbierto || /^https?:\/\//i.test((lgQ || "").trim())) {

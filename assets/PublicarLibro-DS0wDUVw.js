@@ -74,9 +74,18 @@ var PASOS = [
 function PasoPuntos({ paso }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 		className: "pb-pasos",
-		children: PASOS.map(([n, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+		children: PASOS.map(([n, et]) => /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 			className: "pb-paso" + (Number(n) === paso ? " on" : Number(n) < paso ? " hecho" : ""),
-			children: [Number(n) < paso ? "✓" : n, /* @__PURE__ */ (0, import_jsx_runtime.jsx)("small", { children: et })]
+			children: [
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "pb-paso-num",
+					children: Number(n) < paso ? "✓" : n
+				}),
+				/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+					className: "pb-paso-label",
+					children: et
+				})
+			]
 		}, n))
 	});
 }
